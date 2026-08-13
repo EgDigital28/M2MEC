@@ -16,14 +16,12 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    setMessage(null);
 
     if (mode === "signup" && password !== confirmPassword) {
       setError("Passwords do not match.");
@@ -55,24 +53,23 @@ export function AuthForm({ mode }: AuthFormProps) {
       return;
     }
 
+    const redirectTo = `${window.location.origin}/auth/callback?next=/email-verified`;
+
     const { error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: redirectTo,
       },
     });
 
-    setLoading(false);
-
     if (signUpError) {
       setError(signUpError.message);
+      setLoading(false);
       return;
     }
 
-    setMessage(
-      "Account created. Check your email to confirm your address, then log in.",
-    );
+    router.push(`/check-email?email=${encodeURIComponent(email)}`);
   }
 
   return (
@@ -136,12 +133,6 @@ export function AuthForm({ mode }: AuthFormProps) {
       {error && (
         <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
           {error}
-        </p>
-      )}
-
-      {message && (
-        <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
-          {message}
         </p>
       )}
 
