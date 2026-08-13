@@ -5,6 +5,16 @@ import { Capabilities } from "@/components/Capabilities";
 import { Approach } from "@/components/Approach";
 import { Contact } from "@/components/Contact";
 import { Footer } from "@/components/Footer";
+import {
+  navLinks,
+  platformSection,
+  capabilities,
+  approachSteps,
+  heroContent,
+  approachContent,
+  contactContent,
+  footerTagline,
+} from "@/lib/content-archive";
 
 export const metadata: Metadata = {
   title: "M2MEC Archive",
@@ -18,14 +28,26 @@ export const metadata: Metadata = {
 export default function ArchivePage() {
   return (
     <>
-      <Header />
+      <Header navLinks={navLinks} homeHref="/archive-x" ctaLabel="Get in touch" showLogin={false} />
       <main>
-        <Hero />
-        <Capabilities />
-        <Approach />
-        <Contact />
+        <Hero
+          content={heroContent}
+          capabilitiesHref="#capabilities"
+          primaryCta="Start a conversation"
+          secondaryCta="Explore capabilities"
+        />
+        <Capabilities
+          id="capabilities"
+          label={platformSection.label}
+          title={platformSection.title}
+          description={platformSection.description}
+          items={capabilities}
+          columns={3}
+        />
+        <Approach steps={approachSteps} content={approachContent} />
+        <Contact content={contactContent} />
       </main>
-      <Footer />
+      <Footer tagline={footerTagline} />
     </>
   );
 }

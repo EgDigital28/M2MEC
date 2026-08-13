@@ -1,4 +1,8 @@
-export function Footer() {
+type FooterProps = {
+  tagline: string;
+};
+
+export function Footer({ tagline }: FooterProps) {
   const year = new Date().getFullYear();
 
   return (
@@ -11,13 +15,9 @@ export function Footer() {
           <span className="text-sm font-medium">M2MEC</span>
         </div>
 
-        <p className="text-sm text-muted">
-          Machine-to-Machine Edge Communications
-        </p>
+        <p className="text-sm text-muted">{tagline}</p>
 
-        <p className="text-sm text-muted">
-          &copy; {year} M2MEC. All rights reserved.
-        </p>
+        <p className="text-sm text-muted">&copy; {year} M2MEC. All rights reserved.</p>
       </div>
     </footer>
   );

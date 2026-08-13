@@ -1,5 +1,31 @@
-function CapabilityIcon({ type }: { type: string }) {
+export function PlatformIcon({ type }: { type: string }) {
   const icons: Record<string, React.ReactNode> = {
+    data: (
+      <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" aria-hidden="true">
+        <ellipse cx="12" cy="6" rx="8" ry="3" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    ),
+    analytics: (
+      <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" aria-hidden="true">
+        <path d="M4 20V4M20 20H4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M8 16l3-4 3 2 5-7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+    sportsbook: (
+      <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" aria-hidden="true">
+        <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M3 10h18M8 15h2M14 15h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
+    ai: (
+      <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" aria-hidden="true">
+        <path d="M12 3v3M12 18v3M3 12h3M18 12h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M8 8l-1.5-1.5M17.5 17.5L16 16M16 8l1.5-1.5M7.5 17.5L9 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
     bridge: (
       <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" aria-hidden="true">
         <path d="M4 12h16M8 8l-4 4 4 4M16 8l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -40,12 +66,32 @@ function CapabilityIcon({ type }: { type: string }) {
 
   return (
     <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 text-accent">
-      {icons[type] ?? icons.bridge}
+      {icons[type] ?? icons.data}
     </div>
   );
 }
 
-export function Hero() {
+type HeroContent = {
+  eyebrow: string;
+  headline: string;
+  headlineAccent: string;
+  description: string;
+  stats: { value: string; label: string }[];
+};
+
+type HeroProps = {
+  content: HeroContent;
+  capabilitiesHref?: string;
+  primaryCta?: string;
+  secondaryCta?: string;
+};
+
+export function Hero({
+  content,
+  capabilitiesHref = "#platform",
+  primaryCta = "Get early access",
+  secondaryCta = "Explore the platform",
+}: HeroProps) {
   return (
     <section className="relative overflow-hidden pt-32 pb-24 md:pt-40 md:pb-32">
       <div className="pointer-events-none absolute inset-0">
@@ -64,21 +110,19 @@ export function Hero() {
       <div className="relative mx-auto max-w-6xl px-6">
         <div className="mx-auto max-w-3xl text-center">
           <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-surface-elevated/60 px-4 py-1.5 text-sm text-muted">
-            <span className="h-1.5 w-1.5 rounded-full bg-accent-secondary animate-pulse" />
-            Machine-to-Machine Edge Communications
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent-secondary" />
+            {content.eyebrow}
           </p>
 
           <h1 className="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl md:text-6xl md:leading-[1.1]">
-            Connect machines at the edge—{" "}
+            {content.headline}{" "}
             <span className="bg-gradient-to-r from-accent to-accent-secondary bg-clip-text text-transparent">
-              fast, secure, and resilient
+              {content.headlineAccent}
             </span>
           </h1>
 
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted">
-            M2MEC delivers low-latency, protocol-aware communication between
-            industrial devices, gateways, and control systems—where milliseconds
-            matter and the cloud is too far away.
+            {content.description}
           </p>
 
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
@@ -86,23 +130,19 @@ export function Hero() {
               href="#contact"
               className="inline-flex h-12 items-center justify-center rounded-full bg-gradient-to-r from-accent to-accent-secondary px-8 text-sm font-medium text-white shadow-lg shadow-accent/25 transition-opacity hover:opacity-90"
             >
-              Start a conversation
+              {primaryCta}
             </a>
             <a
-              href="#capabilities"
+              href={capabilitiesHref}
               className="inline-flex h-12 items-center justify-center rounded-full border border-border px-8 text-sm font-medium text-foreground transition-colors hover:bg-surface-elevated"
             >
-              Explore capabilities
+              {secondaryCta}
             </a>
           </div>
         </div>
 
         <div className="mx-auto mt-20 grid max-w-4xl grid-cols-3 gap-6 border-t border-border pt-10">
-          {[
-            { value: "<10ms", label: "Typical edge latency" },
-            { value: "99.99%", label: "Uptime SLA targets" },
-            { value: "50+", label: "Protocol adapters" },
-          ].map((stat) => (
+          {content.stats.map((stat) => (
             <div key={stat.label} className="text-center">
               <p className="font-mono text-2xl font-semibold text-foreground md:text-3xl">
                 {stat.value}
@@ -115,5 +155,3 @@ export function Hero() {
     </section>
   );
 }
-
-export { CapabilityIcon };

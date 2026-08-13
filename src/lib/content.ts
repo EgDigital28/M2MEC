@@ -1,71 +1,99 @@
 export const navLinks = [
-  { label: "Capabilities", href: "#capabilities" },
-  { label: "Approach", href: "#approach" },
+  { label: "Platform", href: "#platform" },
+  { label: "How it works", href: "#approach" },
   { label: "Contact", href: "#contact" },
 ];
 
+export const platformSection = {
+  label: "Platform",
+  title: "Everything you need from research to review",
+  description:
+    "Four integrated modules—data, models, books, and AI—built for bettors who want signal over noise.",
+};
+
 export const capabilities = [
   {
-    title: "Edge Protocol Bridging",
+    title: "Data Services",
     description:
-      "Translate and normalize protocols at the edge—MQTT, OPC-UA, Modbus, and custom transports—without round-tripping through the cloud.",
-    icon: "bridge",
+      "Ingest odds, line movement, injury reports, and historical results from across leagues and books—normalized into a single pipeline ready for modeling.",
+    icon: "data",
   },
   {
-    title: "Deterministic Messaging",
+    title: "Predictive Analytics",
     description:
-      "Priority queues, QoS tiers, and bounded latency paths engineered for control loops, telemetry bursts, and fault-tolerant sync.",
-    icon: "signal",
+      "Machine learning models that break down matchups, surface edge, and quantify confidence—turning raw signals into actionable predictions.",
+    icon: "analytics",
   },
   {
-    title: "Zero-Trust Device Identity",
+    title: "Sportsbook Hub",
     description:
-      "Mutual TLS, hardware-backed keys, and policy-driven access so every machine authenticates before it communicates.",
-    icon: "shield",
+      "One dashboard for every position across books. Track exposure, CLV, and open bets without jumping between apps and spreadsheets.",
+    icon: "sportsbook",
   },
   {
-    title: "Offline-First Resilience",
+    title: "AI Assistant",
     description:
-      "Local buffering, conflict resolution, and store-and-forward so operations continue when uplinks drop or partitions occur.",
-    icon: "resilience",
-  },
-  {
-    title: "Observability at the Edge",
-    description:
-      "Structured logs, trace propagation, and health metrics surfaced locally and aggregated upstream for full pipeline visibility.",
-    icon: "observe",
-  },
-  {
-    title: "Fleet Orchestration",
-    description:
-      "Roll out configs, firmware, and routing policies across thousands of edge nodes with staged canaries and rollback.",
-    icon: "fleet",
+      "Ask questions in plain language—\"What's my net exposure on tonight's slate?\"—and get answers grounded in your data, not generic takes.",
+    icon: "ai",
   },
 ];
 
 export const approachSteps = [
   {
     step: "01",
-    title: "Assess & Map",
+    title: "Ingest & normalize",
     description:
-      "Inventory devices, protocols, and latency budgets. Identify edge placement, failure domains, and security boundaries.",
+      "Pull lines, stats, and market data from your sources. M2MEC cleans, aligns, and stores it so every model works from the same truth.",
   },
   {
     step: "02",
-    title: "Design the Edge Layer",
+    title: "Model & breakdown",
     description:
-      "Define gateway topology, message schemas, and identity model. Prototype critical paths with realistic load profiles.",
+      "Run predictive analytics on upcoming slates—matchup grades, projected edges, and confidence scores you can actually bet with.",
   },
   {
     step: "03",
-    title: "Deploy & Harden",
+    title: "Execute & consolidate",
     description:
-      "Ship to pilot sites with monitoring baked in. Validate failover, certificate rotation, and operator runbooks under stress.",
+      "Place bets across books and log them in the Sportsbook Hub. See consolidated positions, not scattered slips.",
   },
   {
     step: "04",
-    title: "Scale & Optimize",
+    title: "Review & refine",
     description:
-      "Expand fleet-wide with automated provisioning. Tune routing, compression, and local compute as traffic patterns evolve.",
+      "Track results against predictions, measure CLV, and feed outcomes back into the models. The loop gets sharper every week.",
   },
 ];
+
+export const heroContent = {
+  eyebrow: "Machine Learning · Sports Intelligence",
+  headline: "Smarter breakdowns.",
+  headlineAccent: "Sharper predictions.",
+  description:
+    "M2MEC uses machine learning to optimize sports analysis—combining data services, predictive models, and a unified sportsbook hub so you can research, decide, and track in one place.",
+  stats: [
+    { value: "4+", label: "Core platform modules" },
+    { value: "ML", label: "Powered breakdowns" },
+    { value: "1", label: "Consolidated book view" },
+  ],
+};
+
+export const approachContent = {
+  label: "How it works",
+  title: "From raw data to tracked positions",
+  description:
+    "M2MEC connects the full loop—research, prediction, execution, and review—so you're not juggling spreadsheets, group chats, and five different book apps.",
+  timelineLabel: "Platform workflow",
+  timelineValue: "Research → Bet → Track",
+  timelineNote: "One system from slate breakdown through settlement review.",
+};
+
+export const contactContent = {
+  title: "Get early access to M2MEC",
+  description:
+    "We're building the sports intelligence platform for serious bettors and analysts. Tell us what you track today and we'll reach out about access.",
+  focusAreas: "Predictive analytics · Multi-book tracking · AI-assisted research",
+  placeholder: "What sports, books, and workflows do you use today?",
+};
+
+export const footerTagline = "Machine Learning · Sports Intelligence";

@@ -1,4 +1,15 @@
-export function Contact() {
+type ContactContent = {
+  title: string;
+  description: string;
+  focusAreas: string;
+  placeholder: string;
+};
+
+type ContactProps = {
+  content: ContactContent;
+};
+
+export function Contact({ content }: ContactProps) {
   return (
     <section id="contact" className="border-t border-border bg-surface py-24">
       <div className="mx-auto max-w-6xl px-6">
@@ -9,31 +20,25 @@ export function Contact() {
                 Contact
               </p>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
-                Let&apos;s design your edge communication layer
+                {content.title}
               </h2>
-              <p className="mt-4 text-muted leading-relaxed">
-                Tell us about your devices, protocols, and latency requirements.
-                We&apos;ll respond within one business day with next steps for a
-                discovery call.
-              </p>
+              <p className="mt-4 leading-relaxed text-muted">{content.description}</p>
 
               <dl className="mt-10 space-y-4">
                 <div>
                   <dt className="text-sm text-muted">Email</dt>
                   <dd className="mt-1">
                     <a
-                      href="mailto:hello@m2mec.io"
+                      href="mailto:hello@m2mec.com"
                       className="font-medium text-foreground transition-colors hover:text-accent"
                     >
-                      hello@m2mec.io
+                      hello@m2mec.com
                     </a>
                   </dd>
                 </div>
                 <div>
                   <dt className="text-sm text-muted">Focus areas</dt>
-                  <dd className="mt-1 text-foreground">
-                    Industrial IoT · OT/IT convergence · Edge gateways
-                  </dd>
+                  <dd className="mt-1 text-foreground">{content.focusAreas}</dd>
                 </div>
               </dl>
             </div>
@@ -57,7 +62,7 @@ export function Contact() {
 
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium">
-                    Work email
+                    Email
                   </label>
                   <input
                     id="email"
@@ -66,13 +71,13 @@ export function Contact() {
                     required
                     autoComplete="email"
                     className="mt-2 w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted/60 focus:border-accent/50 focus:ring-1 focus:ring-accent/30"
-                    placeholder="jane@company.com"
+                    placeholder="jane@example.com"
                   />
                 </div>
 
                 <div>
                   <label htmlFor="message" className="block text-sm font-medium">
-                    Project overview
+                    Message
                   </label>
                   <textarea
                     id="message"
@@ -80,7 +85,7 @@ export function Contact() {
                     rows={4}
                     required
                     className="mt-2 w-full resize-none rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted/60 focus:border-accent/50 focus:ring-1 focus:ring-accent/30"
-                    placeholder="Describe your edge topology, protocols, and goals..."
+                    placeholder={content.placeholder}
                   />
                 </div>
 

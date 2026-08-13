@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "M2MEC | Machine-to-Machine Edge Communications",
+  title: "M2MEC | Sports Intelligence Platform",
   description:
-    "Secure, low-latency machine-to-machine edge communications for industrial IoT, distributed systems, and real-time automation.",
+    "Machine learning-powered sports breakdowns, predictive analytics, multi-book tracking, and an AI assistant—research, bet, and review in one place.",
 };
 
 export default function RootLayout({
