@@ -1,17 +1,5 @@
-import type { Metadata } from "next";
 import Link from "next/link";
-import { HamboatCounter } from "./hamboat-counter";
-import "./hamboats.css";
-
-export const metadata: Metadata = {
-  title: "Official Hamboat Guide | Gas Station Division",
-  description:
-    "Classified documentation for the procurement, handling, and responsible enjoyment of gas station hamboats.",
-  robots: {
-    index: false,
-    follow: false,
-  },
-};
+import { HamboatCounter } from "./components/hamboat-counter";
 
 export default function HamboatsPage() {
   return (

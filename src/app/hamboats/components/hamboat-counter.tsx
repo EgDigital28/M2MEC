@@ -29,7 +29,9 @@ export function HamboatCounter() {
       "Local Citgo — bathroom key also unlocks the hamboat vault",
       "Love's Travel Stop — premium hamboats near the air pump",
     ];
-    setStatus(`NEAREST SOURCE: ${locations[Math.floor(Math.random() * locations.length)]}`);
+    setStatus(
+      `NEAREST SOURCE: ${locations[Math.floor(Math.random() * locations.length)]}`,
+    );
   }
 
   return (
@@ -53,7 +55,9 @@ export function HamboatCounter() {
       </div>
       <div className="status-box">
         <div>{status}</div>
-        <div className="counter">{count} hamboat{count === 1 ? "" : "s"}</div>
+        <div className="counter">
+          {count} hamboat{count === 1 ? "" : "s"}
+        </div>
       </div>
     </div>
   );
