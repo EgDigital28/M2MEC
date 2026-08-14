@@ -143,3 +143,57 @@ export function sanitizeRiskInput(value: string): string {
 export function isBetStatus(value: string): value is BetStatus {
   return (BET_STATUSES as readonly string[]).includes(value);
 }
+
+export function sortBetEntries<T extends { event_date: string; created_at: string }>(
+  entries: T[],
+): T[] {
+  return [...entries].sort((a, b) => {
+    const dateCompare = b.event_date.localeCompare(a.event_date);
+    if (dateCompare !== 0) {
+      return dateCompare;
+    }
+
+    return b.created_at.localeCompare(a.created_at);
+  });
+}
+
+export type BetLedgerStats = {
+  totalEntries: number;
+  totalProfitLoss: number;
+  openCount: number;
+  winCount: number;
+  lossCount: number;
+  voidCount: number;
+  openRisk: number;
+};
+
+export function computeBetLedgerStats(entries: BetEntryComputed[]): BetLedgerStats {
+  return entries.reduce(
+    (stats, entry) => {
+      stats.totalEntries += 1;
+      stats.totalProfitLoss += entry.profit_loss;
+
+      if (entry.status === "Open") {
+        stats.openCount += 1;
+        stats.openRisk += entry.risk;
+      } else if (entry.status === "Win") {
+        stats.winCount += 1;
+      } else if (entry.status === "Loss") {
+        stats.lossCount += 1;
+      } else if (entry.status === "Void") {
+        stats.voidCount += 1;
+      }
+
+      return stats;
+    },
+    {
+      totalEntries: 0,
+      totalProfitLoss: 0,
+      openCount: 0,
+      winCount: 0,
+      lossCount: 0,
+      voidCount: 0,
+      openRisk: 0,
+    },
+  );
+}
