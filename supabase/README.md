@@ -86,6 +86,8 @@ Admins manage abbreviation, full name, sort order, and active flag. Active sport
 
 Admins can suspend or delete users at **/team/users**. Suspended users are banned in Supabase Auth, blocked at login, and their email cannot be invited again until unsuspended.
 
+6. **`006_admin_profile_policies.sql`** — lets admins list and update profiles via their session (no service role needed for reads).
+
 ## Bet ledger (`/team/bets`)
 
 Creates `bet_entries` linked to `sports` via `sport_id`. Requires `004_sports.sql` first.
