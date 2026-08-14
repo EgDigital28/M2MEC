@@ -41,9 +41,28 @@ export async function GET() {
 
   try {
     const ledger = await fetchOverallPl();
-    const summary = computeCostCoverage((data ?? []) as ExpenseEntry[], ledger.overallPl);
 
-    return NextResponse.json({ summary, overallPl: ledger.overallPl });
+    const { data: equityStakes, error: equityError } = await supabase
+      .from("equity_stakes")
+      .select("deposit");
+
+    if (equityError && !equityError.message.includes("equity_stakes")) {
+      console.error("Equity stakes fetch failed:", equityError);
+      return NextResponse.json({ error: "Could not load investor deposits." }, { status: 500 });
+    }
+
+    const investorDepositTotal = (equityStakes ?? []).reduce(
+      (total, stake) => total + Number(stake.deposit ?? 0),
+      0,
+    );
+
+    const summary = computeCostCoverage(
+      (data ?? []) as ExpenseEntry[],
+      ledger.overallPl,
+      investorDepositTotal,
+    );
+
+    return NextResponse.json({ summary, overallPl: ledger.overallPl, investorDepositTotal });
   } catch (ledgerError) {
     console.error("Ledger summary fetch failed:", ledgerError);
     return NextResponse.json({ error: "Could not load ledger summary." }, { status: 500 });

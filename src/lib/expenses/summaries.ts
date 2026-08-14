@@ -107,32 +107,7 @@ export type CostCoverageSummary = {
   rows: CostCoverageRow[];
   currentYear: number;
   nextYear: number;
-  totals: {
-    ytd: number;
-    currentYearObligation: number;
-    nextYearObligation: number;
-  };
 };
-
-function emptyCostCoverageBucket() {
-  return {
-    ytd: 0,
-    currentYearObligation: 0,
-    nextYearObligation: 0,
-  };
-}
-
-function sumCostCoverageRows(rows: CostCoverageRow[]) {
-  return rows.reduce(
-    (acc, row) => {
-      acc.ytd += row.ytd;
-      acc.currentYearObligation += row.currentYearObligation;
-      acc.nextYearObligation += row.nextYearObligation;
-      return acc;
-    },
-    emptyCostCoverageBucket(),
-  );
-}
 
 type ExpenseCoverageTotals = {
   ytdPaid: number;
@@ -225,24 +200,44 @@ function computeWageringCoverageRow(
   };
 }
 
+function computeCapitalCoverageRow(
+  expenseRow: CostCoverageRow,
+  wageringRow: CostCoverageRow,
+  investorDepositTotal: number,
+): CostCoverageRow {
+  const delta = expenseRow.ytd - wageringRow.ytd;
+  const ytd = delta > 0 ? Math.min(delta, investorDepositTotal) : 0;
+
+  return {
+    id: "capital-coverage",
+    name: "Capital Coverage",
+    ytd,
+    currentYearObligation: 0,
+    nextYearObligation: 0,
+  };
+}
+
 export function computeCostCoverage(
   entries: ExpenseEntry[],
   overallPl: number,
+  investorDepositTotal: number,
   referenceDate: Date = new Date(),
 ): CostCoverageSummary {
   const currentYear = referenceDate.getFullYear();
   const nextYear = currentYear + 1;
   const expenseTotals = computeExpenseCoverageTotals(entries, currentYear, nextYear);
+  const expenseRow = computeExpenseCostCoverageRow(expenseTotals);
+  const wageringRow = computeWageringCoverageRow(overallPl, expenseTotals);
   const rows = [
-    computeExpenseCostCoverageRow(expenseTotals),
-    computeWageringCoverageRow(overallPl, expenseTotals),
+    expenseRow,
+    wageringRow,
+    computeCapitalCoverageRow(expenseRow, wageringRow, investorDepositTotal),
   ];
 
   return {
     rows,
     currentYear,
     nextYear,
-    totals: sumCostCoverageRows(rows),
   };
 }
 

@@ -58,7 +58,7 @@ export function CostCoverageTable() {
         <h2 className="text-lg font-semibold">Cost coverage</h2>
         <p className="mt-1 text-sm text-muted">
           Budget line items with year-to-date spend and obligations. Wagering coverage uses overall
-          P/L from the ledger. Voids are excluded.
+          P/L from the ledger; capital coverage uses equity stake deposits. Voids are excluded.
         </p>
       </div>
 
@@ -120,22 +120,6 @@ export function CostCoverageTable() {
                 ))
               )}
             </tbody>
-            {summary && summary.rows.length > 0 ? (
-              <tfoot>
-                <tr className="border-t border-border bg-surface-elevated/60 font-semibold">
-                  <td className="px-4 py-3">Total</td>
-                  <td className={`${moneyCellClassName} px-4 py-3`}>
-                    <AmountCell amount={summary.totals.ytd} />
-                  </td>
-                  <td className={`${moneyCellClassName} px-4 py-3`}>
-                    <AmountCell amount={summary.totals.currentYearObligation} />
-                  </td>
-                  <td className={`${moneyCellClassName} px-4 py-3`}>
-                    <AmountCell amount={summary.totals.nextYearObligation} />
-                  </td>
-                </tr>
-              </tfoot>
-            ) : null}
           </table>
         </div>
       </div>
