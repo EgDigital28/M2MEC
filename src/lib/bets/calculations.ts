@@ -416,6 +416,7 @@ export type DayResultsStats = {
   gradedCount: number;
   totalProfitLoss: number;
   totalRisked: number;
+  gradedRisked: number;
   winPct: number | null;
   roi: number | null;
 };
@@ -431,10 +432,13 @@ export function computeDayResultsStats(entries: BetEntryComputed[]): DayResultsS
         stats.openCount += 1;
       } else if (entry.status === "Win") {
         stats.winCount += 1;
+        stats.gradedRisked += entry.risk;
       } else if (entry.status === "Loss") {
         stats.lossCount += 1;
+        stats.gradedRisked += entry.risk;
       } else if (entry.status === "Void") {
         stats.voidCount += 1;
+        stats.gradedRisked += entry.risk;
       }
 
       return stats;
@@ -447,6 +451,7 @@ export function computeDayResultsStats(entries: BetEntryComputed[]): DayResultsS
       openCount: 0,
       totalProfitLoss: 0,
       totalRisked: 0,
+      gradedRisked: 0,
     },
   );
 
@@ -456,7 +461,7 @@ export function computeDayResultsStats(entries: BetEntryComputed[]): DayResultsS
     ...raw,
     gradedCount,
     winPct: gradedCount > 0 ? raw.winCount / gradedCount : null,
-    roi: raw.totalRisked > 0 ? raw.totalProfitLoss / raw.totalRisked : null,
+    roi: raw.gradedRisked > 0 ? raw.totalProfitLoss / raw.gradedRisked : null,
   };
 }
 

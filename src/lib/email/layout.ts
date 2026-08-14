@@ -11,6 +11,7 @@ export const EMAIL_COLORS = {
   border: "#1e2936",
   profit: "#34d399",
   loss: "#f87171",
+  warning: "#fbbf24",
 } as const;
 
 export function emailProfitLossColor(value: number) {
@@ -23,6 +24,22 @@ export function emailProfitLossColor(value: number) {
   }
 
   return EMAIL_COLORS.muted;
+}
+
+export function emailWinPctColor(winPct: number | null) {
+  if (winPct === null) {
+    return EMAIL_COLORS.muted;
+  }
+
+  if (winPct > 0.56) {
+    return EMAIL_COLORS.profit;
+  }
+
+  if (winPct >= 0.52) {
+    return EMAIL_COLORS.warning;
+  }
+
+  return EMAIL_COLORS.loss;
 }
 
 type EmailSectionParams = {

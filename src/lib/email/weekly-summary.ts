@@ -11,6 +11,7 @@ import {
 } from "@/lib/bets/calculations";
 import {
   emailProfitLossColor,
+  emailWinPctColor,
   renderEmailEmptyState,
   renderEmailHtmlCell,
   renderEmailSection,
@@ -38,7 +39,7 @@ export function weeklySummaryHtml({ entries, weekRange }: WeeklySummaryEmailPara
         { label: "Plays", value: String(stats.playCount) },
         { label: "Wins", value: String(stats.winCount) },
         { label: "Losses", value: String(stats.lossCount) },
-        { label: "Voids", value: String(stats.voidCount) },
+        { label: "Open", value: String(stats.openCount) },
       ],
       [
         {
@@ -46,7 +47,11 @@ export function weeklySummaryHtml({ entries, weekRange }: WeeklySummaryEmailPara
           value: formatCurrencyWhole(stats.totalProfitLoss),
           valueColor: emailProfitLossColor(stats.totalProfitLoss),
         },
-        { label: "Win %", value: formatPercent(stats.winPct) },
+        {
+          label: "Win %",
+          value: formatPercent(stats.winPct),
+          valueColor: emailWinPctColor(stats.winPct),
+        },
         {
           label: "ROI",
           value: formatPercent(stats.roi),
@@ -110,7 +115,7 @@ export function weeklySummaryText({ entries, weekRange }: WeeklySummaryEmailPara
 Plays: ${stats.playCount}
 Wins: ${stats.winCount}
 Losses: ${stats.lossCount}
-Voids: ${stats.voidCount}
+Open: ${stats.openCount}
 P/L: ${formatCurrencyWhole(stats.totalProfitLoss)}
 Win %: ${formatPercent(stats.winPct)}
 ROI: ${formatPercent(stats.roi)}
