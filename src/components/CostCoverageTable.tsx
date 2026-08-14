@@ -79,6 +79,28 @@ export function CostCoverageTable() {
         </p>
       )}
 
+      {!loading && summary ? (
+        <div className="rounded-2xl border border-border bg-surface-elevated p-5">
+          <p className="text-xs font-medium uppercase tracking-widest text-muted">
+            Forecasted Capital
+          </p>
+          <p
+            className={`mt-2 text-2xl font-semibold tabular-nums ${
+              summary.forecastedCapital < 0 ? "text-red-300" : ""
+            }`}
+          >
+            {formatExpenseAmount(summary.forecastedCapital)}
+          </p>
+          <p className="mt-1 text-xs text-muted">
+            Deposited capital {formatExpenseAmount(summary.depositedCapital)} vs {nextYear}{" "}
+            capital obligation{" "}
+            {formatExpenseAmount(
+              summary.rows.find((row) => row.id === "capital-coverage")?.nextYearObligation ?? 0,
+            )}
+          </p>
+        </div>
+      ) : null}
+
       <div className="overflow-hidden rounded-2xl border border-border">
         <div className="overflow-x-auto">
           <table className="min-w-[720px] w-full text-xs">

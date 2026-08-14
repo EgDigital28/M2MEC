@@ -107,6 +107,8 @@ export type CostCoverageSummary = {
   rows: CostCoverageRow[];
   currentYear: number;
   nextYear: number;
+  depositedCapital: number;
+  forecastedCapital: number;
 };
 
 type ExpenseCoverageTotals = {
@@ -320,21 +322,20 @@ export function computeCostCoverage(
     overallPl,
     expenseTotals.currentYearTotal,
   );
-  const rows = [
+  const capitalRow = computeCapitalCoverageRow(
     expenseRow,
+    wageringCalculated,
     wageringRow,
-    computeCapitalCoverageRow(
-      expenseRow,
-      wageringCalculated,
-      wageringRow,
-      investorDepositTotal,
-    ),
-  ];
+    investorDepositTotal,
+  );
+  const rows = [expenseRow, wageringRow, capitalRow];
 
   return {
     rows,
     currentYear,
     nextYear,
+    depositedCapital: investorDepositTotal,
+    forecastedCapital: investorDepositTotal - capitalRow.nextYearObligation,
   };
 }
 
