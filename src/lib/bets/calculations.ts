@@ -105,6 +105,15 @@ export function formatCurrency(value: number): string {
   }).format(value);
 }
 
+export function formatCurrencyWhole(value: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 /** @deprecated Use formatCurrency for dollar amounts */
 export function formatMoney(value: number): string {
   return formatCurrency(value);

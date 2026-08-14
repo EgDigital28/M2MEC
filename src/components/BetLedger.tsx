@@ -6,6 +6,7 @@ import {
   computeBetLedgerStats,
   computeSportBetStats,
   formatCurrency,
+  formatCurrencyWhole,
   formatEventDate,
   formatOdds,
   formatPercent,
@@ -399,7 +400,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
               <p
                 className={`mt-2 text-2xl font-semibold tabular-nums ${profitLossClassName(stats.totalProfitLoss)}`}
               >
-                {formatCurrency(stats.totalProfitLoss)}
+                {formatCurrencyWhole(stats.totalProfitLoss)}
               </p>
             </div>
 
@@ -425,7 +426,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                 {formatPercent(stats.roi)}
               </p>
               <p className="mt-1 text-xs text-muted">
-                {formatCurrency(stats.totalProfitLoss)} on {formatCurrency(stats.totalRisked)} risked
+                {formatCurrencyWhole(stats.totalProfitLoss)} on {formatCurrencyWhole(stats.totalRisked)} risked
               </p>
             </div>
 
@@ -436,7 +437,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
               <p className="mt-2 text-2xl font-semibold tabular-nums">
                 {stats.avgRiskPerPlay === null
                   ? "—"
-                  : formatCurrency(stats.avgRiskPerPlay)}
+                  : formatCurrencyWhole(stats.avgRiskPerPlay)}
               </p>
               <p className="mt-1 text-xs text-muted">Across all entries</p>
             </div>
@@ -459,7 +460,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                 Open risk
               </p>
               <p className="mt-2 text-2xl font-semibold tabular-nums">
-                {formatCurrency(stats.openRisk)}
+                {formatCurrencyWhole(stats.openRisk)}
               </p>
               <p className="mt-1 text-xs text-muted">Across open positions</p>
             </div>
@@ -516,12 +517,12 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                         <td className="px-3 py-2 text-center tabular-nums">{row.openCount}</td>
                         <td className="px-3 py-2 text-center tabular-nums">{row.gradedCount}</td>
                         <td className={`${moneyCellClassName} px-3 py-2`}>
-                          {formatCurrency(row.totalRisked)}
+                          {formatCurrencyWhole(row.totalRisked)}
                         </td>
                         <td
                           className={`${moneyCellClassName} px-3 py-2 ${profitLossClassName(row.totalProfitLoss)}`}
                         >
-                          {formatCurrency(row.totalProfitLoss)}
+                          {formatCurrencyWhole(row.totalProfitLoss)}
                         </td>
                         <td
                           className={`px-3 py-2 text-center tabular-nums ${percentHighlightClassName(row.roi, "roi")}`}

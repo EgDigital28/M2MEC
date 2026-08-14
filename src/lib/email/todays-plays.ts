@@ -21,7 +21,7 @@ function formatSentOnDate(date: string) {
 }
 
 export function todaysPlaysSubject({ sentOnDate }: Pick<TodaysPlaysEmailParams, "sentOnDate">) {
-  return `M2MEC — Today's Plays (${formatSentOnDate(sentOnDate)})`;
+  return `M2MEC — Upcoming Plays (${formatSentOnDate(sentOnDate)})`;
 }
 
 export function todaysPlaysHtml({ entries, sentOnDate }: TodaysPlaysEmailParams) {
