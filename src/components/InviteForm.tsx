@@ -1,11 +1,13 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
-import type { UserTier } from "@/lib/tiers";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, useEffect, useState } from "react";
+import { isUserTier, type UserTier } from "@/lib/tiers";
 
 type InviteFormProps = {
   allowEmployeeTier?: boolean;
+  defaultEmail?: string;
+  defaultTier?: UserTier;
 };
 
 const TIER_A_OPTION = { value: "a" as const, label: "Tier A — full product access" };
@@ -19,16 +21,44 @@ const INVESTOR_TIER_OPTION = {
   label: "Investor — investor access",
 };
 
-export function InviteForm({ allowEmployeeTier = false }: InviteFormProps) {
+export function InviteForm({
+  allowEmployeeTier = false,
+  defaultEmail = "",
+  defaultTier = "a",
+}: InviteFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const inviteTiers = allowEmployeeTier
     ? [TIER_A_OPTION, TIER_B_OPTION, EMPLOYEE_TIER_OPTION, INVESTOR_TIER_OPTION]
     : [TIER_A_OPTION, TIER_B_OPTION, INVESTOR_TIER_OPTION];
-  const [email, setEmail] = useState("");
-  const [tier, setTier] = useState<UserTier>("a");
+
+  const queryEmail = searchParams.get("email")?.trim() ?? "";
+  const queryTier = searchParams.get("tier")?.trim() ?? "";
+  const initialTier =
+    isUserTier(queryTier) && inviteTiers.some((option) => option.value === queryTier)
+      ? queryTier
+      : defaultTier;
+
+  const [email, setEmail] = useState(defaultEmail || queryEmail);
+  const [tier, setTier] = useState<UserTier>(initialTier);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (queryEmail) {
+      setEmail(queryEmail);
+    }
+  }, [queryEmail]);
+
+  useEffect(() => {
+    if (
+      isUserTier(queryTier) &&
+      inviteTiers.some((option) => option.value === queryTier)
+    ) {
+      setTier(queryTier);
+    }
+  }, [inviteTiers, queryTier]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

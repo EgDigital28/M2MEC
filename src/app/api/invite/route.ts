@@ -205,6 +205,23 @@ export async function POST(request: Request) {
     );
   }
 
+  const { error: inviteEventError } = await admin.from("invite_events").insert({
+    email,
+    tier,
+    profile_id: linkData.user.id,
+    invited_by: auth.profile.id,
+  });
+
+  if (inviteEventError) {
+    console.error("Invite event log failed:", inviteEventError);
+  }
+
+  await admin
+    .from("waitlist_submissions")
+    .update({ status: "invited" })
+    .ilike("email", email)
+    .neq("status", "converted");
+
   return NextResponse.json({
     ok: true,
     email,

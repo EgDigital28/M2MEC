@@ -88,7 +88,7 @@ export default async function TeamPage() {
           </p>
           <h2 className="mt-2 text-2xl font-semibold">Admin controls</h2>
           <p className="mt-3 max-w-2xl text-sm text-muted">
-            Manage sports, users, and invites from the team workspace.
+            Manage sports, users, waitlist, invites, and team invites from the team workspace.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
@@ -108,6 +108,18 @@ export default async function TeamPage() {
               className="rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:border-accent/40"
             >
               Manage sports
+            </Link>
+            <Link
+              href="/team/waitlist"
+              className="rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:border-accent/40"
+            >
+              Waitlist
+            </Link>
+            <Link
+              href="/team/invites"
+              className="rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:border-accent/40"
+            >
+              Invite activity
             </Link>
             <Link
               href="/"

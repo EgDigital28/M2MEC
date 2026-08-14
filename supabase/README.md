@@ -89,6 +89,7 @@ Admins can suspend or delete users at **/team/users**. Suspended users are banne
 6. **`006_admin_profile_policies.sql`** — lets admins list and update profiles via their session (no service role needed for reads).
 7. **`007_investor_tier.sql`** — adds `investor` to the `user_tier` enum.
 8. **`008_profile_registration.sql`** — adds `profiles.registered_at` and lets users update their own profile during onboarding.
+9. **`009_admin_waitlist_invites.sql`** — admin waitlist policies, `invite_events` log, and waitlist conversion sync on registration.
 
 ## Bet ledger (`/team/bets`)
 
