@@ -16,10 +16,6 @@ export default async function TeamExpensesPage() {
           Admin
         </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight">Expenses</h1>
-        <p className="mt-3 max-w-2xl text-sm text-muted">
-          Log expense line items by cost center and component. Quarter is calculated automatically
-          from the expense date.
-        </p>
       </section>
 
       <ExpensesAdmin />

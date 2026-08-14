@@ -1,10 +1,11 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { getTodayDateString } from "@/lib/bets/calculations";
+import { ExpenseSummaryTables } from "@/components/ExpenseSummaryTables";
 import {
   formatExpenseAmount,
   formatExpenseInput,
+  getLocalTodayDateString,
   getQuarterFromDate,
   parseExpenseAmount,
   sortCatalog,
@@ -32,7 +33,7 @@ const emptyEntryForm = (): EntryForm => ({
   cost_center_id: "",
   component_id: "",
   amount: "",
-  expense_date: getTodayDateString(),
+  expense_date: getLocalTodayDateString(),
   notes: "",
 });
 
@@ -350,7 +351,10 @@ export function ExpensesAdmin() {
   const [costCenters, setCostCenters] = useState<ExpenseCostCenter[]>([]);
   const [components, setComponents] = useState<ExpenseComponent[]>([]);
   const [entries, setEntries] = useState<ExpenseEntry[]>([]);
-  const [entryForm, setEntryForm] = useState<EntryForm>(() => emptyEntryForm());
+  const [entryForm, setEntryForm] = useState<EntryForm>(() => ({
+    ...emptyEntryForm(),
+    expense_date: "",
+  }));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -426,6 +430,7 @@ export function ExpensesAdmin() {
         ...current,
         cost_center_id: current.cost_center_id || costCenterData.costCenters?.[0]?.id || "",
         component_id: current.component_id || componentData.components?.[0]?.id || "",
+        expense_date: getLocalTodayDateString(),
       }));
     } catch {
       setError("Network error while loading expenses.");
@@ -437,6 +442,13 @@ export function ExpensesAdmin() {
   useEffect(() => {
     void loadAll();
   }, [loadAll]);
+
+  useEffect(() => {
+    setEntryForm((current) => ({
+      ...current,
+      expense_date: getLocalTodayDateString(),
+    }));
+  }, []);
 
   async function createEntry(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -694,6 +706,12 @@ export function ExpensesAdmin() {
           {error}
         </p>
       )}
+
+      <ExpenseSummaryTables
+        entries={entries}
+        costCenters={costCenters}
+        components={components}
+      />
 
       <section className="rounded-2xl border border-border bg-surface-elevated p-5">
         <h2 className="text-lg font-semibold">Add expense</h2>

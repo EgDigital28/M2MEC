@@ -28,6 +28,11 @@ export type ExpenseEntry = {
   component?: Pick<ExpenseComponent, "id" | "name"> | null;
 };
 
+/** Local calendar date as YYYY-MM-DD for `<input type="date">`. */
+export function getLocalTodayDateString() {
+  return new Intl.DateTimeFormat("en-CA").format(new Date());
+}
+
 export function getQuarterFromDate(dateInput: string | Date) {
   const date =
     typeof dateInput === "string"
