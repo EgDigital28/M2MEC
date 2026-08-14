@@ -38,6 +38,7 @@ export type ExpenseSummaryMetrics = {
   ytdExpenses: number;
   yearForecast: number;
   quarterlyObligation: number;
+  yearlyObligation: number;
   currentYear: number;
   currentQuarter: string;
 };
@@ -60,6 +61,7 @@ export function computeExpenseSummaryMetrics(
   let ytdExpenses = 0;
   let yearForecast = 0;
   let quarterlyObligation = 0;
+  let yearlyObligation = 0;
 
   for (const entry of entries) {
     const entryYear = getExpenseYear(entry.expense_date);
@@ -72,6 +74,10 @@ export function computeExpenseSummaryMetrics(
       if (isSummaryEligible(entry)) {
         yearForecast += entry.amount;
       }
+
+      if (isUnpaidExpense(entry)) {
+        yearlyObligation += entry.amount;
+      }
     }
 
     if (entry.quarter === currentQuarter && isUnpaidExpense(entry)) {
@@ -83,6 +89,7 @@ export function computeExpenseSummaryMetrics(
     ytdExpenses,
     yearForecast,
     quarterlyObligation,
+    yearlyObligation,
     currentYear,
     currentQuarter,
   };
