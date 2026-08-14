@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Profile } from "@/lib/auth/profile";
 import { investorNavItems } from "@/lib/investor-nav";
-import { TIER_LABELS } from "@/lib/tiers";
 import { TeamSignOut } from "@/components/TeamSignOut";
 
 type InvestorShellProps = {
@@ -55,19 +54,13 @@ export function InvestorShell({ profile, children }: InvestorShellProps) {
           </div>
 
           <div className="flex items-center gap-4">
+            <p className="hidden text-sm font-medium sm:block">{profile.email}</p>
             <Link
               href="/account"
-              className="hidden text-sm text-muted transition-colors hover:text-foreground sm:inline"
+              className="text-sm text-muted transition-colors hover:text-foreground"
             >
               Account
             </Link>
-            <div className="hidden text-right sm:block">
-              <p className="text-sm font-medium">{profile.email}</p>
-              <p className="text-xs text-muted">{TIER_LABELS[profile.tier]}</p>
-            </div>
-            <span className="rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent sm:hidden">
-              {TIER_LABELS[profile.tier]}
-            </span>
             <TeamSignOut />
           </div>
         </div>
