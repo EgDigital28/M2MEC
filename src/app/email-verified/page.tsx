@@ -5,11 +5,11 @@ export default function EmailVerifiedPage() {
   return (
     <AuthShell
       title="Email verified"
-      description="Your address is confirmed and you're signed in."
+      description="Your address is confirmed. You're signed in."
     >
       <div className="space-y-6">
         <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-4 text-sm text-emerald-300">
-          Welcome to M2MEC — your account is ready to use.
+          Welcome to M2MEC — your account is active.
         </div>
 
         <p className="text-sm text-muted">

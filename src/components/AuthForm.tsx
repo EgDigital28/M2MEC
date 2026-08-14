@@ -5,71 +5,32 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-type AuthMode = "login" | "signup";
-
-type AuthFormProps = {
-  mode: AuthMode;
-};
-
-export function AuthForm({ mode }: AuthFormProps) {
+export function AuthForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-
-    if (mode === "signup" && password !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
-      return;
-    }
-
     setLoading(true);
+
     const supabase = createClient();
-
-    if (mode === "login") {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (signInError) {
-        setError(signInError.message);
-        setLoading(false);
-        return;
-      }
-
-      router.push("/");
-      router.refresh();
-      return;
-    }
-
-    const redirectTo = `${window.location.origin}/auth/callback?next=/email-verified`;
-
-    const { error: signUpError } = await supabase.auth.signUp({
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
-      options: {
-        emailRedirectTo: redirectTo,
-      },
     });
 
-    if (signUpError) {
-      setError(signUpError.message);
+    if (signInError) {
+      setError(signInError.message);
       setLoading(false);
       return;
     }
 
-    router.push(`/check-email?email=${encodeURIComponent(email)}`);
+    router.push("/");
+    router.refresh();
   }
 
   return (
@@ -99,36 +60,14 @@ export function AuthForm({ mode }: AuthFormProps) {
           id="password"
           type="password"
           name="password"
-          autoComplete={mode === "login" ? "current-password" : "new-password"}
+          autoComplete="current-password"
           required
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted focus:border-accent"
-          placeholder="At least 8 characters"
+          placeholder="Your password"
         />
       </div>
-
-      {mode === "signup" && (
-        <div>
-          <label
-            htmlFor="confirmPassword"
-            className="mb-1.5 block text-sm font-medium"
-          >
-            Confirm password
-          </label>
-          <input
-            id="confirmPassword"
-            type="password"
-            name="confirmPassword"
-            autoComplete="new-password"
-            required
-            value={confirmPassword}
-            onChange={(event) => setConfirmPassword(event.target.value)}
-            className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted focus:border-accent"
-            placeholder="Repeat your password"
-          />
-        </div>
-      )}
 
       {error && (
         <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
@@ -141,31 +80,15 @@ export function AuthForm({ mode }: AuthFormProps) {
         disabled={loading}
         className="w-full rounded-full bg-foreground px-4 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {loading
-          ? mode === "login"
-            ? "Signing in..."
-            : "Creating account..."
-          : mode === "login"
-            ? "Sign in"
-            : "Create account"}
+        {loading ? "Signing in..." : "Sign in"}
       </button>
 
       <p className="text-center text-sm text-muted">
-        {mode === "login" ? (
-          <>
-            No account yet?{" "}
-            <Link href="/signup" className="text-accent hover:underline">
-              Sign up
-            </Link>
-          </>
-        ) : (
-          <>
-            Already have an account?{" "}
-            <Link href="/login" className="text-accent hover:underline">
-              Log in
-            </Link>
-          </>
-        )}
+        Access is invite-only.{" "}
+        <Link href="/#contact" className="text-accent hover:underline">
+          Join the waitlist
+        </Link>{" "}
+        for early access.
       </p>
     </form>
   );

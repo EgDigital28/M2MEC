@@ -1,3 +1,5 @@
+import { WaitlistForm } from "@/components/WaitlistForm";
+
 type ContactContent = {
   title: string;
   description: string;
@@ -44,62 +46,7 @@ export function Contact({ content }: ContactProps) {
             </div>
 
             <div className="border-t border-border bg-background/40 p-8 md:p-12 lg:border-t-0 lg:border-l">
-              <form className="space-y-5" action="#" method="post">
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium">
-                    Name
-                  </label>
-                  <input
-                    id="name"
-                    name="name"
-                    type="text"
-                    required
-                    autoComplete="name"
-                    className="mt-2 w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted/60 focus:border-accent/50 focus:ring-1 focus:ring-accent/30"
-                    placeholder="Jane Smith"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium">
-                    Email
-                  </label>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    required
-                    autoComplete="email"
-                    className="mt-2 w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted/60 focus:border-accent/50 focus:ring-1 focus:ring-accent/30"
-                    placeholder="jane@example.com"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="message" className="block text-sm font-medium">
-                    Message
-                  </label>
-                  <textarea
-                    id="message"
-                    name="message"
-                    rows={4}
-                    required
-                    className="mt-2 w-full resize-none rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted/60 focus:border-accent/50 focus:ring-1 focus:ring-accent/30"
-                    placeholder={content.placeholder}
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full rounded-xl bg-gradient-to-r from-accent to-accent-secondary py-3.5 text-sm font-medium text-white shadow-lg shadow-accent/20 transition-opacity hover:opacity-90"
-                >
-                  Send message
-                </button>
-
-                <p className="text-center text-xs text-muted">
-                  Form is for demo purposes. Wire to your backend or form service.
-                </p>
-              </form>
+              <WaitlistForm placeholder={content.placeholder} />
             </div>
           </div>
         </div>
