@@ -122,6 +122,12 @@ export default async function TeamPage() {
               Invite activity
             </Link>
             <Link
+              href="/team/expenses"
+              className="rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:border-accent/40"
+            >
+              Expenses
+            </Link>
+            <Link
               href="/"
               className="rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:border-accent/40"
             >

@@ -13,6 +13,7 @@ export const teamNavItems: TeamNavItem[] = [
   { label: "Users", href: "/team/users", adminOnly: true },
   { label: "Waitlist", href: "/team/waitlist", adminOnly: true },
   { label: "Invites", href: "/team/invites", adminOnly: true },
+  { label: "Expenses", href: "/team/expenses", adminOnly: true },
   { label: "Invite", href: "/team/invite" },
 ];
 

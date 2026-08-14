@@ -90,6 +90,7 @@ Admins can suspend or delete users at **/team/users**. Suspended users are banne
 7. **`007_investor_tier.sql`** — adds `investor` to the `user_tier` enum.
 8. **`008_profile_registration.sql`** — adds `profiles.registered_at` and lets users update their own profile during onboarding.
 9. **`009_admin_waitlist_invites.sql`** — admin waitlist policies, `invite_events` log, and waitlist conversion sync on registration.
+10. **`010_expenses.sql`** — admin expense tracking (cost centers, components, line items with auto quarter).
 
 ## Bet ledger (`/team/bets`)
 
