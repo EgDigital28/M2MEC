@@ -96,7 +96,7 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
             {sending ? "Sending..." : "Send today's plays"}
           </button>
           <button type="button" disabled className={secondaryButtonClassName} title="Coming soon">
-            Yesterday's results
+            {"Yesterday's results"}
           </button>
           <button type="button" disabled className={secondaryButtonClassName} title="Coming soon">
             Weekly summary
