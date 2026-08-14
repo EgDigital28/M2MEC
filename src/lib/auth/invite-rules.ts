@@ -1,6 +1,6 @@
 import { TIER_DESCRIPTIONS, TIER_LABELS, type UserTier } from "@/lib/tiers";
 
-const INVITE_TIERS = ["b", "a", "employee"] as const;
+const INVITE_TIERS = ["a", "b", "employee", "investor"] as const;
 
 export type InvitableTier = (typeof INVITE_TIERS)[number];
 

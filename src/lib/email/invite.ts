@@ -46,14 +46,40 @@ function getInviteCopy(tier: UserTier): InviteCopy {
     };
   }
 
+  if (tier === "investor") {
+    return {
+      subject: "Your M2MEC investor access is ready",
+      eyebrow: "Investor invite",
+      title: "Welcome to M2MEC",
+      subtitle: "You've been invited with investor access.",
+      paragraphs: [
+        `${TIER_DESCRIPTIONS.investor}. Set your password to sign in and view the platform.`,
+        "This invite is for <strong style=\"color:#e8edf5;\">Investor</strong> access only. Each email address can be tied to one access tier.",
+      ],
+    };
+  }
+
+  if (tier === "b") {
+    return {
+      subject: "Your M2MEC access is ready",
+      eyebrow: "Account invite",
+      title: "Welcome to M2MEC",
+      subtitle: `You've been invited with ${TIER_LABELS.b} access.`,
+      paragraphs: [
+        `${TIER_DESCRIPTIONS.b}. Set your password to sign in and explore what's available to you.`,
+        "This invite is for <strong style=\"color:#e8edf5;\">Tier B</strong> access only. Each email address can be tied to one access tier.",
+      ],
+    };
+  }
+
   return {
     subject: "Your M2MEC access is ready",
     eyebrow: "Account invite",
     title: "Welcome to M2MEC",
-    subtitle: `You've been invited with ${TIER_LABELS.b} access.`,
+    subtitle: "You've been invited to M2MEC.",
     paragraphs: [
-      `${TIER_DESCRIPTIONS.b}. Set your password to sign in and explore what's available to you.`,
-      "This invite is for <strong style=\"color:#e8edf5;\">Tier B</strong> access only. Each email address can be tied to one access tier.",
+      "Set your password to sign in.",
+      "Each email address can be tied to one access tier.",
     ],
   };
 }

@@ -8,23 +8,24 @@ type InviteFormProps = {
   allowEmployeeTier?: boolean;
 };
 
-const BASE_INVITE_TIERS: { value: UserTier; label: string }[] = [
-  { value: "b", label: "Tier B — limited access" },
-  { value: "a", label: "Tier A — full product access" },
-];
-
+const TIER_A_OPTION = { value: "a" as const, label: "Tier A — full product access" };
+const TIER_B_OPTION = { value: "b" as const, label: "Tier B — limited access" };
 const EMPLOYEE_TIER_OPTION = {
   value: "employee" as const,
   label: "Employee — internal team",
+};
+const INVESTOR_TIER_OPTION = {
+  value: "investor" as const,
+  label: "Investor — investor access",
 };
 
 export function InviteForm({ allowEmployeeTier = false }: InviteFormProps) {
   const router = useRouter();
   const inviteTiers = allowEmployeeTier
-    ? [...BASE_INVITE_TIERS, EMPLOYEE_TIER_OPTION]
-    : BASE_INVITE_TIERS;
+    ? [TIER_A_OPTION, TIER_B_OPTION, EMPLOYEE_TIER_OPTION, INVESTOR_TIER_OPTION]
+    : [TIER_A_OPTION, TIER_B_OPTION, INVESTOR_TIER_OPTION];
   const [email, setEmail] = useState("");
-  const [tier, setTier] = useState<UserTier>("b");
+  const [tier, setTier] = useState<UserTier>("a");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -56,7 +57,7 @@ export function InviteForm({ allowEmployeeTier = false }: InviteFormProps) {
 
       setSuccess(`Invite sent to ${data.email ?? email}${data.tierLabel ? ` (${data.tierLabel})` : ""}.`);
       setEmail("");
-      setTier("b");
+      setTier("a");
       router.refresh();
     } catch {
       setError("Network error. Please try again.");

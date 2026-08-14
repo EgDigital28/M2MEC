@@ -1,4 +1,4 @@
-export const USER_TIERS = ["employee", "a", "b", "admin"] as const;
+export const USER_TIERS = ["employee", "a", "b", "investor", "admin"] as const;
 
 export type UserTier = (typeof USER_TIERS)[number];
 
@@ -6,8 +6,9 @@ export type UserTier = (typeof USER_TIERS)[number];
 export const TIER_RANK: Record<UserTier, number> = {
   b: 0,
   a: 1,
-  employee: 2,
-  admin: 3,
+  investor: 2,
+  employee: 3,
+  admin: 4,
 };
 
 export function hasMinimumTier(
@@ -24,6 +25,7 @@ export function isUserTier(value: string): value is UserTier {
 export const TIER_LABELS: Record<UserTier, string> = {
   b: "Tier B",
   a: "Tier A",
+  investor: "Investor",
   employee: "Employee",
   admin: "Admin",
 };
@@ -31,6 +33,7 @@ export const TIER_LABELS: Record<UserTier, string> = {
 export const TIER_DESCRIPTIONS: Record<UserTier, string> = {
   b: "Limited product access",
   a: "Full product access",
+  investor: "Investor access",
   employee: "Internal team tools",
   admin: "Full internal access + invites",
 };

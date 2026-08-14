@@ -14,7 +14,7 @@ import { getResendClient, getResendFromEmail } from "@/lib/email/utils";
 import { SERVICE_ROLE_MISSING_MESSAGE, tryCreateAdminClient } from "@/lib/supabase/admin";
 import { isUserTier, TIER_LABELS, type UserTier } from "@/lib/tiers";
 
-const INVITE_TIERS: UserTier[] = ["b", "a", "employee"];
+const INVITE_TIERS: UserTier[] = ["a", "b", "employee", "investor"];
 
 type InvitePayload = {
   email?: string;
