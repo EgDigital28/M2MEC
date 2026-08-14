@@ -16,9 +16,10 @@ export default async function TeamInvitePage() {
           Invite someone
         </h1>
         <p className="mt-3 text-sm text-muted">
-          Send an account invite as{" "}
-          <span className="font-medium text-foreground">{profile?.email}</span>.
-          They&apos;ll verify their email, set a password, and then can log in.
+          Invites are sent from{" "}
+          <span className="font-medium text-foreground">noreply@m2mec.com</span>. Recipients
+          verify their email, set a password, and then can log in. Each email address can only
+          be assigned one access tier.
         </p>
       </section>
 

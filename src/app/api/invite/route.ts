@@ -1,7 +1,18 @@
 import { NextResponse } from "next/server";
+import {
+  existingAccountMessage,
+  isInvitableTier,
+  tierConflictMessage,
+} from "@/lib/auth/invite-rules";
 import { requireMinimumTier } from "@/lib/auth/profile";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { isUserTier, type UserTier } from "@/lib/tiers";
+import {
+  inviteEmailHtml,
+  inviteEmailSubject,
+  inviteEmailText,
+} from "@/lib/email/invite";
+import { getResendClient, getResendFromEmail } from "@/lib/email/utils";
+import { SERVICE_ROLE_MISSING_MESSAGE, tryCreateAdminClient } from "@/lib/supabase/admin";
+import { isUserTier, TIER_LABELS, type UserTier } from "@/lib/tiers";
 
 const INVITE_TIERS: UserTier[] = ["b", "a", "employee"];
 
@@ -50,7 +61,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid tier." }, { status: 400 });
   }
 
-  // Only admins can grant employee tier or above via invite.
+  if (!isInvitableTier(tier)) {
+    return NextResponse.json({ error: "Invalid tier." }, { status: 400 });
+  }
+
   if (tier === "employee" && auth.profile.tier !== "admin") {
     return NextResponse.json(
       { error: "Only admins can invite with employee tier." },
@@ -58,7 +72,17 @@ export async function POST(request: Request) {
     );
   }
 
-  const admin = createAdminClient();
+  const admin = tryCreateAdminClient();
+
+  if (!admin) {
+    return NextResponse.json({ error: SERVICE_ROLE_MISSING_MESSAGE }, { status: 503 });
+  }
+
+  const resend = getResendClient();
+
+  if (!resend) {
+    return NextResponse.json({ error: "Email service is not configured." }, { status: 500 });
+  }
 
   const { data: suspendedEmail } = await admin
     .from("suspended_emails")
@@ -73,35 +97,91 @@ export async function POST(request: Request) {
     );
   }
 
+  const { data: existingProfile, error: existingProfileError } = await admin
+    .from("profiles")
+    .select("id, email, tier")
+    .ilike("email", email)
+    .maybeSingle();
+
+  if (existingProfileError) {
+    console.error("Invite profile lookup failed:", existingProfileError);
+    return NextResponse.json({ error: "Could not validate invite." }, { status: 500 });
+  }
+
+  if (existingProfile) {
+    if (existingProfile.tier !== tier) {
+      return NextResponse.json(
+        { error: tierConflictMessage(existingProfile.tier) },
+        { status: 400 },
+      );
+    }
+
+    return NextResponse.json(
+      { error: existingAccountMessage(existingProfile.tier) },
+      { status: 400 },
+    );
+  }
+
   const origin = getSiteOrigin(request);
   const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent("/set-password")}`;
 
-  const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
-    redirectTo,
+  const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+    type: "invite",
+    email,
+    options: { redirectTo },
   });
 
-  if (error) {
-    console.error("Invite failed:", error);
+  if (linkError) {
+    console.error("Invite link generation failed:", linkError);
 
     const message =
-      error.message.includes("already been registered") ||
-      error.message.includes("already registered")
+      linkError.message.includes("already been registered") ||
+      linkError.message.includes("already registered")
         ? "That email already has an account."
-        : "Could not send invite. Try again.";
+        : "Could not create invite. Try again.";
 
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
-  if (data.user) {
-    const { error: profileError } = await admin
-      .from("profiles")
-      .update({ tier, email })
-      .eq("id", data.user.id);
+  const actionLink = linkData.properties?.action_link;
 
-    if (profileError) {
-      console.error("Profile tier update failed:", profileError);
-    }
+  if (!actionLink || !linkData.user) {
+    console.error("Invite link missing action_link or user:", linkData);
+    return NextResponse.json({ error: "Could not create invite link." }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, email });
+  const { error: profileError } = await admin
+    .from("profiles")
+    .update({ tier, email })
+    .eq("id", linkData.user.id);
+
+  if (profileError) {
+    console.error("Profile tier update failed:", profileError);
+    return NextResponse.json({ error: "Could not assign access tier." }, { status: 500 });
+  }
+
+  const emailParams = { tier, actionLink };
+
+  const { error: emailError } = await resend.emails.send({
+    from: getResendFromEmail(),
+    to: email,
+    subject: inviteEmailSubject(emailParams),
+    html: inviteEmailHtml(emailParams),
+    text: inviteEmailText(emailParams),
+  });
+
+  if (emailError) {
+    console.error("Invite email failed:", emailError);
+    return NextResponse.json(
+      { error: "Account created, but the invite email could not be sent." },
+      { status: 502 },
+    );
+  }
+
+  return NextResponse.json({
+    ok: true,
+    email,
+    tier,
+    tierLabel: TIER_LABELS[tier],
+  });
 }

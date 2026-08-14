@@ -111,6 +111,28 @@ export function renderEmailSection({ eyebrow, title, subtitle }: EmailSectionPar
   `;
 }
 
+export function renderEmailParagraph(text: string) {
+  return `
+    <p style="margin:16px 0 0;font-size:14px;line-height:1.6;color:${EMAIL_COLORS.muted};">
+      ${text}
+    </p>
+  `;
+}
+
+export function renderEmailButton(href: string, label: string) {
+  return `
+    <table role="presentation" cellspacing="0" cellpadding="0" style="margin:24px 0 8px;">
+      <tr>
+        <td style="border-radius:999px;background:${EMAIL_COLORS.foreground};">
+          <a href="${escapeHtml(href)}" style="display:inline-block;padding:12px 24px;font-size:14px;font-weight:600;color:${EMAIL_COLORS.background};text-decoration:none;">
+            ${escapeHtml(label)}
+          </a>
+        </td>
+      </tr>
+    </table>
+  `;
+}
+
 function cellStyle(column: EmailTableColumn, color?: string) {
   const align = column.align ?? "left";
   const fontFamily = column.mono

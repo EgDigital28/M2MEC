@@ -42,7 +42,11 @@ export function InviteForm({ allowEmployeeTier = false }: InviteFormProps) {
         body: JSON.stringify({ email, tier }),
       });
 
-      const data = (await response.json()) as { error?: string; email?: string };
+      const data = (await response.json()) as {
+        error?: string;
+        email?: string;
+        tierLabel?: string;
+      };
 
       if (!response.ok) {
         setError(data.error ?? "Could not send invite.");
@@ -50,7 +54,7 @@ export function InviteForm({ allowEmployeeTier = false }: InviteFormProps) {
         return;
       }
 
-      setSuccess(`Invite sent to ${data.email ?? email}.`);
+      setSuccess(`Invite sent to ${data.email ?? email}${data.tierLabel ? ` (${data.tierLabel})` : ""}.`);
       setEmail("");
       setTier("b");
       router.refresh();
@@ -117,8 +121,8 @@ export function InviteForm({ allowEmployeeTier = false }: InviteFormProps) {
       </button>
 
       <p className="text-center text-xs text-muted">
-        They&apos;ll receive an email to verify their address, set a password,
-        and then can log in.
+        Invites come from noreply@m2mec.com. They&apos;ll set a password from the email link,
+        then sign in.
       </p>
     </form>
   );
