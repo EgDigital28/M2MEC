@@ -164,11 +164,10 @@ export async function POST(request: Request) {
   }
 
   const hashedToken = linkData.properties?.hashed_token;
-  const verificationType = linkData.properties?.verification_type ?? "invite";
 
   const callbackParams = new URLSearchParams({
     token_hash: hashedToken ?? "",
-    type: verificationType,
+    type: "invite",
     next: "/set-password",
   });
   const actionLink = `${origin}/auth/callback?${callbackParams.toString()}`;

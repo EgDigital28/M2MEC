@@ -40,6 +40,9 @@ export async function GET(request: NextRequest) {
     },
   );
 
+  // Invite/recovery links must replace any existing session (e.g. admin testing an invite).
+  await supabase.auth.signOut();
+
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
@@ -51,8 +54,9 @@ export async function GET(request: NextRequest) {
   }
 
   if (tokenHash && type) {
+    const otpType = (type === "signup" ? "invite" : type) as EmailOtpType;
     const { error } = await supabase.auth.verifyOtp({
-      type,
+      type: otpType,
       token_hash: tokenHash,
     });
 
@@ -60,7 +64,7 @@ export async function GET(request: NextRequest) {
       return response;
     }
 
-    console.error("Auth callback OTP verify failed:", error.message);
+    console.error("Auth callback OTP verify failed:", error.message, { type, otpType });
   }
 
   return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`);
