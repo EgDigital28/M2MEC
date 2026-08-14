@@ -177,7 +177,36 @@ function computeExpenseCostCoverageRow(totals: ExpenseCoverageTotals): CostCover
   };
 }
 
-function computeWageringCoverageRow(
+function wageringCoverageDisplay2026Obligation(
+  expenseObligation: number,
+  wageringCalculated: number,
+) {
+  if (expenseObligation <= wageringCalculated) {
+    return expenseObligation;
+  }
+
+  return expenseObligation - wageringCalculated;
+}
+
+function capitalCoverage2026Obligation(
+  expenseObligation: number,
+  wageringCalculated: number,
+  investorDepositTotal: number,
+) {
+  if (expenseObligation <= wageringCalculated) {
+    return 0;
+  }
+
+  const delta = expenseObligation - wageringCalculated;
+
+  if (investorDepositTotal >= delta) {
+    return delta;
+  }
+
+  return investorDepositTotal - delta;
+}
+
+function computeWageringCoverageCalculatedRow(
   overallPl: number,
   totals: ExpenseCoverageTotals,
 ): CostCoverageRow {
@@ -200,19 +229,36 @@ function computeWageringCoverageRow(
   };
 }
 
+function computeWageringCoverageDisplayRow(
+  expenseRow: CostCoverageRow,
+  wageringCalculated: CostCoverageRow,
+): CostCoverageRow {
+  return {
+    ...wageringCalculated,
+    currentYearObligation: wageringCoverageDisplay2026Obligation(
+      expenseRow.currentYearObligation,
+      wageringCalculated.currentYearObligation,
+    ),
+  };
+}
+
 function computeCapitalCoverageRow(
   expenseRow: CostCoverageRow,
-  wageringRow: CostCoverageRow,
+  wageringCalculated: CostCoverageRow,
   investorDepositTotal: number,
 ): CostCoverageRow {
-  const delta = expenseRow.ytd - wageringRow.ytd;
-  const ytd = delta > 0 ? Math.min(delta, investorDepositTotal) : 0;
+  const ytdDelta = expenseRow.ytd - wageringCalculated.ytd;
+  const ytd = ytdDelta > 0 ? Math.min(ytdDelta, investorDepositTotal) : 0;
 
   return {
     id: "capital-coverage",
     name: "Capital Coverage",
     ytd,
-    currentYearObligation: 0,
+    currentYearObligation: capitalCoverage2026Obligation(
+      expenseRow.currentYearObligation,
+      wageringCalculated.currentYearObligation,
+      investorDepositTotal,
+    ),
     nextYearObligation: 0,
   };
 }
@@ -227,11 +273,12 @@ export function computeCostCoverage(
   const nextYear = currentYear + 1;
   const expenseTotals = computeExpenseCoverageTotals(entries, currentYear, nextYear);
   const expenseRow = computeExpenseCostCoverageRow(expenseTotals);
-  const wageringRow = computeWageringCoverageRow(overallPl, expenseTotals);
+  const wageringCalculated = computeWageringCoverageCalculatedRow(overallPl, expenseTotals);
+  const wageringRow = computeWageringCoverageDisplayRow(expenseRow, wageringCalculated);
   const rows = [
     expenseRow,
     wageringRow,
-    computeCapitalCoverageRow(expenseRow, wageringRow, investorDepositTotal),
+    computeCapitalCoverageRow(expenseRow, wageringCalculated, investorDepositTotal),
   ];
 
   return {

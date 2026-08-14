@@ -7,6 +7,10 @@ import { formatExpenseAmount } from "@/lib/expenses/types";
 const moneyCellClassName = "whitespace-nowrap text-right font-mono tabular-nums";
 
 function AmountCell({ amount }: { amount: number }) {
+  if (amount < 0) {
+    return <span className="text-red-300">{formatExpenseAmount(amount)}</span>;
+  }
+
   return (
     <span className={amount === 0 ? "text-muted/70" : undefined}>{formatExpenseAmount(amount)}</span>
   );
