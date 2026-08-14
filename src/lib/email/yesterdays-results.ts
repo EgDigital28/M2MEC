@@ -9,6 +9,7 @@ import {
 } from "@/lib/bets/calculations";
 import {
   emailProfitLossColor,
+  emailWinPctColor,
   renderEmailEmptyState,
   renderEmailHtmlCell,
   renderEmailSection,
@@ -54,7 +55,7 @@ export function yesterdaysResultsHtml({ entries, resultsDate }: YesterdaysResult
           value: formatCurrencyWhole(stats.totalProfitLoss),
           valueColor: emailProfitLossColor(stats.totalProfitLoss),
         },
-        { label: "Win %", value: formatPercent(stats.winPct) },
+        { label: "Win %", value: formatPercent(stats.winPct), valueColor: emailWinPctColor(stats.winPct) },
         {
           label: "ROI",
           value: formatPercent(stats.roi),

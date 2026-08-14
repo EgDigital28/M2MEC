@@ -1,3 +1,4 @@
+import { getWinPctTier } from "@/lib/bets/calculations";
 import { escapeHtml } from "@/lib/email/utils";
 
 export const EMAIL_COLORS = {
@@ -27,19 +28,16 @@ export function emailProfitLossColor(value: number) {
 }
 
 export function emailWinPctColor(winPct: number | null) {
-  if (winPct === null) {
-    return EMAIL_COLORS.muted;
+  switch (getWinPctTier(winPct)) {
+    case "green":
+      return EMAIL_COLORS.profit;
+    case "yellow":
+      return EMAIL_COLORS.warning;
+    case "red":
+      return EMAIL_COLORS.loss;
+    default:
+      return EMAIL_COLORS.muted;
   }
-
-  if (winPct > 0.56) {
-    return EMAIL_COLORS.profit;
-  }
-
-  if (winPct >= 0.52) {
-    return EMAIL_COLORS.warning;
-  }
-
-  return EMAIL_COLORS.loss;
 }
 
 type EmailSectionParams = {

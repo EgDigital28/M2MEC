@@ -13,6 +13,8 @@ import {
   formatRiskInput,
   parseRiskAmount,
   sortBetEntries,
+  winPctCellClassName,
+  winPctTextClassName,
   type BetEntryComputed,
   type BetStatus,
 } from "@/lib/bets/calculations";
@@ -91,36 +93,16 @@ function profitLossClassName(value: number) {
   return "text-muted";
 }
 
-function percentHighlightClassName(value: number | null, type: "roi" | "winPct") {
+function roiHighlightClassName(value: number | null) {
   if (value === null) {
     return "";
   }
 
-  if (type === "roi") {
-    if (value > 0) {
-      return "bg-emerald-500/20";
-    }
-
-    if (value < 0) {
-      return "bg-red-500/20";
-    }
-
-    return "";
-  }
-
-  if (value >= 0.6) {
-    return "bg-emerald-600/30";
-  }
-
-  if (value >= 0.55) {
+  if (value > 0) {
     return "bg-emerald-500/20";
   }
 
-  if (value >= 0.5) {
-    return "bg-emerald-500/10";
-  }
-
-  if (value > 0) {
+  if (value < 0) {
     return "bg-red-500/20";
   }
 
@@ -384,28 +366,12 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
 
             <div className="rounded-2xl border border-border bg-surface-elevated p-5">
               <p className="text-xs font-medium uppercase tracking-widest text-muted">
-                Win %
+                Open risk
               </p>
               <p className="mt-2 text-2xl font-semibold tabular-nums">
-                {formatPercent(stats.winPct)}
+                {formatCurrencyWhole(stats.openRisk)}
               </p>
-              <p className="mt-1 text-xs text-muted">
-                {stats.winCount} wins / {stats.gradedCount} graded
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-surface-elevated p-5">
-              <p className="text-xs font-medium uppercase tracking-widest text-muted">
-                ROI
-              </p>
-              <p
-                className={`mt-2 text-2xl font-semibold tabular-nums ${profitLossClassName(stats.roi ?? 0)}`}
-              >
-                {formatPercent(stats.roi)}
-              </p>
-              <p className="mt-1 text-xs text-muted">
-                {formatCurrencyWhole(stats.totalProfitLoss)} on {formatCurrencyWhole(stats.totalRisked)} risked
-              </p>
+              <p className="mt-1 text-xs text-muted">Across open positions</p>
             </div>
 
             <div className="rounded-2xl border border-border bg-surface-elevated p-5">
@@ -422,6 +388,22 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
 
             <div className="rounded-2xl border border-border bg-surface-elevated p-5">
               <p className="text-xs font-medium uppercase tracking-widest text-muted">
+                ROI
+              </p>
+              <p
+                className={`mt-2 text-2xl font-semibold tabular-nums ${profitLossClassName(stats.roi ?? 0)}`}
+              >
+                {formatPercent(stats.roi)}
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                {formatCurrencyWhole(stats.totalProfitLoss)} on {formatCurrencyWhole(stats.totalRisked)} risked
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="rounded-2xl border border-border bg-surface-elevated p-5">
+              <p className="text-xs font-medium uppercase tracking-widest text-muted">
                 Entries
               </p>
               <p className="mt-2 text-2xl font-semibold tabular-nums">
@@ -435,22 +417,26 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
 
             <div className="rounded-2xl border border-border bg-surface-elevated p-5">
               <p className="text-xs font-medium uppercase tracking-widest text-muted">
-                Open risk
-              </p>
-              <p className="mt-2 text-2xl font-semibold tabular-nums">
-                {formatCurrencyWhole(stats.openRisk)}
-              </p>
-              <p className="mt-1 text-xs text-muted">Across open positions</p>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-surface-elevated p-5">
-              <p className="text-xs font-medium uppercase tracking-widest text-muted">
                 Record
               </p>
               <p className="mt-2 text-2xl font-semibold tabular-nums">
                 {stats.winCount}-{stats.lossCount}-{stats.voidCount}
               </p>
               <p className="mt-1 text-xs text-muted">Win-loss-void (graded only)</p>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-surface-elevated p-5">
+              <p className="text-xs font-medium uppercase tracking-widest text-muted">
+                Win %
+              </p>
+              <p
+                className={`mt-2 text-2xl font-semibold tabular-nums ${winPctTextClassName(stats.winPct)}`}
+              >
+                {formatPercent(stats.winPct)}
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                {stats.winCount} wins / {stats.gradedCount} graded
+              </p>
             </div>
           </div>
 
@@ -503,12 +489,12 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                           {formatCurrencyWhole(row.totalProfitLoss)}
                         </td>
                         <td
-                          className={`px-3 py-2 text-center tabular-nums ${percentHighlightClassName(row.roi, "roi")}`}
+                          className={`px-3 py-2 text-center tabular-nums ${roiHighlightClassName(row.roi)}`}
                         >
                           {formatPercent(row.roi)}
                         </td>
                         <td
-                          className={`px-3 py-2 text-center tabular-nums ${percentHighlightClassName(row.winPct, "winPct")}`}
+                          className={`px-3 py-2 text-center tabular-nums ${winPctCellClassName(row.winPct)}`}
                         >
                           {formatPercent(row.winPct)}
                         </td>

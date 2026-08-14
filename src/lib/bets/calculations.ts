@@ -337,6 +337,51 @@ export function formatPercent(value: number | null): string {
   return `${(value * 100).toFixed(2)}%`;
 }
 
+export type WinPctTier = "green" | "yellow" | "red" | "none";
+
+/** Win % above 56% is green, 52–55% is yellow, below 52% is red. */
+export function getWinPctTier(winPct: number | null): WinPctTier {
+  if (winPct === null || Number.isNaN(winPct)) {
+    return "none";
+  }
+
+  if (winPct > 0.56) {
+    return "green";
+  }
+
+  if (winPct >= 0.52) {
+    return "yellow";
+  }
+
+  return "red";
+}
+
+export function winPctTextClassName(winPct: number | null) {
+  switch (getWinPctTier(winPct)) {
+    case "green":
+      return "text-emerald-400";
+    case "yellow":
+      return "text-amber-300";
+    case "red":
+      return "text-red-400";
+    default:
+      return "";
+  }
+}
+
+export function winPctCellClassName(winPct: number | null) {
+  switch (getWinPctTier(winPct)) {
+    case "green":
+      return "bg-emerald-500/20";
+    case "yellow":
+      return "bg-amber-500/20";
+    case "red":
+      return "bg-red-500/20";
+    default:
+      return "";
+  }
+}
+
 const DEFAULT_BET_TIMEZONE = "America/New_York";
 
 export function getTodayDateString(timeZone = DEFAULT_BET_TIMEZONE): string {
