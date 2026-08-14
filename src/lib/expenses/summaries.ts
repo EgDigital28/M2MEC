@@ -1,4 +1,11 @@
-import { isSummaryEligible, sortCatalog, type ExpenseComponent, type ExpenseCostCenter, type ExpenseEntry } from "./types";
+import {
+  getQuarterFromDate,
+  isSummaryEligible,
+  sortCatalog,
+  type ExpenseComponent,
+  type ExpenseCostCenter,
+  type ExpenseEntry,
+} from "./types";
 
 export const DEFAULT_SUMMARY_QUARTERS = [
   "1Q26",
@@ -26,6 +33,60 @@ export type ExpenseSummary = {
   columnTotals: Record<string, number>;
   grandTotal: number;
 };
+
+export type ExpenseSummaryMetrics = {
+  ytdExpenses: number;
+  yearForecast: number;
+  quarterlyObligation: number;
+  currentYear: number;
+  currentQuarter: string;
+};
+
+export function getExpenseYear(expenseDate: string) {
+  return Number(expenseDate.slice(0, 4));
+}
+
+export function isUnpaidExpense(entry: Pick<ExpenseEntry, "status">) {
+  return entry.status !== "paid" && entry.status !== "void";
+}
+
+export function computeExpenseSummaryMetrics(
+  entries: ExpenseEntry[],
+  referenceDate: Date = new Date(),
+): ExpenseSummaryMetrics {
+  const currentYear = referenceDate.getFullYear();
+  const currentQuarter = getQuarterFromDate(referenceDate);
+
+  let ytdExpenses = 0;
+  let yearForecast = 0;
+  let quarterlyObligation = 0;
+
+  for (const entry of entries) {
+    const entryYear = getExpenseYear(entry.expense_date);
+
+    if (entryYear === currentYear) {
+      if (entry.status === "paid") {
+        ytdExpenses += entry.amount;
+      }
+
+      if (isSummaryEligible(entry)) {
+        yearForecast += entry.amount;
+      }
+    }
+
+    if (entry.quarter === currentQuarter && isUnpaidExpense(entry)) {
+      quarterlyObligation += entry.amount;
+    }
+  }
+
+  return {
+    ytdExpenses,
+    yearForecast,
+    quarterlyObligation,
+    currentYear,
+    currentQuarter,
+  };
+}
 
 function parseQuarterKey(quarter: string) {
   const match = /^(\d)Q(\d{2})$/.exec(quarter);

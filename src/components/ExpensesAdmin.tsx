@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { ExpenseSummaryCards } from "@/components/ExpenseSummaryCards";
 import { ExpenseSummaryTables } from "@/components/ExpenseSummaryTables";
 import {
   CheckIcon,
@@ -770,6 +771,8 @@ export function ExpensesAdmin() {
           {error}
         </p>
       )}
+
+      <ExpenseSummaryCards entries={entries} />
 
       <ExpenseSummaryTables
         entries={entries}
