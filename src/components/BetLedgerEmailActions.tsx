@@ -3,8 +3,11 @@
 import { useMemo, useState } from "react";
 import {
   filterEntriesByEventDate,
+  filterEntriesByEventDateRange,
   filterOpenPlaysTodayAndUpcoming,
   formatEventDate,
+  formatWeekRangeShort,
+  getCurrentWeekRange,
   getYesterdayDateString,
   type BetEntryComputed,
 } from "@/lib/bets/calculations";
@@ -24,7 +27,9 @@ const secondaryButtonClassName =
 
 export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
   const [to, setTo] = useState("");
-  const [sendingAction, setSendingAction] = useState<"upcoming" | "yesterday" | null>(null);
+  const [sendingAction, setSendingAction] = useState<"upcoming" | "yesterday" | "weekly" | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -39,8 +44,14 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
     [entries, yesterdayDate],
   );
 
+  const weekRange = useMemo(() => getCurrentWeekRange(), []);
+  const weekPlays = useMemo(
+    () => filterEntriesByEventDateRange(entries, weekRange.weekStart, weekRange.weekEnd),
+    [entries, weekRange],
+  );
+
   async function sendEmail(
-    action: "upcoming" | "yesterday",
+    action: "upcoming" | "yesterday" | "weekly",
     endpoint: string,
     successMessage: (data: { playCount?: number; recipientCount?: number }) => string,
   ) {
@@ -88,6 +99,12 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
     );
   }
 
+  function sendWeeklySummary() {
+    return sendEmail("weekly", "/api/bets/email/weekly-summary", (data) =>
+      `Sent weekly summary (${data.playCount ?? weekPlays.length} plays) to ${data.recipientCount ?? 0} recipient(s).`,
+    );
+  }
+
   const sending = sendingAction !== null;
 
   return (
@@ -109,7 +126,9 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
             Comma-separated recipients. {openPlays.length} upcoming open{" "}
             {openPlays.length === 1 ? "play" : "plays"} · {yesterdayPlays.length}{" "}
             {yesterdayPlays.length === 1 ? "play" : "plays"} yesterday (
-            {formatEventDate(yesterdayDate)}).
+            {formatEventDate(yesterdayDate)}) · {weekPlays.length}{" "}
+            {weekPlays.length === 1 ? "play" : "plays"} this week (
+            {formatWeekRangeShort(weekRange.weekStart, weekRange.weekEnd)}).
           </p>
         </div>
 
@@ -130,8 +149,13 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
           >
             {sendingAction === "yesterday" ? "Sending..." : "Yesterday\u2019s results"}
           </button>
-          <button type="button" disabled className={secondaryButtonClassName} title="Coming soon">
-            Weekly summary
+          <button
+            type="button"
+            onClick={sendWeeklySummary}
+            disabled={sending || !to.trim()}
+            className={secondaryButtonClassName}
+          >
+            {sendingAction === "weekly" ? "Sending..." : "Weekly summary"}
           </button>
         </div>
       </div>

@@ -342,6 +342,71 @@ export function getYesterdayDateString(timeZone = DEFAULT_BET_TIMEZONE): string 
   return `${yesterdayYear}-${yesterdayMonth}-${yesterdayDay}`;
 }
 
+function parseDateString(date: string) {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function formatDateString(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+export type WeekDateRange = {
+  weekStart: string;
+  weekEnd: string;
+};
+
+export function getCurrentWeekRange(timeZone = DEFAULT_BET_TIMEZONE): WeekDateRange {
+  const today = getTodayDateString(timeZone);
+  const todayDate = parseDateString(today);
+  const daysSinceMonday = (todayDate.getDay() + 6) % 7;
+
+  const weekStartDate = new Date(todayDate);
+  weekStartDate.setDate(weekStartDate.getDate() - daysSinceMonday);
+
+  const weekEndDate = new Date(weekStartDate);
+  weekEndDate.setDate(weekEndDate.getDate() + 6);
+
+  return {
+    weekStart: formatDateString(weekStartDate),
+    weekEnd: formatDateString(weekEndDate),
+  };
+}
+
+export function formatWeekRangeLabel(weekStart: string, weekEnd: string) {
+  const start = parseDateString(weekStart);
+  const end = parseDateString(weekEnd);
+  const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
+
+  if (sameMonth) {
+    return new Intl.DateTimeFormat("en-US", {
+      month: "long",
+      day: "numeric",
+    }).format(start) + "–" + end.getDate() + ", " + end.getFullYear();
+  }
+
+  const startLabel = new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(start);
+  const endLabel = new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(end);
+
+  return `${startLabel} – ${endLabel}`;
+}
+
+export function formatWeekRangeShort(weekStart: string, weekEnd: string) {
+  return `${formatEventDate(weekStart)} – ${formatEventDate(weekEnd)}`;
+}
+
 export type DayResultsStats = {
   playCount: number;
   winCount: number;
@@ -402,6 +467,30 @@ export function filterEntriesByEventDate(
   return entries
     .filter((entry) => entry.event_date === eventDate)
     .sort((a, b) => {
+      const sportCompare = a.sport.localeCompare(b.sport);
+
+      if (sportCompare !== 0) {
+        return sportCompare;
+      }
+
+      return a.event_name.localeCompare(b.event_name);
+    });
+}
+
+export function filterEntriesByEventDateRange(
+  entries: BetEntryComputed[],
+  weekStart: string,
+  weekEnd: string,
+): BetEntryComputed[] {
+  return entries
+    .filter((entry) => entry.event_date >= weekStart && entry.event_date <= weekEnd)
+    .sort((a, b) => {
+      const dateCompare = a.event_date.localeCompare(b.event_date);
+
+      if (dateCompare !== 0) {
+        return dateCompare;
+      }
+
       const sportCompare = a.sport.localeCompare(b.sport);
 
       if (sportCompare !== 0) {
