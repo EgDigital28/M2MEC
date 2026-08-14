@@ -57,7 +57,8 @@ export function CostCoverageTable() {
       <div>
         <h2 className="text-lg font-semibold">Cost coverage</h2>
         <p className="mt-1 text-sm text-muted">
-          Budget line items with year-to-date spend and obligations. Voids are excluded.
+          Budget line items with year-to-date spend and obligations. Wagering coverage uses overall
+          P/L from the ledger. Voids are excluded.
         </p>
       </div>
 

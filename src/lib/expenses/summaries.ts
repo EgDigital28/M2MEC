@@ -134,12 +134,24 @@ function sumCostCoverageRows(rows: CostCoverageRow[]) {
   );
 }
 
-function computeExpenseCostCoverageRow(
+type ExpenseCoverageTotals = {
+  ytdPaid: number;
+  currentYearUnpaid: number;
+  currentYearTotal: number;
+  nextYearTotal: number;
+};
+
+function computeExpenseCoverageTotals(
   entries: ExpenseEntry[],
   currentYear: number,
   nextYear: number,
-): CostCoverageRow {
-  const values = emptyCostCoverageBucket();
+): ExpenseCoverageTotals {
+  const totals: ExpenseCoverageTotals = {
+    ytdPaid: 0,
+    currentYearUnpaid: 0,
+    currentYearTotal: 0,
+    nextYearTotal: 0,
+  };
 
   for (const entry of entries) {
     if (!isSummaryEligible(entry)) {
@@ -148,33 +160,83 @@ function computeExpenseCostCoverageRow(
 
     const entryYear = getExpenseYear(entry.expense_date);
 
-    if (entryYear === currentYear && entry.status === "paid") {
-      values.ytd += entry.amount;
-    }
+    if (entryYear === currentYear) {
+      totals.currentYearTotal += entry.amount;
 
-    if (entryYear === currentYear && isUnpaidExpense(entry)) {
-      values.currentYearObligation += entry.amount;
+      if (entry.status === "paid") {
+        totals.ytdPaid += entry.amount;
+      }
+
+      if (isUnpaidExpense(entry)) {
+        totals.currentYearUnpaid += entry.amount;
+      }
     }
 
     if (entryYear === nextYear) {
-      values.nextYearObligation += entry.amount;
+      totals.nextYearTotal += entry.amount;
     }
   }
 
+  return totals;
+}
+
+function wageringCoverageValue(
+  overallPl: number,
+  benchmark: number,
+  valueWhenPlAbove: number,
+) {
+  if (overallPl >= benchmark) {
+    return valueWhenPlAbove;
+  }
+
+  return benchmark - overallPl;
+}
+
+function computeExpenseCostCoverageRow(totals: ExpenseCoverageTotals): CostCoverageRow {
   return {
     id: "expense",
     name: "Expense",
-    ...values,
+    ytd: totals.ytdPaid,
+    currentYearObligation: totals.currentYearUnpaid,
+    nextYearObligation: totals.nextYearTotal,
+  };
+}
+
+function computeWageringCoverageRow(
+  overallPl: number,
+  totals: ExpenseCoverageTotals,
+): CostCoverageRow {
+  const combinedCurrentAndNextYear = totals.currentYearTotal + totals.nextYearTotal;
+
+  return {
+    id: "wagering-coverage",
+    name: "Wagering Coverage",
+    ytd: wageringCoverageValue(overallPl, totals.ytdPaid, totals.ytdPaid),
+    currentYearObligation: wageringCoverageValue(
+      overallPl,
+      totals.currentYearTotal,
+      totals.currentYearTotal,
+    ),
+    nextYearObligation: wageringCoverageValue(
+      overallPl,
+      combinedCurrentAndNextYear,
+      totals.nextYearTotal,
+    ),
   };
 }
 
 export function computeCostCoverage(
   entries: ExpenseEntry[],
+  overallPl: number,
   referenceDate: Date = new Date(),
 ): CostCoverageSummary {
   const currentYear = referenceDate.getFullYear();
   const nextYear = currentYear + 1;
-  const rows = [computeExpenseCostCoverageRow(entries, currentYear, nextYear)];
+  const expenseTotals = computeExpenseCoverageTotals(entries, currentYear, nextYear);
+  const rows = [
+    computeExpenseCostCoverageRow(expenseTotals),
+    computeWageringCoverageRow(overallPl, expenseTotals),
+  ];
 
   return {
     rows,

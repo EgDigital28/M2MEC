@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireMinimumTier } from "@/lib/auth/profile";
+import { fetchOverallPl } from "@/lib/financials/ledger-summary";
 import { computeCostCoverage } from "@/lib/expenses/summaries";
 import type { ExpenseEntry } from "@/lib/expenses/types";
 import { createClient } from "@/lib/supabase/server";
@@ -38,7 +39,13 @@ export async function GET() {
     return NextResponse.json({ error: "Could not load cost coverage." }, { status: 500 });
   }
 
-  const summary = computeCostCoverage((data ?? []) as ExpenseEntry[]);
+  try {
+    const ledger = await fetchOverallPl();
+    const summary = computeCostCoverage((data ?? []) as ExpenseEntry[], ledger.overallPl);
 
-  return NextResponse.json({ summary });
+    return NextResponse.json({ summary, overallPl: ledger.overallPl });
+  } catch (ledgerError) {
+    console.error("Ledger summary fetch failed:", ledgerError);
+    return NextResponse.json({ error: "Could not load ledger summary." }, { status: 500 });
+  }
 }
