@@ -20,3 +20,17 @@ export function hasMinimumTier(
 export function isUserTier(value: string): value is UserTier {
   return (USER_TIERS as readonly string[]).includes(value);
 }
+
+export const TIER_LABELS: Record<UserTier, string> = {
+  b: "Tier B",
+  a: "Tier A",
+  employee: "Employee",
+  admin: "Admin",
+};
+
+export const TIER_DESCRIPTIONS: Record<UserTier, string> = {
+  b: "Limited product access",
+  a: "Full product access",
+  employee: "Internal team tools",
+  admin: "Full internal access + invites",
+};
