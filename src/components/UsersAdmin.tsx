@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { ManagedUser } from "@/app/api/users/route";
+import type { ManagedUser } from "@/lib/users/types";
 import { TIER_LABELS, type UserTier } from "@/lib/tiers";
 
 type UsersAdminProps = {
@@ -33,14 +33,26 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionUserId, setActionUserId] = useState<string | null>(null);
+  const [migrationRequired, setMigrationRequired] = useState(false);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setMigrationRequired(false);
 
     try {
       const response = await fetch("/api/users");
-      const data = (await response.json()) as { users?: ManagedUser[]; error?: string };
+      const raw = await response.text();
+
+      let data: { users?: ManagedUser[]; error?: string; migrationRequired?: boolean };
+
+      try {
+        data = JSON.parse(raw) as typeof data;
+      } catch {
+        setError(`Server error (${response.status}). Check Vercel logs.`);
+        setLoading(false);
+        return;
+      }
 
       if (!response.ok) {
         setError(data.error ?? "Could not load users.");
@@ -49,6 +61,7 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
       }
 
       setUsers(data.users ?? []);
+      setMigrationRequired(Boolean(data.migrationRequired));
     } catch {
       setError("Network error while loading users.");
     } finally {
@@ -130,6 +143,13 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
 
   return (
     <div className="space-y-4">
+      {migrationRequired && (
+        <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          Run <code className="text-foreground">005_user_suspensions.sql</code> in Supabase to
+          enable suspend/unsuspend.
+        </p>
+      )}
+
       {error && (
         <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
           {error}

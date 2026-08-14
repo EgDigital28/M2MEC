@@ -1,4 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
+import {
+  isMissingSuspensionColumn,
+  PROFILE_COLUMNS,
+  PROFILE_COLUMNS_WITH_SUSPENSION,
+  withSuspendedAt,
+} from "@/lib/users/types";
 import { hasMinimumTier, type UserTier } from "@/lib/tiers";
 
 export type Profile = {
@@ -19,11 +25,21 @@ export async function getCurrentProfile(): Promise<Profile | null> {
     return null;
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error } = await supabase
     .from("profiles")
-    .select("id, email, display_name, tier, suspended_at")
+    .select(PROFILE_COLUMNS_WITH_SUSPENSION)
     .eq("id", user.id)
     .single();
+
+  if (error && isMissingSuspensionColumn(error.message)) {
+    const { data: fallbackProfile } = await supabase
+      .from("profiles")
+      .select(PROFILE_COLUMNS)
+      .eq("id", user.id)
+      .single();
+
+    return fallbackProfile ? withSuspendedAt(fallbackProfile) : null;
+  }
 
   return profile;
 }

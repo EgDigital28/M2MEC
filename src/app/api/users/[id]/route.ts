@@ -2,12 +2,18 @@ import { NextResponse } from "next/server";
 import { requireMinimumTier } from "@/lib/auth/profile";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+import { isMissingSuspensionColumn } from "@/lib/users/types";
+
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
+const MIGRATION_ERROR =
+  "User suspensions are not set up yet. Run 005_user_suspensions.sql in Supabase.";
+
 export async function DELETE(_request: Request, context: RouteContext) {
-  const auth = await requireMinimumTier("admin");
+  try {
+    const auth = await requireMinimumTier("admin");
 
   if ("error" in auth) {
     if (auth.error === "unauthenticated") {
@@ -47,10 +53,15 @@ export async function DELETE(_request: Request, context: RouteContext) {
   }
 
   return NextResponse.json({ ok: true, email: targetProfile.email });
+  } catch (error) {
+    console.error("User delete failed:", error);
+    return NextResponse.json({ error: "Could not delete user." }, { status: 500 });
+  }
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const auth = await requireMinimumTier("admin");
+  try {
+    const auth = await requireMinimumTier("admin");
 
   if ("error" in auth) {
     if (auth.error === "unauthenticated") {
@@ -106,6 +117,9 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     if (profileUpdateError) {
       console.error("Profile suspend failed:", profileUpdateError);
+      if (isMissingSuspensionColumn(profileUpdateError.message)) {
+        return NextResponse.json({ error: MIGRATION_ERROR }, { status: 503 });
+      }
       return NextResponse.json({ error: "Could not suspend user." }, { status: 500 });
     }
 
@@ -120,6 +134,9 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     if (blockError) {
       console.error("Suspended email upsert failed:", blockError);
+      if (blockError.message.includes("suspended_emails")) {
+        return NextResponse.json({ error: MIGRATION_ERROR }, { status: 503 });
+      }
       return NextResponse.json({ error: "Could not suspend user." }, { status: 500 });
     }
 
@@ -142,6 +159,9 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   if (profileUpdateError) {
     console.error("Profile unsuspend failed:", profileUpdateError);
+    if (isMissingSuspensionColumn(profileUpdateError.message)) {
+      return NextResponse.json({ error: MIGRATION_ERROR }, { status: 503 });
+    }
     return NextResponse.json({ error: "Could not unsuspend user." }, { status: 500 });
   }
 
@@ -152,6 +172,9 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   if (unblockError) {
     console.error("Suspended email delete failed:", unblockError);
+    if (unblockError.message.includes("suspended_emails")) {
+      return NextResponse.json({ error: MIGRATION_ERROR }, { status: 503 });
+    }
     return NextResponse.json({ error: "Could not unsuspend user." }, { status: 500 });
   }
 
@@ -165,4 +188,8 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   return NextResponse.json({ ok: true, action: "unsuspend", email });
+  } catch (error) {
+    console.error("User update failed:", error);
+    return NextResponse.json({ error: "Could not update user." }, { status: 500 });
+  }
 }
