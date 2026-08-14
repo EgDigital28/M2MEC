@@ -16,6 +16,7 @@ import {
   type BetStatus,
 } from "@/lib/bets/calculations";
 import type { Sport } from "@/lib/sports/types";
+import { BetLedgerEmailActions } from "@/components/BetLedgerEmailActions";
 
 type BetLedgerProps = {
   isAdmin: boolean;
@@ -386,6 +387,8 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
 
   return (
     <div className="space-y-8">
+      {isAdmin && !loading && <BetLedgerEmailActions entries={sortedEntries} />}
+
       {!loading && (
         <section className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

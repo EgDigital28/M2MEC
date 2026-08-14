@@ -12,10 +12,6 @@ export default async function TeamBetsPage() {
           Sportsbook Hub
         </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight">Bet ledger</h1>
-        <p className="mt-3 max-w-2xl text-sm text-muted">
-          Track positions by event. Enter date, sport, event, line, and risk —
-          To Win and P/L are calculated from your spreadsheet formulas.
-        </p>
       </section>
 
       <BetLedger isAdmin={isAdmin} />

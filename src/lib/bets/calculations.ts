@@ -313,3 +313,34 @@ export function formatPercent(value: number | null): string {
 
   return `${(value * 100).toFixed(2)}%`;
 }
+
+const DEFAULT_BET_TIMEZONE = "America/New_York";
+
+export function getTodayDateString(timeZone = DEFAULT_BET_TIMEZONE): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date());
+}
+
+export function filterOpenPlaysTodayAndUpcoming(
+  entries: BetEntryComputed[],
+  timeZone = DEFAULT_BET_TIMEZONE,
+): BetEntryComputed[] {
+  const today = getTodayDateString(timeZone);
+
+  return entries
+    .filter((entry) => entry.status === "Open" && entry.event_date >= today)
+    .sort((a, b) => {
+      const dateCompare = a.event_date.localeCompare(b.event_date);
+
+      if (dateCompare !== 0) {
+        return dateCompare;
+      }
+
+      const sportCompare = a.sport.localeCompare(b.sport);
+
+      if (sportCompare !== 0) {
+        return sportCompare;
+      }
+
+      return a.event_name.localeCompare(b.event_name);
+    });
+}
