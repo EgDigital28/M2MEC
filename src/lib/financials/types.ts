@@ -6,6 +6,7 @@ export type EquityStakeholder = {
   id: string;
   email: string;
   display_name: string | null;
+  report_alias: string | null;
   tier: UserTier;
   registered_at: string | null;
 };
@@ -20,7 +21,7 @@ export type EquityStake = {
   deposit: number;
   created_at: string;
   updated_at: string;
-  profile?: Pick<EquityStakeholder, "id" | "email" | "display_name" | "tier"> | null;
+  profile?: Pick<EquityStakeholder, "id" | "email" | "display_name" | "report_alias" | "tier"> | null;
 };
 
 export function formatFinancialAmount(amount: number) {
@@ -77,6 +78,23 @@ export function investorDisplayLabel(
   }
 
   return UNALLOCATED_INVESTOR_LABEL;
+}
+
+export function reportAliasForStake(
+  stake: Pick<EquityStake, "profile_id" | "profile">,
+  stakeholders: EquityStakeholder[] = [],
+) {
+  const joined = stake.profile;
+  if (joined && !Array.isArray(joined)) {
+    return joined.report_alias?.trim() || null;
+  }
+
+  if (stake.profile_id) {
+    const stakeholder = stakeholders.find((item) => item.id === stake.profile_id);
+    return stakeholder?.report_alias?.trim() || null;
+  }
+
+  return null;
 }
 
 export function normalizeStakeProfileId(profileId: string | null | undefined) {

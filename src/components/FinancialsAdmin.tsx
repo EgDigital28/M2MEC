@@ -17,6 +17,7 @@ import {
   formatFinancialInput,
   investorDisplayLabel,
   parseFinancialAmount,
+  reportAliasForStake,
   stakeholderLabel,
   sumAllocations,
   UNALLOCATED_INVESTOR_LABEL,
@@ -441,10 +442,11 @@ export function FinancialsAdmin() {
 
       <section className="overflow-hidden rounded-2xl border border-border">
         <div className="overflow-x-auto">
-          <table className="min-w-[980px] w-full text-xs">
+          <table className="min-w-[1080px] w-full text-xs">
             <thead>
               <tr className="border-b border-border bg-surface-elevated text-left text-muted">
                 <th className="px-4 py-3 font-medium">Investor</th>
+                <th className="px-4 py-3 font-medium">Report Alias</th>
                 <th className="px-4 py-3 text-right font-medium">IO Allocation</th>
                 <th className="px-4 py-3 text-right font-medium">IO Cash Value</th>
                 <th className="px-4 py-3 text-right font-medium">Deposit</th>
@@ -456,13 +458,13 @@ export function FinancialsAdmin() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-muted">
+                  <td colSpan={8} className="px-4 py-8 text-center text-muted">
                     Loading equity stakes...
                   </td>
                 </tr>
               ) : stakes.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-muted">
+                  <td colSpan={8} className="px-4 py-8 text-center text-muted">
                     No equity stakes yet.
                   </td>
                 </tr>
@@ -498,6 +500,9 @@ export function FinancialsAdmin() {
                         ) : (
                           investorDisplayLabel(stake, stakeholders)
                         )}
+                      </td>
+                      <td className="px-4 py-3 font-medium">
+                        {reportAliasForStake(stake, stakeholders) ?? "—"}
                       </td>
                       <td className={`${moneyCellClassName} px-4 py-3`}>
                         {isEditing ? (
@@ -628,6 +633,7 @@ export function FinancialsAdmin() {
               <tfoot>
                 <tr className="border-t border-border bg-surface-elevated/60 font-semibold">
                   <td className="px-4 py-3">Total</td>
+                  <td className="px-4 py-3" />
                   <td className={`${moneyCellClassName} px-4 py-3`}>
                     {formatAllocationPercent(allocationTotal)}
                   </td>

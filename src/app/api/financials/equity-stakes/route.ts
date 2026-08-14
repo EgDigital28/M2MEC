@@ -11,7 +11,7 @@ const STAKE_SELECT = `
   deposit,
   created_at,
   updated_at,
-  profile:profiles ( id, email, display_name, tier )
+  profile:profiles ( id, email, display_name, report_alias, tier )
 `;
 
 type CreatePayload = {

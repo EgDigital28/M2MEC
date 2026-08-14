@@ -3,11 +3,14 @@ import { requireMinimumTier } from "@/lib/auth/profile";
 import { createClient } from "@/lib/supabase/server";
 import {
   isMissingRegistrationColumn,
+  isMissingReportAliasColumn,
   isMissingSuspensionColumn,
   PROFILE_BASE_COLUMNS,
   PROFILE_COLUMNS,
   PROFILE_COLUMNS_WITH_SUSPENSION,
+  PROFILE_COLUMNS_WITH_SUSPENSION_WITHOUT_REPORT_ALIAS,
   withRegisteredAtFallback,
+  withReportAliasFallback,
   withSuspendedAt,
   type ManagedUser,
 } from "@/lib/users/types";
@@ -31,6 +34,27 @@ export async function GET() {
       .from("profiles")
       .select(PROFILE_COLUMNS_WITH_SUSPENSION)
       .order("created_at", { ascending: false });
+
+    if (withSuspension.error && isMissingReportAliasColumn(withSuspension.error.message)) {
+      const withoutReportAlias = await supabase
+        .from("profiles")
+        .select(PROFILE_COLUMNS_WITH_SUSPENSION_WITHOUT_REPORT_ALIAS)
+        .order("created_at", { ascending: false });
+
+      if (withoutReportAlias.error) {
+        console.error("Users fetch failed:", withoutReportAlias.error);
+        return NextResponse.json({ error: "Could not load users." }, { status: 500 });
+      }
+
+      const users = (withoutReportAlias.data ?? []).map((profile) =>
+        withReportAliasFallback(profile as Omit<ManagedUser, "report_alias">),
+      );
+
+      return NextResponse.json({
+        users,
+        migrationRequired: true,
+      });
+    }
 
     if (withSuspension.error && isMissingSuspensionColumn(withSuspension.error.message)) {
       const withoutSuspension = await supabase

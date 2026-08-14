@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireMinimumTier } from "@/lib/auth/profile";
 import { SERVICE_ROLE_MISSING_MESSAGE, tryCreateAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { isMissingSuspensionColumn } from "@/lib/users/types";
+import { isMissingSuspensionColumn, normalizeReportAlias } from "@/lib/users/types";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -101,16 +101,51 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     const { id } = await context.params;
 
-    if (id === auth.profile.id) {
-      return NextResponse.json({ error: "You cannot suspend your own account." }, { status: 400 });
-    }
-
-    let body: { action?: string };
+    let body: { action?: string; report_alias?: string | null };
 
     try {
       body = await request.json();
     } catch {
       return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    }
+
+    if (body.report_alias !== undefined) {
+      const reportAlias = normalizeReportAlias(body.report_alias);
+
+      if (reportAlias && reportAlias.length > 32) {
+        return NextResponse.json({ error: "Report alias must be 32 characters or fewer." }, { status: 400 });
+      }
+
+      const supabase = await createClient();
+      const { data, error: updateError } = await supabase
+        .from("profiles")
+        .update({ report_alias: reportAlias, updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .select("id, email, report_alias")
+        .maybeSingle();
+
+      if (updateError) {
+        console.error("Report alias update failed:", updateError);
+
+        if (updateError.message.includes("report_alias")) {
+          return NextResponse.json(
+            { error: "Report alias is not set up. Run 016_profile_report_alias.sql in Supabase." },
+            { status: 503 },
+          );
+        }
+
+        return NextResponse.json({ error: "Could not update report alias." }, { status: 500 });
+      }
+
+      if (!data) {
+        return NextResponse.json({ error: "User not found." }, { status: 404 });
+      }
+
+      return NextResponse.json({ ok: true, report_alias: data.report_alias });
+    }
+
+    if (id === auth.profile.id) {
+      return NextResponse.json({ error: "You cannot suspend your own account." }, { status: 400 });
     }
 
     if (body.action !== "suspend" && body.action !== "unsuspend") {

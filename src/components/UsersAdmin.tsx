@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { TrashIcon, tableActionButtonClass } from "@/components/TableActionIcons";
+import {
+  CheckIcon,
+  PencilIcon,
+  tableActionButtonClass,
+  TrashIcon,
+  XIcon,
+} from "@/components/TableActionIcons";
 import type { ManagedUser } from "@/lib/users/types";
 import { TIER_LABELS, type UserTier } from "@/lib/tiers";
 
@@ -23,6 +29,8 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
   const [error, setError] = useState<string | null>(null);
   const [actionUserId, setActionUserId] = useState<string | null>(null);
   const [migrationRequired, setMigrationRequired] = useState(false);
+  const [editingAliasUserId, setEditingAliasUserId] = useState<string | null>(null);
+  const [editAliasValue, setEditAliasValue] = useState("");
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -61,6 +69,50 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
+
+  function startEditAlias(user: ManagedUser) {
+    setEditingAliasUserId(user.id);
+    setEditAliasValue(user.report_alias ?? "");
+  }
+
+  function cancelEditAlias() {
+    setEditingAliasUserId(null);
+    setEditAliasValue("");
+  }
+
+  async function saveReportAlias(userId: string) {
+    setActionUserId(userId);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ report_alias: editAliasValue }),
+      });
+
+      const data = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        setError(data.error ?? "Could not update report alias.");
+        setActionUserId(null);
+        return;
+      }
+
+      setUsers((current) =>
+        current.map((user) =>
+          user.id === userId
+            ? { ...user, report_alias: editAliasValue.trim() || null }
+            : user,
+        ),
+      );
+      cancelEditAlias();
+    } catch {
+      setError("Network error while updating report alias.");
+    } finally {
+      setActionUserId(null);
+    }
+  }
 
   async function updateSuspension(user: ManagedUser, action: "suspend" | "unsuspend") {
     const verb = action === "suspend" ? "suspend" : "unsuspend";
@@ -136,8 +188,9 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
         <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
           Run pending Supabase migrations (
           <code className="text-foreground">005_user_suspensions.sql</code>,{" "}
-          <code className="text-foreground">008_profile_registration.sql</code>) to enable
-          full user management.
+          <code className="text-foreground">008_profile_registration.sql</code>,{" "}
+          <code className="text-foreground">016_profile_report_alias.sql</code>) to enable full
+          user management.
         </p>
       )}
 
@@ -149,11 +202,12 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
 
       <section className="overflow-hidden rounded-2xl border border-border">
         <div className="overflow-x-auto">
-          <table className="min-w-[860px] w-full text-xs">
+          <table className="min-w-[980px] w-full text-xs">
             <thead>
               <tr className="border-b border-border bg-surface-elevated text-left text-muted">
                 <th className="px-4 py-3 font-medium">Email</th>
                 <th className="px-4 py-3 font-medium">Name</th>
+                <th className="px-4 py-3 font-medium">Report Alias</th>
                 <th className="px-4 py-3 font-medium">Tier</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Joined</th>
@@ -163,13 +217,13 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-muted">
+                  <td colSpan={7} className="px-4 py-8 text-center text-muted">
                     Loading users...
                   </td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-muted">
+                  <td colSpan={7} className="px-4 py-8 text-center text-muted">
                     No users found.
                   </td>
                 </tr>
@@ -179,9 +233,10 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
                   const isSuspended = Boolean(user.suspended_at);
                   const isPendingInvite = !user.registered_at;
                   const isBusy = actionUserId === user.id;
+                  const isEditingAlias = editingAliasUserId === user.id;
 
                   return (
-                    <tr key={user.id} className="border-b border-border/60">
+                    <tr key={user.id} className="border-b border-border/60 align-top">
                       <td className="px-4 py-3">
                         <p className="font-medium">{user.email}</p>
                         {isSelf ? (
@@ -190,6 +245,22 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
                       </td>
                       <td className="px-4 py-3 text-muted">
                         {user.display_name?.trim() || "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        {isEditingAlias ? (
+                          <input
+                            value={editAliasValue}
+                            disabled={isBusy}
+                            onChange={(event) => setEditAliasValue(event.target.value)}
+                            placeholder="e.g. I1-EG"
+                            maxLength={32}
+                            className="w-full min-w-[120px] rounded-lg border border-border bg-background px-2 py-1.5 text-xs outline-none focus:border-accent"
+                          />
+                        ) : (
+                          <span className={user.report_alias ? "font-medium" : "text-muted"}>
+                            {user.report_alias?.trim() || "—"}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3">{TIER_LABELS[user.tier as UserTier]}</td>
                       <td className="px-4 py-3">
@@ -211,11 +282,46 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex justify-end gap-2">
-                          {!isSelf && (
+                        <div className="flex justify-end gap-1">
+                          {isEditingAlias ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => void saveReportAlias(user.id)}
+                                disabled={isBusy}
+                                aria-label="Save report alias"
+                                title="Save"
+                                className={tableActionButtonClass.save}
+                              >
+                                <CheckIcon />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={cancelEditAlias}
+                                disabled={isBusy}
+                                aria-label="Cancel edit"
+                                title="Cancel"
+                                className={tableActionButtonClass.cancel}
+                              >
+                                <XIcon />
+                              </button>
+                            </>
+                          ) : (
                             <button
                               type="button"
-                              disabled={isBusy}
+                              onClick={() => startEditAlias(user)}
+                              disabled={isBusy || editingAliasUserId !== null}
+                              aria-label={`Edit report alias for ${user.email}`}
+                              title="Edit report alias"
+                              className={tableActionButtonClass.edit}
+                            >
+                              <PencilIcon />
+                            </button>
+                          )}
+                          {!isSelf && !isEditingAlias && (
+                            <button
+                              type="button"
+                              disabled={isBusy || editingAliasUserId !== null}
                               onClick={() =>
                                 updateSuspension(user, isSuspended ? "unsuspend" : "suspend")
                               }
@@ -228,10 +334,10 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
                                   : "Suspend"}
                             </button>
                           )}
-                          {!isSelf && (
+                          {!isSelf && !isEditingAlias && (
                             <button
                               type="button"
-                              disabled={isBusy}
+                              disabled={isBusy || editingAliasUserId !== null}
                               onClick={() => deleteUser(user)}
                               aria-label={`Delete ${user.email}`}
                               title="Delete"
