@@ -1,13 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { hasMinimumTier, isUserTier } from "@/lib/tiers";
 
 export function AuthForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,21 +35,14 @@ export function AuthForm() {
       return;
     }
 
-    if (safeNext === "/") {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("tier")
-        .single();
+    const destinationResponse = await fetch(
+      `/api/auth/destination?next=${encodeURIComponent(safeNext)}`,
+    );
+    const { destination } = (await destinationResponse.json()) as {
+      destination: string;
+    };
 
-      if (profile?.tier && isUserTier(profile.tier) && hasMinimumTier(profile.tier, "employee")) {
-        router.push("/team");
-        router.refresh();
-        return;
-      }
-    }
-
-    router.push(safeNext);
-    router.refresh();
+    window.location.assign(destination || safeNext);
   }
 
   return (

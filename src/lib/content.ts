@@ -73,7 +73,7 @@ export const heroContent = {
     "M2MEC uses machine learning to optimize sports analysis—combining data services, predictive models, and a unified sportsbook hub so you can research, decide, and track in one place.",
   stats: [
     { value: "4+", label: "Core platform modules" },
-    { value: "ML", label: "Powered breakdowns" },
+    { value: "Machine", label: "Powered breakdowns" },
     { value: "1", label: "Consolidated book view" },
   ],
 };

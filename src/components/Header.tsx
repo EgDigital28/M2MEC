@@ -1,4 +1,7 @@
 import Link from "next/link";
+import type { Profile } from "@/lib/auth/profile";
+import { getProfileDisplayName } from "@/lib/auth/display-name";
+import { hasMinimumTier } from "@/lib/tiers";
 
 type NavLink = {
   label: string;
@@ -10,6 +13,7 @@ type HeaderProps = {
   homeHref?: string;
   ctaLabel?: string;
   showLogin?: boolean;
+  user?: Profile | null;
 };
 
 export function Header({
@@ -17,7 +21,11 @@ export function Header({
   homeHref = "/",
   ctaLabel = "Get early access",
   showLogin = true,
+  user = null,
 }: HeaderProps) {
+  const displayName = user ? getProfileDisplayName(user) : null;
+  const showTeamLink = user ? hasMinimumTier(user.tier, "employee") : false;
+
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
@@ -41,20 +49,41 @@ export function Header({
         </nav>
 
         <div className="flex items-center gap-3">
-          {showLogin && (
-            <Link
-              href="/login"
-              className="hidden text-sm text-muted transition-colors hover:text-foreground sm:inline"
-            >
-              Log in
-            </Link>
+          {user ? (
+            <>
+              {showTeamLink && (
+                <Link
+                  href="/team"
+                  className="hidden text-sm text-muted transition-colors hover:text-foreground sm:inline"
+                >
+                  Team
+                </Link>
+              )}
+              <Link
+                href="/account"
+                className="rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:border-accent/40"
+              >
+                {displayName}
+              </Link>
+            </>
+          ) : (
+            <>
+              {showLogin && (
+                <Link
+                  href="/login"
+                  className="hidden text-sm text-muted transition-colors hover:text-foreground sm:inline"
+                >
+                  Log in
+                </Link>
+              )}
+              <a
+                href="#contact"
+                className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-90"
+              >
+                {ctaLabel}
+              </a>
+            </>
           )}
-          <a
-            href="#contact"
-            className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-90"
-          >
-            {ctaLabel}
-          </a>
         </div>
       </div>
     </header>
