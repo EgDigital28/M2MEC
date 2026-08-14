@@ -10,9 +10,11 @@ export type EquityStakeholder = {
   registered_at: string | null;
 };
 
+export const UNALLOCATED_INVESTOR_LABEL = "Un-Allocated";
+
 export type EquityStake = {
   id: string;
-  profile_id: string;
+  profile_id: string | null;
   io_allocation: number;
   io_cash_value: number;
   deposit: number;
@@ -56,6 +58,29 @@ export function formatDepositPct(deposit: number, ioCashValue: number) {
 export function stakeholderLabel(stakeholder: Pick<EquityStakeholder, "email" | "display_name" | "tier">) {
   const name = stakeholder.display_name?.trim() || stakeholder.email;
   return `${name} (${TIER_LABELS[stakeholder.tier]})`;
+}
+
+export function investorDisplayLabel(
+  stake: Pick<EquityStake, "profile_id" | "profile">,
+  stakeholders: EquityStakeholder[] = [],
+) {
+  const joined = stake.profile;
+  if (joined && !Array.isArray(joined)) {
+    return stakeholderLabel(joined);
+  }
+
+  if (stake.profile_id) {
+    const stakeholder = stakeholders.find((item) => item.id === stake.profile_id);
+    if (stakeholder) {
+      return stakeholderLabel(stakeholder);
+    }
+  }
+
+  return UNALLOCATED_INVESTOR_LABEL;
+}
+
+export function normalizeStakeProfileId(profileId: string | null | undefined) {
+  return profileId?.trim() ? profileId.trim() : null;
 }
 
 export function sumAllocations(stakes: Pick<EquityStake, "io_allocation">[]) {

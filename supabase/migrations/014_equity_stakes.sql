@@ -2,7 +2,7 @@
 
 create table if not exists public.equity_stakes (
   id uuid primary key default gen_random_uuid(),
-  profile_id uuid not null references public.profiles (id) on delete restrict,
+  profile_id uuid references public.profiles (id) on delete set null,
   io_allocation numeric(5, 2) not null check (io_allocation > 0 and io_allocation <= 100),
   io_cash_value numeric(12, 2) not null check (io_cash_value >= 0),
   deposit numeric(12, 2) not null default 0 check (deposit >= 0),

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireMinimumTier } from "@/lib/auth/profile";
-import { validateAllocationTotal, type EquityStake } from "@/lib/financials/types";
+import { validateAllocationTotal, normalizeStakeProfileId, type EquityStake } from "@/lib/financials/types";
 import { createClient } from "@/lib/supabase/server";
 
 const STAKE_SELECT = `
@@ -15,7 +15,7 @@ const STAKE_SELECT = `
 `;
 
 type CreatePayload = {
-  profile_id?: string;
+  profile_id?: string | null;
   io_allocation?: number | string;
   io_cash_value?: number | string;
   deposit?: number | string;
@@ -100,13 +100,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
+  const profileId = normalizeStakeProfileId(body.profile_id);
   const ioAllocation = parsePercent(body.io_allocation);
   const ioCashValue = parseMoney(body.io_cash_value);
   const deposit = parseMoney(body.deposit ?? 0);
 
-  if (!body.profile_id || ioAllocation === null || ioCashValue === null || deposit === null) {
+  if (ioAllocation === null || ioCashValue === null || deposit === null) {
     return NextResponse.json(
-      { error: "Investor, IO allocation, IO cash value, and deposit are required." },
+      { error: "IO allocation, IO cash value, and deposit are required." },
       { status: 400 },
     );
   }
@@ -131,7 +132,7 @@ export async function POST(request: Request) {
   const { data, error } = await supabase
     .from("equity_stakes")
     .insert({
-      profile_id: body.profile_id,
+      profile_id: profileId,
       io_allocation: ioAllocation,
       io_cash_value: ioCashValue,
       deposit,

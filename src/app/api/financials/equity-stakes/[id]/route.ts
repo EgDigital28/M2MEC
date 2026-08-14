@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireMinimumTier } from "@/lib/auth/profile";
-import { validateAllocationTotal, type EquityStake } from "@/lib/financials/types";
+import { validateAllocationTotal, normalizeStakeProfileId, type EquityStake } from "@/lib/financials/types";
 import { createClient } from "@/lib/supabase/server";
 
 const STAKE_SELECT = `
@@ -15,7 +15,7 @@ const STAKE_SELECT = `
 `;
 
 type PatchPayload = {
-  profile_id?: string;
+  profile_id?: string | null;
   io_allocation?: number | string;
   io_cash_value?: number | string;
   deposit?: number | string;
@@ -80,10 +80,10 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const updates: Record<string, string | number> = {};
+  const updates: Record<string, string | number | null> = {};
 
   if (body.profile_id !== undefined) {
-    updates.profile_id = body.profile_id;
+    updates.profile_id = normalizeStakeProfileId(body.profile_id);
   }
 
   if (body.io_allocation !== undefined) {

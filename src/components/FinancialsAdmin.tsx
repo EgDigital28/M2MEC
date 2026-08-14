@@ -15,9 +15,11 @@ import {
   formatDepositPct,
   formatFinancialAmount,
   formatFinancialInput,
+  investorDisplayLabel,
   parseFinancialAmount,
   stakeholderLabel,
   sumAllocations,
+  UNALLOCATED_INVESTOR_LABEL,
   type EquityStake,
   type EquityStakeholder,
 } from "@/lib/financials/types";
@@ -41,13 +43,15 @@ const emptyStakeForm = (): StakeForm => ({
   deposit: "",
 });
 
-function getStakeholder(stake: EquityStake, stakeholders: EquityStakeholder[]) {
-  const joined = stake.profile;
-  if (joined && !Array.isArray(joined)) {
-    return joined;
-  }
-
-  return stakeholders.find((item) => item.id === stake.profile_id) ?? null;
+function availableStakeholders(
+  stakeholders: EquityStakeholder[],
+  assignedProfileIds: Set<string>,
+  currentProfileId = "",
+) {
+  return stakeholders.filter(
+    (stakeholder) =>
+      !assignedProfileIds.has(stakeholder.id) || stakeholder.id === currentProfileId,
+  );
 }
 
 export function FinancialsAdmin() {
@@ -65,7 +69,12 @@ export function FinancialsAdmin() {
   const allocationRemaining = Math.max(0, 100 - allocationTotal);
 
   const assignedProfileIds = useMemo(
-    () => new Set(stakes.map((stake) => stake.profile_id)),
+    () =>
+      new Set(
+        stakes
+          .map((stake) => stake.profile_id)
+          .filter((profileId): profileId is string => profileId !== null),
+      ),
     [stakes],
   );
 
@@ -143,11 +152,8 @@ export function FinancialsAdmin() {
     void loadAll();
   }, [loadAll]);
 
-  function availableStakeholders(currentProfileId = "") {
-    return stakeholders.filter(
-      (stakeholder) =>
-        !assignedProfileIds.has(stakeholder.id) || stakeholder.id === currentProfileId,
-    );
+  function stakeholdersForSelect(currentProfileId = "") {
+    return availableStakeholders(stakeholders, assignedProfileIds, currentProfileId);
   }
 
   async function createStake(event: FormEvent<HTMLFormElement>) {
@@ -160,7 +166,6 @@ export function FinancialsAdmin() {
     const deposit = parseFinancialAmount(form.deposit);
 
     if (
-      !form.profile_id ||
       !Number.isFinite(ioAllocation) ||
       ioAllocation <= 0 ||
       ioAllocation > 100 ||
@@ -169,7 +174,7 @@ export function FinancialsAdmin() {
       !Number.isFinite(deposit) ||
       deposit < 0
     ) {
-      setError("Enter a valid investor, allocation, cash value, and deposit.");
+      setError("Enter a valid allocation, cash value, and deposit.");
       setBusyId(null);
       return;
     }
@@ -179,7 +184,7 @@ export function FinancialsAdmin() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          profile_id: form.profile_id,
+          profile_id: form.profile_id || null,
           io_allocation: ioAllocation,
           io_cash_value: ioCashValue,
           deposit,
@@ -213,7 +218,7 @@ export function FinancialsAdmin() {
   function startEdit(stake: EquityStake) {
     setEditingId(stake.id);
     setEditForm({
-      profile_id: stake.profile_id,
+      profile_id: stake.profile_id ?? "",
       io_allocation: String(stake.io_allocation),
       io_cash_value: formatFinancialInput(String(Math.round(stake.io_cash_value))),
       deposit: formatFinancialInput(String(Math.round(stake.deposit))),
@@ -231,7 +236,6 @@ export function FinancialsAdmin() {
     const deposit = parseFinancialAmount(editForm.deposit);
 
     if (
-      !editForm.profile_id ||
       !Number.isFinite(ioAllocation) ||
       ioAllocation <= 0 ||
       ioAllocation > 100 ||
@@ -240,7 +244,7 @@ export function FinancialsAdmin() {
       !Number.isFinite(deposit) ||
       deposit < 0
     ) {
-      setError("Enter a valid investor, allocation, cash value, and deposit.");
+      setError("Enter a valid allocation, cash value, and deposit.");
       return;
     }
 
@@ -252,7 +256,7 @@ export function FinancialsAdmin() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          profile_id: editForm.profile_id,
+          profile_id: editForm.profile_id || null,
           io_allocation: ioAllocation,
           io_cash_value: ioCashValue,
           deposit,
@@ -286,8 +290,7 @@ export function FinancialsAdmin() {
   }
 
   async function deleteStake(stake: EquityStake) {
-    const label = getStakeholder(stake, stakeholders);
-    const name = label ? stakeholderLabel(label) : "this investor";
+    const name = investorDisplayLabel(stake, stakeholders);
 
     if (!window.confirm(`Delete equity stake for ${name}?`)) {
       return;
@@ -324,8 +327,9 @@ export function FinancialsAdmin() {
     <div className="space-y-6">
       {migrationRequired && (
         <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-          Run <code className="text-foreground">014_equity_stakes.sql</code> in Supabase to enable
-          equity stake tracking.
+          Run <code className="text-foreground">014_equity_stakes.sql</code> and{" "}
+          <code className="text-foreground">015_equity_stakes_unallocated.sql</code> in Supabase to
+          enable equity stake tracking.
         </p>
       )}
 
@@ -356,13 +360,10 @@ export function FinancialsAdmin() {
             onChange={(event) =>
               setForm((current) => ({ ...current, profile_id: event.target.value }))
             }
-            required
             className={formFieldClassName}
           >
-            <option value="" disabled>
-              Investor
-            </option>
-            {availableStakeholders().map((stakeholder) => (
+            <option value="">{UNALLOCATED_INVESTOR_LABEL}</option>
+            {stakeholdersForSelect().map((stakeholder) => (
               <option key={stakeholder.id} value={stakeholder.id}>
                 {stakeholderLabel(stakeholder)}
               </option>
@@ -429,7 +430,7 @@ export function FinancialsAdmin() {
           <div className="md:col-span-2 xl:col-span-2">
             <button
               type="submit"
-              disabled={busyId === "new-stake" || availableStakeholders().length === 0}
+              disabled={busyId === "new-stake"}
               className="rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-60"
             >
               {busyId === "new-stake" ? "Adding..." : "Add equity stake"}
@@ -469,7 +470,6 @@ export function FinancialsAdmin() {
                 stakes.map((stake) => {
                   const isEditing = editingId === stake.id;
                   const isBusy = busyId === stake.id;
-                  const stakeholder = getStakeholder(stake, stakeholders);
                   const editCashValue = parseFinancialAmount(editForm.io_cash_value);
                   const editDeposit = parseFinancialAmount(editForm.deposit);
 
@@ -488,16 +488,15 @@ export function FinancialsAdmin() {
                             }
                             className="w-full min-w-[180px] rounded-lg border border-border bg-background px-2 py-1.5 text-xs outline-none focus:border-accent"
                           >
-                            {availableStakeholders(stake.profile_id).map((item) => (
+                            <option value="">{UNALLOCATED_INVESTOR_LABEL}</option>
+                            {stakeholdersForSelect(stake.profile_id ?? "").map((item) => (
                               <option key={item.id} value={item.id}>
                                 {stakeholderLabel(item)}
                               </option>
                             ))}
                           </select>
-                        ) : stakeholder ? (
-                          stakeholderLabel(stakeholder)
                         ) : (
-                          "—"
+                          investorDisplayLabel(stake, stakeholders)
                         )}
                       </td>
                       <td className={`${moneyCellClassName} px-4 py-3`}>
