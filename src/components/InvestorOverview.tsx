@@ -11,6 +11,7 @@ import {
   formatFinancialAmount,
 } from "@/lib/financials/types";
 import type { InvestorFinancialsSummary, InvestorWageringStake } from "@/lib/financials/investor-summary";
+import { InvestorPlaysSection } from "@/components/InvestorPlaysSection";
 
 type InvestorOverviewProps = {
   displayName: string;
@@ -67,7 +68,6 @@ export function InvestorOverview({ displayName }: InvestorOverviewProps) {
 
   const equityStake = summary?.equityStake ?? null;
   const wageringStakes = summary?.wageringStakes ?? [];
-  const hasAnyStake = Boolean(equityStake) || wageringStakes.length > 0;
   const nextYear = costCoverage?.nextYear ?? new Date().getFullYear() + 1;
 
   return (
@@ -125,57 +125,46 @@ export function InvestorOverview({ displayName }: InvestorOverviewProps) {
             )}
           </section>
 
-          {!hasAnyStake ? (
-            <div className="rounded-2xl border border-border bg-surface px-6 py-8">
-              <p className="text-sm font-medium text-foreground">No stakes assigned yet</p>
-              <p className="mt-2 text-sm text-muted">
-                Your equity and wagering stake details will appear here once your administrator adds
-                them.
-              </p>
-            </div>
-          ) : (
-            <>
-              <section className="space-y-4">
-                <h2 className="text-lg font-semibold">Equity</h2>
-                {equityStake ? (
-                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    <SummaryCard
-                      label="Equity Stake"
-                      value={formatAllocationPercent(equityStake.io_allocation)}
-                      detail="Your IO allocation"
-                    />
-                    <SummaryCard
-                      label="Cash Value"
-                      value={formatFinancialAmount(equityStake.io_cash_value)}
-                      detail="Total equity commitment"
-                    />
-                    <SummaryCard
-                      label="Amount Due"
-                      value={formatFinancialAmount(
-                        computeAmountDue(equityStake.io_cash_value, equityStake.deposit),
-                      )}
-                      detail={`${formatFinancialAmount(equityStake.deposit)} deposited (${formatDepositPct(equityStake.deposit, equityStake.io_cash_value)})`}
-                    />
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted">No equity stake assigned yet.</p>
-                )}
-              </section>
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Equity</h2>
+            {equityStake ? (
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <SummaryCard
+                  label="Equity Stake"
+                  value={formatAllocationPercent(equityStake.io_allocation)}
+                  detail="Your IO allocation"
+                />
+                <SummaryCard
+                  label="Cash Value"
+                  value={formatFinancialAmount(equityStake.io_cash_value)}
+                  detail="Total equity commitment"
+                />
+                <SummaryCard
+                  label="Amount Due"
+                  value={formatFinancialAmount(
+                    computeAmountDue(equityStake.io_cash_value, equityStake.deposit),
+                  )}
+                  detail={`${formatFinancialAmount(equityStake.deposit)} deposited (${formatDepositPct(equityStake.deposit, equityStake.io_cash_value)})`}
+                />
+              </div>
+            ) : (
+              <p className="text-sm text-muted">No equity stake assigned yet.</p>
+            )}
+          </section>
 
-              <section className="space-y-4">
-                <h2 className="text-lg font-semibold">Wagering</h2>
-                {wageringStakes.length > 0 && summary ? (
-                  <div className="space-y-4">
-                    {wageringStakes.map((stake) => (
-                      <WageringSummaryRow key={stake.id} stake={stake} summary={summary} />
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted">No wagering stake assigned yet.</p>
-                )}
-              </section>
-            </>
-          )}
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Wagering</h2>
+            {wageringStakes.length > 0 && summary ? (
+              <div className="space-y-4">
+                {wageringStakes.map((stake) => (
+                  <WageringSummaryRow key={stake.id} stake={stake} summary={summary} />
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted">No wagering stake assigned yet.</p>
+            )}
+            <InvestorPlaysSection />
+          </section>
         </div>
       )}
     </div>
