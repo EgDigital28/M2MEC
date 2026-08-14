@@ -65,6 +65,24 @@ where email = 'YOUR_EMAIL_HERE';
 Then log in and open **/team/invite**.
 
 
-## Waitlist
+## Migration order
+
+Run in this order in the Supabase SQL editor:
+
+1. `001_waitlist_and_profiles.sql`
+2. `002_backfill_profiles.sql` (only if needed)
+3. **`004_sports.sql`** — sports catalog (run before bet entries)
+4. **`003_bet_entries.sql`** — bet ledger table
+
+## Sports (`/team/sports`)
+
+Creates the `sports` table and seeds the default list. Run **`004_sports.sql` before `003_bet_entries.sql`**.
+
+Admins manage abbreviation, full name, sort order, and active flag. Active sports appear in the bet ledger dropdown.
+
+## Bet ledger (`/team/bets`)
+
+Creates `bet_entries` linked to `sports` via `sport_id`. Requires `004_sports.sql` first.
+
 
 Early access form submissions go to `waitlist_submissions`. They do **not** create auth users. A welcome email is sent via Resend on submit.

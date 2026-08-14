@@ -2,7 +2,12 @@ import Link from "next/link";
 import { getCurrentProfile } from "@/lib/auth/profile";
 import { hasMinimumTier, TIER_DESCRIPTIONS, TIER_LABELS } from "@/lib/tiers";
 
-const platformModules = [
+const platformModules: {
+  title: string;
+  description: string;
+  status: string;
+  href?: string;
+}[] = [
   {
     title: "Data Services",
     description: "Odds, line movement, and normalized sports data pipelines.",
@@ -16,7 +21,8 @@ const platformModules = [
   {
     title: "Sportsbook Hub",
     description: "Consolidated positions and exposure across books.",
-    status: "Coming soon",
+    status: "Live",
+    href: "/team/bets",
   },
   {
     title: "AI Assistant",
@@ -114,20 +120,49 @@ export default async function TeamPage() {
         </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">
-          {platformModules.map((module) => (
-            <div
-              key={module.title}
-              className="rounded-2xl border border-border bg-surface p-6"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-lg font-semibold">{module.title}</h3>
-                <span className="rounded-full border border-border px-2.5 py-1 text-xs text-muted">
-                  {module.status}
-                </span>
+          {platformModules.map((module) => {
+            const content = (
+              <>
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-lg font-semibold">{module.title}</h3>
+                  <span
+                    className={`rounded-full border px-2.5 py-1 text-xs ${
+                      module.status === "Live"
+                        ? "border-emerald-500/30 text-emerald-300"
+                        : "border-border text-muted"
+                    }`}
+                  >
+                    {module.status}
+                  </span>
+                </div>
+                <p className="mt-3 text-sm text-muted">{module.description}</p>
+                {"href" in module && module.href ? (
+                  <p className="mt-4 text-sm text-accent">Open →</p>
+                ) : null}
+              </>
+            );
+
+            if (module.href) {
+              return (
+                <Link
+                  key={module.title}
+                  href={module.href}
+                  className="rounded-2xl border border-border bg-surface p-6 transition-colors hover:border-accent/40"
+                >
+                  {content}
+                </Link>
+              );
+            }
+
+            return (
+              <div
+                key={module.title}
+                className="rounded-2xl border border-border bg-surface p-6"
+              >
+                {content}
               </div>
-              <p className="mt-3 text-sm text-muted">{module.description}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
