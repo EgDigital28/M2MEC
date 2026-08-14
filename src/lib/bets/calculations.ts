@@ -160,17 +160,76 @@ export function sortBetEntries<T extends { event_date: string; created_at: strin
 export type BetLedgerStats = {
   totalEntries: number;
   totalProfitLoss: number;
+  totalRisked: number;
   openCount: number;
   winCount: number;
   lossCount: number;
   voidCount: number;
   openRisk: number;
+  gradedCount: number;
+  winPct: number | null;
+  roi: number | null;
+  avgRiskPerPlay: number | null;
 };
 
+export type SportBetStats = {
+  sportId: string;
+  sport: string;
+  sortOrder: number;
+  winCount: number;
+  lossCount: number;
+  voidCount: number;
+  openCount: number;
+  gradedCount: number;
+  totalRisked: number;
+  totalProfitLoss: number;
+  winPct: number | null;
+  roi: number | null;
+  hasActivity: boolean;
+};
+
+function emptySportAccumulator() {
+  return {
+    winCount: 0,
+    lossCount: 0,
+    voidCount: 0,
+    openCount: 0,
+    totalRisked: 0,
+    totalProfitLoss: 0,
+  };
+}
+
+function finalizeSportStats(
+  sportId: string,
+  sport: string,
+  sortOrder: number,
+  raw: ReturnType<typeof emptySportAccumulator>,
+): SportBetStats {
+  const gradedCount = raw.winCount + raw.lossCount + raw.voidCount;
+
+  return {
+    sportId,
+    sport,
+    sortOrder,
+    winCount: raw.winCount,
+    lossCount: raw.lossCount,
+    voidCount: raw.voidCount,
+    openCount: raw.openCount,
+    gradedCount,
+    totalRisked: raw.totalRisked,
+    totalProfitLoss: raw.totalProfitLoss,
+    winPct: gradedCount > 0 ? raw.winCount / gradedCount : null,
+    roi: raw.totalRisked > 0 ? raw.totalProfitLoss / raw.totalRisked : null,
+    hasActivity:
+      raw.winCount + raw.lossCount + raw.voidCount + raw.openCount > 0,
+  };
+}
+
 export function computeBetLedgerStats(entries: BetEntryComputed[]): BetLedgerStats {
-  return entries.reduce(
+  const raw = entries.reduce(
     (stats, entry) => {
       stats.totalEntries += 1;
+      stats.totalRisked += entry.risk;
       stats.totalProfitLoss += entry.profit_loss;
 
       if (entry.status === "Open") {
@@ -189,6 +248,7 @@ export function computeBetLedgerStats(entries: BetEntryComputed[]): BetLedgerSta
     {
       totalEntries: 0,
       totalProfitLoss: 0,
+      totalRisked: 0,
       openCount: 0,
       winCount: 0,
       lossCount: 0,
@@ -196,4 +256,60 @@ export function computeBetLedgerStats(entries: BetEntryComputed[]): BetLedgerSta
       openRisk: 0,
     },
   );
+
+  const gradedCount = raw.winCount + raw.lossCount + raw.voidCount;
+
+  return {
+    ...raw,
+    gradedCount,
+    winPct: gradedCount > 0 ? raw.winCount / gradedCount : null,
+    roi: raw.totalRisked > 0 ? raw.totalProfitLoss / raw.totalRisked : null,
+    avgRiskPerPlay:
+      raw.totalEntries > 0 ? raw.totalRisked / raw.totalEntries : null,
+  };
+}
+
+export function computeSportBetStats(
+  entries: BetEntryComputed[],
+  sports: { id: string; abbreviation: string; sort_order: number }[],
+): SportBetStats[] {
+  const bySportId = new Map<string, ReturnType<typeof emptySportAccumulator>>();
+
+  for (const entry of entries) {
+    const current = bySportId.get(entry.sport_id) ?? emptySportAccumulator();
+
+    current.totalRisked += entry.risk;
+    current.totalProfitLoss += entry.profit_loss;
+
+    if (entry.status === "Open") {
+      current.openCount += 1;
+    } else if (entry.status === "Win") {
+      current.winCount += 1;
+    } else if (entry.status === "Loss") {
+      current.lossCount += 1;
+    } else if (entry.status === "Void") {
+      current.voidCount += 1;
+    }
+
+    bySportId.set(entry.sport_id, current);
+  }
+
+  return sports
+    .map((sport) =>
+      finalizeSportStats(
+        sport.id,
+        sport.abbreviation,
+        sport.sort_order,
+        bySportId.get(sport.id) ?? emptySportAccumulator(),
+      ),
+    )
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.sport.localeCompare(b.sport));
+}
+
+export function formatPercent(value: number | null): string {
+  if (value === null || Number.isNaN(value)) {
+    return "—";
+  }
+
+  return `${(value * 100).toFixed(2)}%`;
 }

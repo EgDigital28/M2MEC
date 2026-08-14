@@ -4,9 +4,11 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   BET_STATUSES,
   computeBetLedgerStats,
+  computeSportBetStats,
   formatCurrency,
   formatEventDate,
   formatOdds,
+  formatPercent,
   formatRiskInput,
   parseRiskAmount,
   sortBetEntries,
@@ -79,6 +81,42 @@ function profitLossClassName(value: number) {
   return "text-muted";
 }
 
+function percentHighlightClassName(value: number | null, type: "roi" | "winPct") {
+  if (value === null) {
+    return "";
+  }
+
+  if (type === "roi") {
+    if (value > 0) {
+      return "bg-emerald-500/20";
+    }
+
+    if (value < 0) {
+      return "bg-red-500/20";
+    }
+
+    return "";
+  }
+
+  if (value >= 0.6) {
+    return "bg-emerald-600/30";
+  }
+
+  if (value >= 0.55) {
+    return "bg-emerald-500/20";
+  }
+
+  if (value >= 0.5) {
+    return "bg-emerald-500/10";
+  }
+
+  if (value > 0) {
+    return "bg-red-500/20";
+  }
+
+  return "";
+}
+
 function PencilIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
@@ -133,6 +171,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EntryForm>(emptyForm);
   const [page, setPage] = useState(1);
+  const [showDetailedStats, setShowDetailedStats] = useState(false);
 
   const activeSports = useMemo(
     () => sports.filter((sport) => sport.is_active),
@@ -141,6 +180,10 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
 
   const sortedEntries = useMemo(() => sortBetEntries(entries), [entries]);
   const stats = useMemo(() => computeBetLedgerStats(sortedEntries), [sortedEntries]);
+  const sportStats = useMemo(
+    () => computeSportBetStats(sortedEntries, sports),
+    [sortedEntries, sports],
+  );
   const totalPages = Math.max(1, Math.ceil(sortedEntries.length / PAGE_SIZE));
 
   const paginatedEntries = useMemo(() => {
@@ -344,47 +387,155 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
   return (
     <div className="space-y-8">
       {!loading && (
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl border border-border bg-surface-elevated p-5">
-            <p className="text-xs font-medium uppercase tracking-widest text-muted">
-              Total P/L
-            </p>
-            <p className={`mt-2 text-2xl font-semibold tabular-nums ${profitLossClassName(stats.totalProfitLoss)}`}>
-              {formatCurrency(stats.totalProfitLoss)}
-            </p>
+        <section className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="rounded-2xl border border-border bg-surface-elevated p-5">
+              <p className="text-xs font-medium uppercase tracking-widest text-muted">
+                Total P/L
+              </p>
+              <p
+                className={`mt-2 text-2xl font-semibold tabular-nums ${profitLossClassName(stats.totalProfitLoss)}`}
+              >
+                {formatCurrency(stats.totalProfitLoss)}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-surface-elevated p-5">
+              <p className="text-xs font-medium uppercase tracking-widest text-muted">
+                Win %
+              </p>
+              <p className="mt-2 text-2xl font-semibold tabular-nums">
+                {formatPercent(stats.winPct)}
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                {stats.winCount} wins / {stats.gradedCount} graded
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-surface-elevated p-5">
+              <p className="text-xs font-medium uppercase tracking-widest text-muted">
+                ROI
+              </p>
+              <p
+                className={`mt-2 text-2xl font-semibold tabular-nums ${profitLossClassName(stats.roi ?? 0)}`}
+              >
+                {formatPercent(stats.roi)}
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                {formatCurrency(stats.totalProfitLoss)} on {formatCurrency(stats.totalRisked)} risked
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-surface-elevated p-5">
+              <p className="text-xs font-medium uppercase tracking-widest text-muted">
+                Avg risk / play
+              </p>
+              <p className="mt-2 text-2xl font-semibold tabular-nums">
+                {stats.avgRiskPerPlay === null
+                  ? "—"
+                  : formatCurrency(stats.avgRiskPerPlay)}
+              </p>
+              <p className="mt-1 text-xs text-muted">Across all entries</p>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-surface-elevated p-5">
+              <p className="text-xs font-medium uppercase tracking-widest text-muted">
+                Entries
+              </p>
+              <p className="mt-2 text-2xl font-semibold tabular-nums">
+                {stats.totalEntries}
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                {stats.openCount} open · {stats.winCount}W · {stats.lossCount}L ·{" "}
+                {stats.voidCount}V
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-surface-elevated p-5">
+              <p className="text-xs font-medium uppercase tracking-widest text-muted">
+                Open risk
+              </p>
+              <p className="mt-2 text-2xl font-semibold tabular-nums">
+                {formatCurrency(stats.openRisk)}
+              </p>
+              <p className="mt-1 text-xs text-muted">Across open positions</p>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-surface-elevated p-5">
+              <p className="text-xs font-medium uppercase tracking-widest text-muted">
+                Record
+              </p>
+              <p className="mt-2 text-2xl font-semibold tabular-nums">
+                {stats.winCount}-{stats.lossCount}-{stats.voidCount}
+              </p>
+              <p className="mt-1 text-xs text-muted">Win-loss-void (graded only)</p>
+            </div>
           </div>
 
-          <div className="rounded-2xl border border-border bg-surface-elevated p-5">
-            <p className="text-xs font-medium uppercase tracking-widest text-muted">
-              Entries
-            </p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums">
-              {stats.totalEntries}
-            </p>
-            <p className="mt-1 text-xs text-muted">
-              {stats.openCount} open · {stats.winCount}W · {stats.lossCount}L ·{" "}
-              {stats.voidCount}V
-            </p>
-          </div>
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowDetailedStats((current) => !current)}
+              className="text-sm font-medium text-accent hover:underline"
+            >
+              {showDetailedStats ? "Hide stats by sport" : "View stats by sport"}
+            </button>
 
-          <div className="rounded-2xl border border-border bg-surface-elevated p-5">
-            <p className="text-xs font-medium uppercase tracking-widest text-muted">
-              Open risk
-            </p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums">
-              {formatCurrency(stats.openRisk)}
-            </p>
-            <p className="mt-1 text-xs text-muted">Across open positions</p>
-          </div>
-
-          <div className="rounded-2xl border border-border bg-surface-elevated p-5">
-            <p className="text-xs font-medium uppercase tracking-widest text-muted">
-              Record
-            </p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums">
-              {stats.winCount}-{stats.lossCount}-{stats.voidCount}
-            </p>
-            <p className="mt-1 text-xs text-muted">Win-loss-void (graded only)</p>
+            {showDetailedStats && (
+              <div className="mt-4 overflow-x-auto rounded-2xl border border-border">
+                <table className="min-w-full border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-border bg-surface-elevated text-left text-muted">
+                      <th className="px-3 py-2.5 font-medium">Sport</th>
+                      <th className="px-3 py-2.5 text-center font-medium">Win</th>
+                      <th className="px-3 py-2.5 text-center font-medium">Loss</th>
+                      <th className="px-3 py-2.5 text-center font-medium">Void</th>
+                      <th className="px-3 py-2.5 text-center font-medium">Open</th>
+                      <th className="px-3 py-2.5 text-center font-medium">Graded</th>
+                      <th className="px-3 py-2.5 text-right font-medium">Risked</th>
+                      <th className="px-3 py-2.5 text-right font-medium">P/L</th>
+                      <th className="px-3 py-2.5 text-center font-medium">ROI</th>
+                      <th className="px-3 py-2.5 text-center font-medium">Win %</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sportStats.map((row) => (
+                      <tr
+                        key={row.sportId}
+                        className={`border-b border-border/60 ${row.hasActivity ? "text-foreground" : "text-muted/60"}`}
+                      >
+                        <td className={`px-3 py-2 ${row.hasActivity ? "font-semibold" : ""}`}>
+                          {row.sport}
+                        </td>
+                        <td className="px-3 py-2 text-center tabular-nums">{row.winCount}</td>
+                        <td className="px-3 py-2 text-center tabular-nums">{row.lossCount}</td>
+                        <td className="px-3 py-2 text-center tabular-nums">{row.voidCount}</td>
+                        <td className="px-3 py-2 text-center tabular-nums">{row.openCount}</td>
+                        <td className="px-3 py-2 text-center tabular-nums">{row.gradedCount}</td>
+                        <td className={`${moneyCellClassName} px-3 py-2`}>
+                          {formatCurrency(row.totalRisked)}
+                        </td>
+                        <td
+                          className={`${moneyCellClassName} px-3 py-2 ${profitLossClassName(row.totalProfitLoss)}`}
+                        >
+                          {formatCurrency(row.totalProfitLoss)}
+                        </td>
+                        <td
+                          className={`px-3 py-2 text-center tabular-nums ${percentHighlightClassName(row.roi, "roi")}`}
+                        >
+                          {formatPercent(row.roi)}
+                        </td>
+                        <td
+                          className={`px-3 py-2 text-center tabular-nums ${percentHighlightClassName(row.winPct, "winPct")}`}
+                        >
+                          {formatPercent(row.winPct)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </section>
       )}
