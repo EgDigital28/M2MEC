@@ -119,6 +119,14 @@ export function renderEmailParagraph(text: string) {
   `;
 }
 
+export function renderEmailDisclaimer(text: string) {
+  return `
+    <p style="margin:24px 0 0;padding-top:16px;border-top:1px solid ${EMAIL_COLORS.border};font-size:11px;line-height:1.6;color:${EMAIL_COLORS.muted};">
+      ${escapeHtml(text)}
+    </p>
+  `;
+}
+
 export function renderEmailButton(href: string, label: string) {
   return `
     <table role="presentation" cellspacing="0" cellpadding="0" style="margin:24px 0 8px;">

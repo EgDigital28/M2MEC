@@ -34,7 +34,7 @@ Flow for the recipient:
 Under **Authentication → URL configuration**:
 
 - **Site URL:** `https://www.m2mec.com`
-- **Redirect URLs:** add `https://www.m2mec.com/auth/callback` and `https://www.m2mec.com/set-password`
+- **Redirect URLs:** add `https://www.m2mec.com/auth/callback` and `https://www.m2mec.com/set-password` (and the same paths on preview domains if needed)
 
 Password reset links from **/forgot-password** (or Supabase’s recovery email) should land on `/set-password`. If Supabase sends users to the homepage instead, update **Authentication → Emails → Reset password** so the link redirects through `/auth/callback?next=/set-password?reason=recovery`, or use **/forgot-password** on the site after deploy.
 

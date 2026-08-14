@@ -35,19 +35,36 @@ export function AuthForm() {
       return;
     }
 
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("suspended_at")
-      .maybeSingle();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    if (profileError) {
-      await supabase.auth.signOut();
+    if (!user) {
       setError("Could not verify account status. Try again.");
       setLoading(false);
       return;
     }
 
-    if (profile?.suspended_at) {
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("suspended_at")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      const { data: fallbackProfile, error: fallbackError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (fallbackError || !fallbackProfile) {
+        await supabase.auth.signOut();
+        setError("Could not verify account status. Try again.");
+        setLoading(false);
+        return;
+      }
+    } else if (profile?.suspended_at) {
       await supabase.auth.signOut();
       setError("This account has been suspended.");
       setLoading(false);
@@ -74,7 +91,8 @@ export function AuthForm() {
 
       {authError === "auth_callback_failed" && (
         <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          That link expired or is invalid. Request a new reset link below.
+          That invite or reset link expired or is invalid. Ask your inviter to resend, or use
+          forgot password below.
         </p>
       )}
 

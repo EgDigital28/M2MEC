@@ -163,10 +163,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
-  const actionLink = linkData.properties?.action_link;
+  const hashedToken = linkData.properties?.hashed_token;
+  const verificationType = linkData.properties?.verification_type ?? "invite";
 
-  if (!actionLink || !linkData.user) {
-    console.error("Invite link missing action_link or user:", linkData);
+  const callbackParams = new URLSearchParams({
+    token_hash: hashedToken ?? "",
+    type: verificationType,
+    next: "/set-password",
+  });
+  const actionLink = `${origin}/auth/callback?${callbackParams.toString()}`;
+
+  if (!hashedToken || !linkData.user) {
+    console.error("Invite link missing hashed_token or user:", linkData);
     return NextResponse.json({ error: "Could not create invite link." }, { status: 500 });
   }
 

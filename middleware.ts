@@ -1,29 +1,31 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
-function redirectAuthCode(request: NextRequest) {
+function redirectAuthCallback(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
   const code = searchParams.get("code");
-  const type = searchParams.get("type");
+  const tokenHash = searchParams.get("token_hash");
 
-  if (!code || pathname.startsWith("/auth/callback")) {
+  if ((!code && !tokenHash) || pathname.startsWith("/auth/callback")) {
     return null;
   }
 
   const url = request.nextUrl.clone();
   url.pathname = "/auth/callback";
-  url.searchParams.set("next", "/set-password?reason=recovery");
-  url.searchParams.delete("type");
 
-  if (type) {
-    url.searchParams.set("type", type);
+  if (!url.searchParams.has("next")) {
+    const type = searchParams.get("type");
+    url.searchParams.set(
+      "next",
+      type === "recovery" ? "/set-password?reason=recovery" : "/set-password",
+    );
   }
 
   return NextResponse.redirect(url);
 }
 
 export async function middleware(request: NextRequest) {
-  const authRedirect = redirectAuthCode(request);
+  const authRedirect = redirectAuthCallback(request);
   if (authRedirect) {
     return authRedirect;
   }
