@@ -5,12 +5,11 @@ import { useCallback, useEffect, useState } from "react";
 import { LEDGER_STARTING_BALANCE } from "@/lib/bets/calculations";
 import {
   computeAmountDue,
-  computeDepositPct,
   formatAllocationPercent,
   formatDepositPct,
   formatFinancialAmount,
 } from "@/lib/financials/types";
-import type { InvestorFinancialsSummary } from "@/lib/financials/investor-summary";
+import type { InvestorFinancialsSummary, InvestorWageringStake } from "@/lib/financials/investor-summary";
 
 type InvestorOverviewProps = {
   displayName: string;
@@ -51,7 +50,8 @@ export function InvestorOverview({ displayName }: InvestorOverviewProps) {
   }, [loadSummary]);
 
   const equityStake = summary?.equityStake ?? null;
-  const hasStakes = Boolean(equityStake) || (summary?.wageringStakes.length ?? 0) > 0;
+  const wageringStakes = summary?.wageringStakes ?? [];
+  const hasAnyStake = Boolean(equityStake) || wageringStakes.length > 0;
 
   return (
     <div className="space-y-8">
@@ -76,40 +76,7 @@ export function InvestorOverview({ displayName }: InvestorOverviewProps) {
 
       {loading ? (
         <p className="text-sm text-muted">Loading your summary...</p>
-      ) : hasStakes ? (
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <SummaryCard
-            label="IO Allocation"
-            value={equityStake ? formatAllocationPercent(equityStake.io_allocation) : "—"}
-            detail="Equity stake allocation"
-          />
-          <SummaryCard
-            label="IO Cash Value"
-            value={equityStake ? formatFinancialAmount(equityStake.io_cash_value) : "—"}
-            detail="Total equity commitment"
-          />
-          <SummaryCard
-            label="Amount Due"
-            value={
-              equityStake
-                ? formatFinancialAmount(
-                    computeAmountDue(equityStake.io_cash_value, equityStake.deposit),
-                  )
-                : "—"
-            }
-            detail={
-              equityStake
-                ? `${formatFinancialAmount(equityStake.deposit)} deposited (${formatDepositPct(equityStake.deposit, equityStake.io_cash_value)})`
-                : "No equity stake on file"
-            }
-          />
-          <SummaryCard
-            label="Wagering Value"
-            value={formatFinancialAmount(summary?.totalWageringValue ?? 0)}
-            detail={`Based on overall P/L of ${formatFinancialAmount(summary?.overallPl ?? 0)}`}
-          />
-        </section>
-      ) : (
+      ) : !hasAnyStake ? (
         <div className="rounded-2xl border border-border bg-surface px-6 py-8">
           <p className="text-sm font-medium text-foreground">No stakes assigned yet</p>
           <p className="mt-2 text-sm text-muted">
@@ -117,20 +84,49 @@ export function InvestorOverview({ displayName }: InvestorOverviewProps) {
             them.
           </p>
         </div>
-      )}
+      ) : (
+        <div className="space-y-10">
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Equity</h2>
+            {equityStake ? (
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <SummaryCard
+                  label="Equity Stake"
+                  value={formatAllocationPercent(equityStake.io_allocation)}
+                  detail="Your IO allocation"
+                />
+                <SummaryCard
+                  label="Cash Value"
+                  value={formatFinancialAmount(equityStake.io_cash_value)}
+                  detail="Total equity commitment"
+                />
+                <SummaryCard
+                  label="Amount Due"
+                  value={formatFinancialAmount(
+                    computeAmountDue(equityStake.io_cash_value, equityStake.deposit),
+                  )}
+                  detail={`${formatFinancialAmount(equityStake.deposit)} deposited (${formatDepositPct(equityStake.deposit, equityStake.io_cash_value)})`}
+                />
+              </div>
+            ) : (
+              <p className="text-sm text-muted">No equity stake assigned yet.</p>
+            )}
+          </section>
 
-      {!loading && summary ? (
-        <section className="rounded-2xl border border-border bg-surface-elevated p-5">
-          <p className="text-xs font-medium uppercase tracking-widest text-muted">Platform P/L</p>
-          <p className="mt-2 text-2xl font-semibold tabular-nums">
-            {formatFinancialAmount(summary.overallPl)}
-          </p>
-          <p className="mt-1 text-xs text-muted">
-            Starting balance {formatFinancialAmount(LEDGER_STARTING_BALANCE)} + ledger net P/L{" "}
-            {formatFinancialAmount(summary.totalProfitLoss)}
-          </p>
-        </section>
-      ) : null}
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Wagering</h2>
+            {wageringStakes.length > 0 && summary ? (
+              <div className="space-y-4">
+                {wageringStakes.map((stake) => (
+                  <WageringSummaryRow key={stake.id} stake={stake} summary={summary} />
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted">No wagering stake assigned yet.</p>
+            )}
+          </section>
+        </div>
+      )}
 
       <p className="text-sm text-muted">
         View full details on{" "}
@@ -139,6 +135,41 @@ export function InvestorOverview({ displayName }: InvestorOverviewProps) {
         </Link>
         .
       </p>
+    </div>
+  );
+}
+
+function WageringSummaryRow({
+  stake,
+  summary,
+}: {
+  stake: InvestorWageringStake;
+  summary: InvestorFinancialsSummary;
+}) {
+  const group = stake.group && !Array.isArray(stake.group) ? stake.group : null;
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <SummaryCard
+        label="Group Name"
+        value={group ? group.name : "—"}
+        detail={group?.description?.trim() || "Wagering group"}
+      />
+      <SummaryCard
+        label="Stake"
+        value={formatAllocationPercent(stake.ownershipPct)}
+        detail="Your ownership share of group capital"
+      />
+      <SummaryCard
+        label="Cash Value"
+        value={formatFinancialAmount(stake.value)}
+        detail="Your share of overall platform P/L"
+      />
+      <SummaryCard
+        label="Platform P/L"
+        value={formatFinancialAmount(summary.overallPl)}
+        detail={`Starting balance ${formatFinancialAmount(LEDGER_STARTING_BALANCE)} + ledger net P/L ${formatFinancialAmount(summary.totalProfitLoss)}`}
+      />
     </div>
   );
 }
