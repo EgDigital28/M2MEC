@@ -96,8 +96,18 @@ export function formatOdds(line: number): string {
   return String(line);
 }
 
+export function formatCurrency(value: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+/** @deprecated Use formatCurrency for dollar amounts */
 export function formatMoney(value: number): string {
-  return value.toFixed(1);
+  return formatCurrency(value);
 }
 
 export function formatEventDate(date: string): string {

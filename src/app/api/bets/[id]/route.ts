@@ -56,9 +56,12 @@ export async function PATCH(
   if (body.event_name !== undefined) updates.event_name = body.event_name.trim();
 
   if (body.line !== undefined) {
-    const line = Number(body.line);
+    const line = Math.trunc(Number(body.line));
     if (Number.isNaN(line) || line === 0) {
-      return NextResponse.json({ error: "Invalid line." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Line must be a non-zero whole number." },
+        { status: 400 },
+      );
     }
 
     updates.line = line;
@@ -70,7 +73,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid risk." }, { status: 400 });
     }
 
-    updates.risk = risk;
+    updates.risk = Math.round(risk * 100) / 100;
   }
 
   const supabase = await createClient();

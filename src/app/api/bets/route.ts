@@ -64,7 +64,7 @@ export async function POST(request: Request) {
   const event_date = body.event_date?.trim();
   const sport_id = body.sport_id?.trim();
   const event_name = body.event_name?.trim();
-  const line = Number(body.line);
+  const line = Math.trunc(Number(body.line));
   const risk = Number(body.risk);
 
   if (!event_date || !sport_id || !event_name) {
@@ -75,7 +75,10 @@ export async function POST(request: Request) {
   }
 
   if (Number.isNaN(line) || line === 0) {
-    return NextResponse.json({ error: "Line must be a non-zero number." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Line must be a non-zero whole number." },
+      { status: 400 },
+    );
   }
 
   if (Number.isNaN(risk) || risk <= 0) {
@@ -90,8 +93,8 @@ export async function POST(request: Request) {
       event_date,
       sport_id,
       event_name,
-      line,
-      risk,
+      line: Math.trunc(line),
+      risk: Math.round(risk * 100) / 100,
       status: "Open",
     })
     .select("*, sports(abbreviation, full_name)")
