@@ -128,6 +128,12 @@ export default async function TeamPage() {
               Expenses
             </Link>
             <Link
+              href="/team/financials"
+              className="rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:border-accent/40"
+            >
+              Financials
+            </Link>
+            <Link
               href="/"
               className="rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:border-accent/40"
             >
