@@ -36,6 +36,8 @@ Under **Authentication → URL configuration**:
 - **Site URL:** `https://www.m2mec.com`
 - **Redirect URLs:** add `https://www.m2mec.com/auth/callback` and `https://www.m2mec.com/set-password`
 
+Password reset links from **/forgot-password** (or Supabase’s recovery email) should land on `/set-password`. If Supabase sends users to the homepage instead, update **Authentication → Emails → Reset password** so the link redirects through `/auth/callback?next=/set-password?reason=recovery`, or use **/forgot-password** on the site after deploy.
+
 Set `NEXT_PUBLIC_SITE_URL` in Vercel so invite links use production, not preview URLs.
 
 ### Your first admin account

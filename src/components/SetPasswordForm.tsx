@@ -1,11 +1,14 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 export function SetPasswordForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isRecovery = searchParams.get("reason") === "recovery";
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +23,11 @@ export function SetPasswordForm() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        router.replace("/login?error=session_required");
+        router.replace(
+          isRecovery
+            ? "/forgot-password?error=session_expired"
+            : "/login?error=session_required",
+        );
         return;
       }
 
@@ -28,7 +35,7 @@ export function SetPasswordForm() {
     }
 
     checkSession();
-  }, [router]);
+  }, [router, isRecovery]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -54,13 +61,21 @@ export function SetPasswordForm() {
       return;
     }
 
+    if (isRecovery) {
+      await supabase.auth.signOut();
+      router.push("/login?message=password_updated");
+      return;
+    }
+
     router.push("/");
     router.refresh();
   }
 
   if (checkingSession) {
     return (
-      <p className="text-center text-sm text-muted">Confirming your invite...</p>
+      <p className="text-center text-sm text-muted">
+        {isRecovery ? "Confirming reset link..." : "Confirming your invite..."}
+      </p>
     );
   }
 
@@ -68,7 +83,7 @@ export function SetPasswordForm() {
     <form onSubmit={handleSubmit} className="space-y-5">
       <div>
         <label htmlFor="password" className="mb-1.5 block text-sm font-medium">
-          Password
+          {isRecovery ? "New password" : "Password"}
         </label>
         <input
           id="password"
@@ -112,7 +127,11 @@ export function SetPasswordForm() {
         disabled={loading}
         className="w-full rounded-full bg-foreground px-4 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {loading ? "Saving password..." : "Set password and continue"}
+        {loading
+          ? "Saving password..."
+          : isRecovery
+            ? "Update password"
+            : "Set password and continue"}
       </button>
     </form>
   );

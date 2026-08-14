@@ -16,6 +16,8 @@ export function AuthForm() {
   const nextPath = searchParams.get("next");
   const safeNext =
     nextPath?.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/";
+  const passwordUpdated = searchParams.get("message") === "password_updated";
+  const authError = searchParams.get("error");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -40,6 +42,18 @@ export function AuthForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {passwordUpdated && (
+        <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+          Password updated. Sign in with your new password.
+        </p>
+      )}
+
+      {authError === "auth_callback_failed" && (
+        <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          That link expired or is invalid. Request a new reset link below.
+        </p>
+      )}
+
       <div>
         <label htmlFor="email" className="mb-1.5 block text-sm font-medium">
           Email
@@ -73,6 +87,12 @@ export function AuthForm() {
           placeholder="Your password"
         />
       </div>
+
+      <p className="text-right text-sm">
+        <Link href="/forgot-password" className="text-accent hover:underline">
+          Forgot password?
+        </Link>
+      </p>
 
       {error && (
         <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
