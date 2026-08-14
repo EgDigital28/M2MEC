@@ -101,7 +101,12 @@ export function SetPasswordForm() {
       return;
     }
 
-    router.push("/");
+    const destinationResponse = await fetch("/api/auth/destination?next=/");
+    const { destination } = (await destinationResponse.json()) as {
+      destination?: string;
+    };
+
+    router.push(destination || "/investor");
     router.refresh();
   }
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
+import { getDefaultDestination } from "@/lib/auth/destination";
 import { getCurrentProfile } from "@/lib/auth/profile";
-import { hasMinimumTier } from "@/lib/tiers";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -14,13 +14,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ destination: "/login" });
   }
 
-  if (safeNext !== "/") {
-    return NextResponse.json({ destination: safeNext });
-  }
-
-  if (hasMinimumTier(profile.tier, "employee")) {
-    return NextResponse.json({ destination: "/team" });
-  }
-
-  return NextResponse.json({ destination: "/account" });
+  return NextResponse.json({
+    destination: getDefaultDestination(profile.tier, safeNext),
+  });
 }

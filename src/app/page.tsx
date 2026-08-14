@@ -5,6 +5,7 @@ import { Approach } from "@/components/Approach";
 import { Contact } from "@/components/Contact";
 import { Footer } from "@/components/Footer";
 import { getCurrentProfile } from "@/lib/auth/profile";
+import { redirect } from "next/navigation";
 import {
   navLinks,
   platformSection,
@@ -18,6 +19,10 @@ import {
 
 export default async function Home() {
   const profile = await getCurrentProfile();
+
+  if (profile?.tier === "investor") {
+    redirect("/investor");
+  }
 
   return (
     <>

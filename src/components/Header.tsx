@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Profile } from "@/lib/auth/profile";
+import { TeamSignOut } from "@/components/TeamSignOut";
 import { getProfileDisplayName } from "@/lib/auth/display-name";
 import { hasMinimumTier } from "@/lib/tiers";
 
@@ -59,6 +60,7 @@ export function Header({
                   Team
                 </Link>
               )}
+              <TeamSignOut className="text-sm text-muted transition-colors hover:text-foreground" />
               <Link
                 href="/account"
                 className="rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:border-accent/40"
