@@ -3,6 +3,13 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ExpenseSummaryTables } from "@/components/ExpenseSummaryTables";
 import {
+  CheckIcon,
+  PencilIcon,
+  tableActionButtonClass,
+  TrashIcon,
+  XIcon,
+} from "@/components/TableActionIcons";
+import {
   formatExpenseAmount,
   formatExpenseInput,
   getLocalTodayDateString,
@@ -13,6 +20,7 @@ import {
   type ExpenseCostCenter,
   type ExpenseEntry,
 } from "@/lib/expenses/types";
+import { getDuplicateSortOrders } from "@/lib/sort";
 
 type CatalogItem = ExpenseCostCenter | ExpenseComponent;
 
@@ -48,50 +56,6 @@ function formatInputDate(value: string) {
     day: "numeric",
     year: "numeric",
   }).format(new Date(`${value.slice(0, 10)}T00:00:00`));
-}
-
-function PencilIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-    </svg>
-  );
-}
-
-function TrashIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-      <path
-        fillRule="evenodd"
-        d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-      <path
-        fillRule="evenodd"
-        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
-}
-
-function XIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-      <path
-        fillRule="evenodd"
-        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
 }
 
 function getCostCenterName(entry: ExpenseEntry, costCenters: ExpenseCostCenter[]) {
@@ -151,6 +115,7 @@ function CatalogManager<T extends CatalogItem>({
   const [editForm, setEditForm] = useState(emptyCatalogForm);
 
   const sortedItems = sortCatalogItems(items);
+  const duplicateSortOrders = getDuplicateSortOrders(items);
 
   function startEdit(item: T) {
     onCatalogEditingIdChange(item.id);
@@ -210,6 +175,11 @@ function CatalogManager<T extends CatalogItem>({
     <section className="rounded-2xl border border-border bg-surface p-5">
       <h2 className="text-lg font-semibold">{title}</h2>
       <p className="mt-1 text-sm text-muted">{description}</p>
+      {duplicateSortOrders.size > 0 ? (
+        <p className="mt-2 text-xs text-muted">
+          Multiple items share the same order value. Ties are sorted alphabetically by name.
+        </p>
+      ) : null}
 
       <form onSubmit={handleCreate} className="mt-4 flex flex-wrap gap-2">
         <input
@@ -280,7 +250,16 @@ function CatalogManager<T extends CatalogItem>({
                 ) : (
                   <>
                     <p className="min-w-[120px] flex-1 text-sm font-medium">{item.name}</p>
-                    <p className="w-20 text-sm text-muted">Order {item.sort_order}</p>
+                    <p className="w-20 text-sm text-muted">
+                      Order{" "}
+                      <span
+                        className={
+                          duplicateSortOrders.has(item.sort_order) ? "text-amber-200" : undefined
+                        }
+                      >
+                        {item.sort_order}
+                      </span>
+                    </p>
                     {!item.is_active ? (
                       <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">
                         Archived
@@ -298,7 +277,7 @@ function CatalogManager<T extends CatalogItem>({
                         disabled={isBusy}
                         aria-label="Save changes"
                         title="Save"
-                        className="rounded-md p-1.5 text-emerald-400 transition-colors hover:bg-emerald-500/10 disabled:opacity-60"
+                        className={tableActionButtonClass.save}
                       >
                         <CheckIcon />
                       </button>
@@ -308,7 +287,7 @@ function CatalogManager<T extends CatalogItem>({
                         disabled={isBusy}
                         aria-label="Cancel edit"
                         title="Cancel"
-                        className="rounded-md p-1.5 text-muted transition-colors hover:bg-surface-elevated hover:text-foreground disabled:opacity-60"
+                        className={tableActionButtonClass.cancel}
                       >
                         <XIcon />
                       </button>
@@ -321,7 +300,7 @@ function CatalogManager<T extends CatalogItem>({
                         disabled={isBusy || catalogEditingId !== null}
                         aria-label="Edit item"
                         title="Edit"
-                        className="rounded-md p-1.5 text-muted transition-colors hover:bg-surface-elevated hover:text-foreground disabled:opacity-60"
+                        className={tableActionButtonClass.edit}
                       >
                         <PencilIcon />
                       </button>
@@ -956,7 +935,7 @@ export function ExpensesAdmin() {
                                 disabled={isBusy}
                                 aria-label="Save expense"
                                 title="Save"
-                                className="rounded-md p-1.5 text-emerald-400 transition-colors hover:bg-emerald-500/10 disabled:opacity-60"
+                                className={tableActionButtonClass.save}
                               >
                                 <CheckIcon />
                               </button>
@@ -966,7 +945,7 @@ export function ExpensesAdmin() {
                                 disabled={isBusy}
                                 aria-label="Cancel edit"
                                 title="Cancel"
-                                className="rounded-md p-1.5 text-muted transition-colors hover:bg-surface-elevated hover:text-foreground disabled:opacity-60"
+                                className={tableActionButtonClass.cancel}
                               >
                                 <XIcon />
                               </button>
@@ -979,7 +958,7 @@ export function ExpensesAdmin() {
                                 disabled={isBusy || editingId !== null}
                                 aria-label="Edit expense"
                                 title="Edit"
-                                className="rounded-md p-1.5 text-muted transition-colors hover:bg-surface-elevated hover:text-foreground disabled:opacity-60"
+                                className={tableActionButtonClass.edit}
                               >
                                 <PencilIcon />
                               </button>
@@ -989,7 +968,7 @@ export function ExpensesAdmin() {
                                 disabled={isBusy || editingId !== null}
                                 aria-label="Delete expense"
                                 title="Delete"
-                                className="rounded-md p-1.5 text-muted transition-colors hover:bg-red-500/10 hover:text-red-300 disabled:opacity-60"
+                                className={tableActionButtonClass.delete}
                               >
                                 <TrashIcon />
                               </button>

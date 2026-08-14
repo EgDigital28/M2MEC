@@ -1,7 +1,15 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
-import type { Sport } from "@/lib/sports/types";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  CheckIcon,
+  PencilIcon,
+  tableActionButtonClass,
+  TrashIcon,
+  XIcon,
+} from "@/components/TableActionIcons";
+import { getDuplicateSortOrders } from "@/lib/sort";
+import { sortSports, type Sport } from "@/lib/sports/types";
 
 const emptyForm = {
   abbreviation: "",
@@ -18,6 +26,9 @@ export function SportsAdmin() {
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState(emptyForm);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const duplicateSortOrders = useMemo(() => getDuplicateSortOrders(sports), [sports]);
 
   const loadSports = useCallback(async () => {
     setLoading(true);
@@ -33,7 +44,7 @@ export function SportsAdmin() {
         return;
       }
 
-      setSports(data.sports ?? []);
+      setSports(sortSports(data.sports ?? []));
     } catch {
       setError("Network error while loading sports.");
     } finally {
@@ -71,7 +82,7 @@ export function SportsAdmin() {
       }
 
       if (data.sport) {
-        setSports((current) => [...current, data.sport!].sort(sortSports));
+        setSports((current) => sortSports([...current, data.sport!]));
       }
 
       setForm(emptyForm);
@@ -92,7 +103,13 @@ export function SportsAdmin() {
     });
   }
 
+  function cancelEdit() {
+    setEditingId(null);
+    setEditForm(emptyForm);
+  }
+
   async function saveEdit(id: string) {
+    setBusyId(id);
     setError(null);
 
     try {
@@ -111,20 +128,21 @@ export function SportsAdmin() {
 
       if (!response.ok) {
         setError(data.error ?? "Could not update sport.");
+        setBusyId(null);
         return;
       }
 
       if (data.sport) {
         setSports((current) =>
-          current
-            .map((sport) => (sport.id === id ? data.sport! : sport))
-            .sort(sortSports),
+          sortSports(current.map((sport) => (sport.id === id ? data.sport! : sport))),
         );
       }
 
-      setEditingId(null);
+      cancelEdit();
     } catch {
       setError("Network error while updating sport.");
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -133,7 +151,12 @@ export function SportsAdmin() {
       return;
     }
 
+    setBusyId(id);
     setError(null);
+
+    if (editingId === id) {
+      cancelEdit();
+    }
 
     try {
       const response = await fetch(`/api/sports/${id}`, { method: "DELETE" });
@@ -141,12 +164,15 @@ export function SportsAdmin() {
 
       if (!response.ok) {
         setError(data.error ?? "Could not delete sport.");
+        setBusyId(null);
         return;
       }
 
       setSports((current) => current.filter((sport) => sport.id !== id));
     } catch {
       setError("Network error while deleting sport.");
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -238,159 +264,185 @@ export function SportsAdmin() {
         </p>
       )}
 
-      <section className="overflow-hidden rounded-2xl border border-border">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-surface-elevated text-left">
-              <tr>
-                <th className="px-4 py-3 font-medium">Abbreviation</th>
-                <th className="px-4 py-3 font-medium">Full name</th>
-                <th className="px-4 py-3 font-medium">Order</th>
-                <th className="px-4 py-3 font-medium">Active</th>
-                <th className="px-4 py-3 font-medium" />
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-muted">
-                    Loading sports...
-                  </td>
-                </tr>
-              ) : sports.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-muted">
-                    No sports configured.
-                  </td>
-                </tr>
-              ) : (
-                sports.map((sport) => {
-                  const isEditing = editingId === sport.id;
+      <section className="space-y-3">
+        {duplicateSortOrders.size > 0 ? (
+          <p className="text-sm text-muted">
+            Multiple sports share the same order value. Ties are sorted alphabetically by
+            abbreviation.
+          </p>
+        ) : null}
 
-                  return (
-                    <tr key={sport.id} className="border-t border-border">
-                      <td className="px-4 py-3">
-                        {isEditing ? (
-                          <input
-                            value={editForm.abbreviation}
-                            onChange={(event) =>
-                              setEditForm((current) => ({
-                                ...current,
-                                abbreviation: event.target.value,
-                              }))
-                            }
-                            className="w-full rounded-lg border border-border bg-background px-2 py-1"
-                          />
-                        ) : (
-                          <span className={sport.is_active ? "font-medium" : "text-muted"}>
-                            {sport.abbreviation}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {isEditing ? (
-                          <input
-                            value={editForm.full_name}
-                            onChange={(event) =>
-                              setEditForm((current) => ({
-                                ...current,
-                                full_name: event.target.value,
-                              }))
-                            }
-                            className="w-full rounded-lg border border-border bg-background px-2 py-1"
-                          />
-                        ) : (
-                          sport.full_name
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {isEditing ? (
-                          <input
-                            type="number"
-                            value={editForm.sort_order}
-                            onChange={(event) =>
-                              setEditForm((current) => ({
-                                ...current,
-                                sort_order: event.target.value,
-                              }))
-                            }
-                            className="w-20 rounded-lg border border-border bg-background px-2 py-1"
-                          />
-                        ) : (
-                          sport.sort_order
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {isEditing ? (
-                          <input
-                            type="checkbox"
-                            checked={editForm.is_active}
-                            onChange={(event) =>
-                              setEditForm((current) => ({
-                                ...current,
-                                is_active: event.target.checked,
-                              }))
-                            }
-                          />
-                        ) : sport.is_active ? (
-                          "Yes"
-                        ) : (
-                          "No"
-                        )}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {isEditing ? (
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => saveEdit(sport.id)}
-                              className="text-xs text-accent hover:underline"
-                            >
-                              Save
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditingId(null)}
-                              className="text-xs text-muted hover:underline"
-                            >
-                              Cancel
-                            </button>
+        <div className="overflow-hidden rounded-2xl border border-border">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-xs">
+              <thead>
+                <tr className="border-b border-border bg-surface-elevated text-left text-muted">
+                  <th className="px-4 py-3 font-medium">Abbreviation</th>
+                  <th className="px-4 py-3 font-medium">Full name</th>
+                  <th className="px-4 py-3 font-medium">Order</th>
+                  <th className="px-4 py-3 font-medium">Active</th>
+                  <th className="px-4 py-3 text-right font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-muted">
+                      Loading sports...
+                    </td>
+                  </tr>
+                ) : sports.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-muted">
+                      No sports configured.
+                    </td>
+                  </tr>
+                ) : (
+                  sports.map((sport) => {
+                    const isEditing = editingId === sport.id;
+                    const isBusy = busyId === sport.id;
+                    const hasDuplicateOrder = duplicateSortOrders.has(sport.sort_order);
+
+                    return (
+                      <tr
+                        key={sport.id}
+                        className={`border-b border-border/60 ${sport.is_active ? "" : "text-muted/70"}`}
+                      >
+                        <td className="px-4 py-3">
+                          {isEditing ? (
+                            <input
+                              value={editForm.abbreviation}
+                              disabled={isBusy}
+                              onChange={(event) =>
+                                setEditForm((current) => ({
+                                  ...current,
+                                  abbreviation: event.target.value,
+                                }))
+                              }
+                              className="w-full rounded-lg border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-accent"
+                            />
+                          ) : (
+                            <span className={sport.is_active ? "font-medium" : undefined}>
+                              {sport.abbreviation}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          {isEditing ? (
+                            <input
+                              value={editForm.full_name}
+                              disabled={isBusy}
+                              onChange={(event) =>
+                                setEditForm((current) => ({
+                                  ...current,
+                                  full_name: event.target.value,
+                                }))
+                              }
+                              className="w-full rounded-lg border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-accent"
+                            />
+                          ) : (
+                            sport.full_name
+                          )}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums">
+                          {isEditing ? (
+                            <input
+                              type="number"
+                              value={editForm.sort_order}
+                              disabled={isBusy}
+                              onChange={(event) =>
+                                setEditForm((current) => ({
+                                  ...current,
+                                  sort_order: event.target.value,
+                                }))
+                              }
+                              className="w-20 rounded-lg border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-accent"
+                            />
+                          ) : (
+                            <span className={hasDuplicateOrder ? "text-amber-200" : undefined}>
+                              {sport.sort_order}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          {isEditing ? (
+                            <input
+                              type="checkbox"
+                              checked={editForm.is_active}
+                              disabled={isBusy}
+                              onChange={(event) =>
+                                setEditForm((current) => ({
+                                  ...current,
+                                  is_active: event.target.checked,
+                                }))
+                              }
+                            />
+                          ) : sport.is_active ? (
+                            "Yes"
+                          ) : (
+                            "No"
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex justify-end gap-1">
+                            {isEditing ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => void saveEdit(sport.id)}
+                                  disabled={isBusy}
+                                  aria-label="Save sport"
+                                  title="Save"
+                                  className={tableActionButtonClass.save}
+                                >
+                                  <CheckIcon />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cancelEdit}
+                                  disabled={isBusy}
+                                  aria-label="Cancel edit"
+                                  title="Cancel"
+                                  className={tableActionButtonClass.cancel}
+                                >
+                                  <XIcon />
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => startEdit(sport)}
+                                  disabled={isBusy || editingId !== null}
+                                  aria-label="Edit sport"
+                                  title="Edit"
+                                  className={tableActionButtonClass.edit}
+                                >
+                                  <PencilIcon />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleDelete(sport.id)}
+                                  disabled={isBusy || editingId !== null}
+                                  aria-label="Delete sport"
+                                  title="Delete"
+                                  className={tableActionButtonClass.delete}
+                                >
+                                  <TrashIcon />
+                                </button>
+                              </>
+                            )}
                           </div>
-                        ) : (
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => startEdit(sport)}
-                              className="text-xs text-accent hover:underline"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(sport.id)}
-                              className="text-xs text-red-300 hover:underline"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
     </div>
   );
-}
-
-function sortSports(a: Sport, b: Sport) {
-  if (a.sort_order !== b.sort_order) {
-    return a.sort_order - b.sort_order;
-  }
-
-  return a.abbreviation.localeCompare(b.abbreviation);
 }

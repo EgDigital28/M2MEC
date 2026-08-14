@@ -1,3 +1,5 @@
+import { sortBySortOrder } from "@/lib/sort";
+
 export type Sport = {
   id: string;
   abbreviation: string;
@@ -14,3 +16,7 @@ export type SportPayload = {
   is_active?: boolean;
   sort_order?: number;
 };
+
+export function sortSports(items: Sport[]) {
+  return sortBySortOrder(items, (a, b) => a.abbreviation.localeCompare(b.abbreviation));
+}

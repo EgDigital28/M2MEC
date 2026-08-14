@@ -1,3 +1,5 @@
+import { sortBySortOrder } from "@/lib/sort";
+
 export type ExpenseCostCenter = {
   id: string;
   name: string;
@@ -69,5 +71,5 @@ export function parseExpenseAmount(value: string) {
 }
 
 export function sortCatalog<T extends { sort_order: number; name: string }>(items: T[]) {
-  return [...items].sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
+  return sortBySortOrder(items, (a, b) => a.name.localeCompare(b.name));
 }
