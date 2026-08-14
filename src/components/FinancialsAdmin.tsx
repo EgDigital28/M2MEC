@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { WageringStakesAdmin } from "@/components/WageringStakesAdmin";
 import {
   CheckIcon,
   PencilIcon,
@@ -660,6 +661,8 @@ export function FinancialsAdmin() {
           </table>
         </div>
       </section>
+
+      <WageringStakesAdmin />
     </div>
   );
 }

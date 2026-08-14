@@ -1,5 +1,7 @@
 export const BET_STATUSES = ["Open", "Win", "Loss", "Void"] as const;
 
+export const LEDGER_STARTING_BALANCE = 2_845_000;
+
 export type BetStatus = (typeof BET_STATUSES)[number];
 
 export type BetEntryRow = {
@@ -39,6 +41,10 @@ export function normalizeBetEntry(row: BetEntryRow): BetEntry {
     updated_at: row.updated_at,
     sport: row.sports?.abbreviation ?? "Unknown",
   };
+}
+
+export function computeOverallPl(totalProfitLoss: number) {
+  return LEDGER_STARTING_BALANCE + totalProfitLoss;
 }
 
 /** Matches Excel: =IF(line<0, risk/ABS(line)*100, risk*(line/100)) */

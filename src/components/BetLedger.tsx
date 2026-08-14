@@ -4,6 +4,8 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   BET_STATUSES,
   computeBetLedgerStats,
+  computeOverallPl,
+  LEDGER_STARTING_BALANCE,
   computeSportBetStats,
   formatCurrency,
   formatCurrencyWhole,
@@ -42,7 +44,6 @@ type EntryForm = {
 };
 
 const PAGE_SIZE = 20;
-const LEDGER_STARTING_BALANCE = 2_845_000;
 
 const emptyForm: EntryForm = {
   event_date: new Date().toISOString().slice(0, 10),
@@ -346,7 +347,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
               <p
                 className={`mt-2 text-2xl font-semibold tabular-nums ${profitLossClassName(stats.totalProfitLoss)}`}
               >
-                {formatCurrencyWhole(LEDGER_STARTING_BALANCE + stats.totalProfitLoss)}
+                {formatCurrencyWhole(computeOverallPl(stats.totalProfitLoss))}
               </p>
               <p className="mt-1 text-xs text-muted">
                 Starting balance: {formatCurrencyWhole(LEDGER_STARTING_BALANCE)}
