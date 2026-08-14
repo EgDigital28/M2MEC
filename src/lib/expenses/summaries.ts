@@ -95,6 +95,95 @@ export function computeExpenseSummaryMetrics(
   };
 }
 
+export type CostCoverageRow = {
+  id: string;
+  name: string;
+  ytd: number;
+  currentYearObligation: number;
+  nextYearObligation: number;
+};
+
+export type CostCoverageSummary = {
+  rows: CostCoverageRow[];
+  currentYear: number;
+  nextYear: number;
+  totals: {
+    ytd: number;
+    currentYearObligation: number;
+    nextYearObligation: number;
+  };
+};
+
+function emptyCostCoverageBucket() {
+  return {
+    ytd: 0,
+    currentYearObligation: 0,
+    nextYearObligation: 0,
+  };
+}
+
+function sumCostCoverageRows(rows: CostCoverageRow[]) {
+  return rows.reduce(
+    (acc, row) => {
+      acc.ytd += row.ytd;
+      acc.currentYearObligation += row.currentYearObligation;
+      acc.nextYearObligation += row.nextYearObligation;
+      return acc;
+    },
+    emptyCostCoverageBucket(),
+  );
+}
+
+function computeExpenseCostCoverageRow(
+  entries: ExpenseEntry[],
+  currentYear: number,
+  nextYear: number,
+): CostCoverageRow {
+  const values = emptyCostCoverageBucket();
+
+  for (const entry of entries) {
+    if (!isSummaryEligible(entry)) {
+      continue;
+    }
+
+    const entryYear = getExpenseYear(entry.expense_date);
+
+    if (entryYear === currentYear && entry.status === "paid") {
+      values.ytd += entry.amount;
+    }
+
+    if (entryYear === currentYear && isUnpaidExpense(entry)) {
+      values.currentYearObligation += entry.amount;
+    }
+
+    if (entryYear === nextYear) {
+      values.nextYearObligation += entry.amount;
+    }
+  }
+
+  return {
+    id: "expense",
+    name: "Expense",
+    ...values,
+  };
+}
+
+export function computeCostCoverage(
+  entries: ExpenseEntry[],
+  referenceDate: Date = new Date(),
+): CostCoverageSummary {
+  const currentYear = referenceDate.getFullYear();
+  const nextYear = currentYear + 1;
+  const rows = [computeExpenseCostCoverageRow(entries, currentYear, nextYear)];
+
+  return {
+    rows,
+    currentYear,
+    nextYear,
+    totals: sumCostCoverageRows(rows),
+  };
+}
+
 function parseQuarterKey(quarter: string) {
   const match = /^(\d)Q(\d{2})$/.exec(quarter);
   if (!match) {

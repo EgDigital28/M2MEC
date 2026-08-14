@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { CostCoverageTable } from "@/components/CostCoverageTable";
 import { WageringStakesAdmin } from "@/components/WageringStakesAdmin";
 import {
   CheckIcon,
@@ -340,6 +341,8 @@ export function FinancialsAdmin() {
           {error}
         </p>
       )}
+
+      <CostCoverageTable />
 
       <section className="rounded-2xl border border-border bg-surface-elevated p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
