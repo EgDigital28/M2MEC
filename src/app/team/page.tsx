@@ -116,7 +116,7 @@ export default async function TeamPage() {
               Waitlist
             </Link>
             <Link
-              href="/team/invites"
+              href="/team/invite"
               className="rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:border-accent/40"
             >
               Invite activity

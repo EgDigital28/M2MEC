@@ -53,12 +53,17 @@ type CatalogForm = {
   sort_order: string;
 };
 
+const formFieldClassName =
+  "h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:border-accent";
+
+const formLabelClassName = "mb-1.5 block text-sm font-medium text-muted";
+
 const emptyEntryForm = (date = getLocalTodayDateString()): EntryForm => ({
   cost_center_id: "",
   component_id: "",
   amount: "",
   expense_date: date,
-  status: defaultExpenseStatusForDate(date),
+  status: "forecasted",
   notes: "",
 });
 
@@ -480,7 +485,7 @@ export function ExpensesAdmin() {
         cost_center_id: current.cost_center_id || costCenterData.costCenters?.[0]?.id || "",
         component_id: current.component_id || componentData.components?.[0]?.id || "",
         expense_date: today,
-        status: defaultExpenseStatusForDate(today),
+        status: "forecasted",
       }));
     } catch {
       setError("Network error while loading expenses.");
@@ -498,7 +503,7 @@ export function ExpensesAdmin() {
     setEntryForm((current) => ({
       ...current,
       expense_date: today,
-      status: defaultExpenseStatusForDate(today),
+      status: "forecasted",
     }));
   }, []);
 
@@ -781,7 +786,7 @@ export function ExpensesAdmin() {
               setEntryForm((current) => ({ ...current, cost_center_id: event.target.value }))
             }
             required
-            className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+            className={formFieldClassName}
           >
             <option value="" disabled>
               Cost center
@@ -799,7 +804,7 @@ export function ExpensesAdmin() {
               setEntryForm((current) => ({ ...current, component_id: event.target.value }))
             }
             required
-            className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+            className={formFieldClassName}
           >
             <option value="" disabled>
               Component
@@ -826,23 +831,18 @@ export function ExpensesAdmin() {
               inputMode="numeric"
               placeholder="0"
               required
-              className="w-full rounded-xl border border-border bg-background py-2 pl-7 pr-3 text-sm outline-none focus:border-accent"
+              className={`${formFieldClassName} pl-7`}
             />
           </div>
 
           <input
             type="date"
             value={entryForm.expense_date}
-            onChange={(event) => {
-              const expenseDate = event.target.value;
-              setEntryForm((current) => ({
-                ...current,
-                expense_date: expenseDate,
-                status: defaultExpenseStatusForDate(expenseDate),
-              }));
-            }}
+            onChange={(event) =>
+              setEntryForm((current) => ({ ...current, expense_date: event.target.value }))
+            }
             required
-            className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+            className={formFieldClassName}
           />
 
           <select
@@ -853,7 +853,7 @@ export function ExpensesAdmin() {
                 status: event.target.value as ExpenseStatus,
               }))
             }
-            className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+            className={formFieldClassName}
           >
             {EXPENSE_STATUSES.map((status) => (
               <option key={status} value={status}>
@@ -862,17 +862,9 @@ export function ExpensesAdmin() {
             ))}
           </select>
 
-          <div className="flex items-center rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted">
+          <div className={`flex items-center ${formFieldClassName} text-muted`}>
             Qtr: <span className="ml-2 font-medium text-foreground">{previewQuarter}</span>
           </div>
-
-          <button
-            type="submit"
-            disabled={busyId === "new-entry"}
-            className="rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-60 xl:col-span-2"
-          >
-            {busyId === "new-entry" ? "Adding..." : "Add line item"}
-          </button>
 
           <input
             value={entryForm.notes}
@@ -880,22 +872,32 @@ export function ExpensesAdmin() {
               setEntryForm((current) => ({ ...current, notes: event.target.value }))
             }
             placeholder="Notes"
-            className="md:col-span-2 xl:col-span-4 rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+            className={`md:col-span-2 xl:col-span-4 ${formFieldClassName}`}
           />
+
+          <div className="md:col-span-2 xl:col-span-4">
+            <button
+              type="submit"
+              disabled={busyId === "new-entry"}
+              className="rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              {busyId === "new-entry" ? "Adding..." : "Add line item"}
+            </button>
+          </div>
         </form>
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-border">
         <div className="space-y-4 border-b border-border bg-surface-elevated p-4">
-          <div className="flex flex-wrap items-end gap-3">
-            <label className="min-w-[140px] flex-1 text-xs">
-              <span className="mb-1 block text-muted">Cost center</span>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <label>
+              <span className={formLabelClassName}>Cost center</span>
               <select
                 value={filters.costCenterId}
                 onChange={(event) =>
                   setFilters((current) => ({ ...current, costCenterId: event.target.value }))
                 }
-                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+                className={formFieldClassName}
               >
                 <option value="">All</option>
                 {costCenters.map((item) => (
@@ -906,14 +908,14 @@ export function ExpensesAdmin() {
               </select>
             </label>
 
-            <label className="min-w-[140px] flex-1 text-xs">
-              <span className="mb-1 block text-muted">Component</span>
+            <label>
+              <span className={formLabelClassName}>Component</span>
               <select
                 value={filters.componentId}
                 onChange={(event) =>
                   setFilters((current) => ({ ...current, componentId: event.target.value }))
                 }
-                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+                className={formFieldClassName}
               >
                 <option value="">All</option>
                 {components.map((item) => (
@@ -924,32 +926,32 @@ export function ExpensesAdmin() {
               </select>
             </label>
 
-            <label className="text-xs">
-              <span className="mb-1 block text-muted">From</span>
+            <label>
+              <span className={formLabelClassName}>From</span>
               <input
                 type="date"
                 value={filters.dateFrom}
                 onChange={(event) =>
                   setFilters((current) => ({ ...current, dateFrom: event.target.value }))
                 }
-                className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+                className={formFieldClassName}
               />
             </label>
 
-            <label className="text-xs">
-              <span className="mb-1 block text-muted">To</span>
+            <label>
+              <span className={formLabelClassName}>To</span>
               <input
                 type="date"
                 value={filters.dateTo}
                 onChange={(event) =>
                   setFilters((current) => ({ ...current, dateTo: event.target.value }))
                 }
-                className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+                className={formFieldClassName}
               />
             </label>
 
-            <label className="min-w-[140px] text-xs">
-              <span className="mb-1 block text-muted">Timing</span>
+            <label>
+              <span className={formLabelClassName}>Timing</span>
               <select
                 value={filters.timing}
                 onChange={(event) =>
@@ -958,28 +960,30 @@ export function ExpensesAdmin() {
                     timing: event.target.value as ExpenseFilters["timing"],
                   }))
                 }
-                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+                className={formFieldClassName}
               >
                 <option value="all">All dates</option>
                 <option value="past">Past & today</option>
                 <option value="forecast">Forecasted (future)</option>
               </select>
             </label>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted">
+              Showing {visibleEntries.length} of {entries.length} line items
+            </p>
 
             {hasActiveFilters ? (
               <button
                 type="button"
                 onClick={() => setFilters(EMPTY_EXPENSE_FILTERS)}
-                className="rounded-full border border-border px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/40 hover:text-foreground"
+                className="h-10 rounded-full border border-border px-4 text-sm font-medium text-muted transition-colors hover:border-accent/40 hover:text-foreground"
               >
                 Clear filters
               </button>
             ) : null}
           </div>
-
-          <p className="text-xs text-muted">
-            Showing {visibleEntries.length} of {entries.length} line items
-          </p>
         </div>
 
         <div className="overflow-x-auto">

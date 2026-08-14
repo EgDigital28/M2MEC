@@ -8,13 +8,12 @@ export type TeamNavItem = {
 
 export const teamNavItems: TeamNavItem[] = [
   { label: "Overview", href: "/team" },
-  { label: "Bets", href: "/team/bets" },
+  { label: "Ledger", href: "/team/bets" },
+  { label: "Expenses", href: "/team/expenses", adminOnly: true },
   { label: "Sports", href: "/team/sports", adminOnly: true },
   { label: "Users", href: "/team/users", adminOnly: true },
   { label: "Waitlist", href: "/team/waitlist", adminOnly: true },
-  { label: "Invites", href: "/team/invites", adminOnly: true },
-  { label: "Expenses", href: "/team/expenses", adminOnly: true },
-  { label: "Invite", href: "/team/invite" },
+  { label: "Invites", href: "/team/invite" },
 ];
 
 export function getTeamNavItems(tier: UserTier) {
