@@ -58,10 +58,24 @@ export async function POST(request: Request) {
     );
   }
 
+  const admin = createAdminClient();
+
+  const { data: suspendedEmail } = await admin
+    .from("suspended_emails")
+    .select("email")
+    .ilike("email", email)
+    .maybeSingle();
+
+  if (suspendedEmail) {
+    return NextResponse.json(
+      { error: "That email is suspended and cannot be invited." },
+      { status: 400 },
+    );
+  }
+
   const origin = getSiteOrigin(request);
   const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent("/set-password")}`;
 
-  const admin = createAdminClient();
   const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
     redirectTo,
   });

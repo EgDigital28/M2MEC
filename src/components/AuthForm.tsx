@@ -35,6 +35,25 @@ export function AuthForm() {
       return;
     }
 
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("suspended_at")
+      .maybeSingle();
+
+    if (profileError) {
+      await supabase.auth.signOut();
+      setError("Could not verify account status. Try again.");
+      setLoading(false);
+      return;
+    }
+
+    if (profile?.suspended_at) {
+      await supabase.auth.signOut();
+      setError("This account has been suspended.");
+      setLoading(false);
+      return;
+    }
+
     const destinationResponse = await fetch(
       `/api/auth/destination?next=${encodeURIComponent(safeNext)}`,
     );

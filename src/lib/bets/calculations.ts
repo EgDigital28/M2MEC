@@ -329,6 +329,89 @@ export function getTodayDateString(timeZone = DEFAULT_BET_TIMEZONE): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date());
 }
 
+export function getYesterdayDateString(timeZone = DEFAULT_BET_TIMEZONE): string {
+  const today = getTodayDateString(timeZone);
+  const [year, month, day] = today.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() - 1);
+
+  const yesterdayYear = date.getFullYear();
+  const yesterdayMonth = String(date.getMonth() + 1).padStart(2, "0");
+  const yesterdayDay = String(date.getDate()).padStart(2, "0");
+
+  return `${yesterdayYear}-${yesterdayMonth}-${yesterdayDay}`;
+}
+
+export type DayResultsStats = {
+  playCount: number;
+  winCount: number;
+  lossCount: number;
+  voidCount: number;
+  openCount: number;
+  gradedCount: number;
+  totalProfitLoss: number;
+  totalRisked: number;
+  winPct: number | null;
+  roi: number | null;
+};
+
+export function computeDayResultsStats(entries: BetEntryComputed[]): DayResultsStats {
+  const raw = entries.reduce(
+    (stats, entry) => {
+      stats.playCount += 1;
+      stats.totalRisked += entry.risk;
+      stats.totalProfitLoss += entry.profit_loss;
+
+      if (entry.status === "Open") {
+        stats.openCount += 1;
+      } else if (entry.status === "Win") {
+        stats.winCount += 1;
+      } else if (entry.status === "Loss") {
+        stats.lossCount += 1;
+      } else if (entry.status === "Void") {
+        stats.voidCount += 1;
+      }
+
+      return stats;
+    },
+    {
+      playCount: 0,
+      winCount: 0,
+      lossCount: 0,
+      voidCount: 0,
+      openCount: 0,
+      totalProfitLoss: 0,
+      totalRisked: 0,
+    },
+  );
+
+  const gradedCount = raw.winCount + raw.lossCount + raw.voidCount;
+
+  return {
+    ...raw,
+    gradedCount,
+    winPct: gradedCount > 0 ? raw.winCount / gradedCount : null,
+    roi: raw.totalRisked > 0 ? raw.totalProfitLoss / raw.totalRisked : null,
+  };
+}
+
+export function filterEntriesByEventDate(
+  entries: BetEntryComputed[],
+  eventDate: string,
+): BetEntryComputed[] {
+  return entries
+    .filter((entry) => entry.event_date === eventDate)
+    .sort((a, b) => {
+      const sportCompare = a.sport.localeCompare(b.sport);
+
+      if (sportCompare !== 0) {
+        return sportCompare;
+      }
+
+      return a.event_name.localeCompare(b.event_name);
+    });
+}
+
 export function filterOpenPlaysTodayAndUpcoming(
   entries: BetEntryComputed[],
   timeZone = DEFAULT_BET_TIMEZONE,

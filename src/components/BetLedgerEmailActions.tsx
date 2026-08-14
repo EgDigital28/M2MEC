@@ -2,7 +2,10 @@
 
 import { useMemo, useState } from "react";
 import {
+  filterEntriesByEventDate,
   filterOpenPlaysTodayAndUpcoming,
+  formatEventDate,
+  getYesterdayDateString,
   type BetEntryComputed,
 } from "@/lib/bets/calculations";
 
@@ -17,11 +20,11 @@ const primaryButtonClassName =
   "rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60";
 
 const secondaryButtonClassName =
-  "rounded-full border border-border bg-surface-elevated px-5 py-2.5 text-sm font-semibold text-muted transition-opacity disabled:cursor-not-allowed disabled:opacity-60";
+  "rounded-full border border-border bg-surface-elevated px-5 py-2.5 text-sm font-semibold text-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60";
 
 export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
   const [to, setTo] = useState("");
-  const [sending, setSending] = useState(false);
+  const [sendingAction, setSendingAction] = useState<"upcoming" | "yesterday" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -30,13 +33,23 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
     [entries],
   );
 
-  async function sendTodaysPlays() {
-    setSending(true);
+  const yesterdayDate = useMemo(() => getYesterdayDateString(), []);
+  const yesterdayPlays = useMemo(
+    () => filterEntriesByEventDate(entries, yesterdayDate),
+    [entries, yesterdayDate],
+  );
+
+  async function sendEmail(
+    action: "upcoming" | "yesterday",
+    endpoint: string,
+    successMessage: (data: { playCount?: number; recipientCount?: number }) => string,
+  ) {
+    setSendingAction(action);
     setError(null);
     setSuccess(null);
 
     try {
-      const response = await fetch("/api/bets/email/todays-plays", {
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ to }),
@@ -51,19 +64,31 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
 
       if (!response.ok) {
         setError(data.error ?? "Could not send email.");
-        setSending(false);
+        setSendingAction(null);
         return;
       }
 
-      setSuccess(
-        `Sent today's plays (${data.playCount ?? openPlays.length} open) to ${data.recipientCount ?? 0} recipient(s).`,
-      );
+      setSuccess(successMessage(data));
     } catch {
       setError("Network error while sending email.");
     } finally {
-      setSending(false);
+      setSendingAction(null);
     }
   }
+
+  function sendUpcomingPlays() {
+    return sendEmail("upcoming", "/api/bets/email/todays-plays", (data) =>
+      `Sent upcoming plays (${data.playCount ?? openPlays.length} open) to ${data.recipientCount ?? 0} recipient(s).`,
+    );
+  }
+
+  function sendYesterdaysResults() {
+    return sendEmail("yesterday", "/api/bets/email/yesterdays-results", (data) =>
+      `Sent yesterday's results (${data.playCount ?? yesterdayPlays.length} plays) to ${data.recipientCount ?? 0} recipient(s).`,
+    );
+  }
+
+  const sending = sendingAction !== null;
 
   return (
     <section className="rounded-2xl border border-border bg-surface-elevated p-5">
@@ -81,22 +106,29 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
             className={`${fieldClassName} mt-2`}
           />
           <p className="mt-2 text-xs text-muted">
-            Comma-separated recipients. {openPlays.length} open{" "}
-            {openPlays.length === 1 ? "play" : "plays"} for today and upcoming.
+            Comma-separated recipients. {openPlays.length} upcoming open{" "}
+            {openPlays.length === 1 ? "play" : "plays"} · {yesterdayPlays.length}{" "}
+            {yesterdayPlays.length === 1 ? "play" : "plays"} yesterday (
+            {formatEventDate(yesterdayDate)}).
           </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={sendTodaysPlays}
+            onClick={sendUpcomingPlays}
             disabled={sending || !to.trim()}
             className={primaryButtonClassName}
           >
-            {sending ? "Sending..." : "Send today's plays"}
+            {sendingAction === "upcoming" ? "Sending..." : "Send upcoming plays"}
           </button>
-          <button type="button" disabled className={secondaryButtonClassName} title="Coming soon">
-            {"Yesterday's results"}
+          <button
+            type="button"
+            onClick={sendYesterdaysResults}
+            disabled={sending || !to.trim()}
+            className={secondaryButtonClassName}
+          >
+            {sendingAction === "yesterday" ? "Sending..." : "Yesterday\u2019s results"}
           </button>
           <button type="button" disabled className={secondaryButtonClassName} title="Coming soon">
             Weekly summary

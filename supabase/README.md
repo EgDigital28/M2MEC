@@ -80,6 +80,12 @@ Creates the `sports` table and seeds the default list. Run **`004_sports.sql` be
 
 Admins manage abbreviation, full name, sort order, and active flag. Active sports appear in the bet ledger dropdown.
 
+## User suspensions (`/team/users`)
+
+5. **`005_user_suspensions.sql`** — adds `profiles.suspended_at`, `suspended_emails` blocklist, and updates the new-user trigger.
+
+Admins can suspend or delete users at **/team/users**. Suspended users are banned in Supabase Auth, blocked at login, and their email cannot be invited again until unsuspended.
+
 ## Bet ledger (`/team/bets`)
 
 Creates `bet_entries` linked to `sports` via `sport_id`. Requires `004_sports.sql` first.

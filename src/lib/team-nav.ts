@@ -10,6 +10,7 @@ export const teamNavItems: TeamNavItem[] = [
   { label: "Overview", href: "/team" },
   { label: "Bets", href: "/team/bets" },
   { label: "Sports", href: "/team/sports", adminOnly: true },
+  { label: "Users", href: "/team/users", adminOnly: true },
   { label: "Invite", href: "/team/invite" },
 ];
 

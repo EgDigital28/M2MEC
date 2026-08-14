@@ -88,9 +88,7 @@ export default async function TeamPage() {
           </p>
           <h2 className="mt-2 text-2xl font-semibold">Admin controls</h2>
           <p className="mt-3 max-w-2xl text-sm text-muted">
-            As an admin you can invite users at any tier, including employee
-            access. Tier changes for existing users are managed in Supabase
-            under the <code className="text-foreground">profiles</code> table.
+            Manage sports, users, and invites from the team workspace.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
@@ -98,6 +96,18 @@ export default async function TeamPage() {
               className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-90"
             >
               Send invite
+            </Link>
+            <Link
+              href="/team/users"
+              className="rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:border-accent/40"
+            >
+              Manage users
+            </Link>
+            <Link
+              href="/team/sports"
+              className="rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:border-accent/40"
+            >
+              Manage sports
             </Link>
             <Link
               href="/"
