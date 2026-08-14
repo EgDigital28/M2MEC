@@ -6,6 +6,8 @@ import {
   formatCurrency,
   formatEventDate,
   formatOdds,
+  formatRiskInput,
+  parseRiskAmount,
   type BetEntryComputed,
   type BetStatus,
 } from "@/lib/bets/calculations";
@@ -33,6 +35,12 @@ const emptyForm: EntryForm = {
   status: "Open",
 };
 
+const fieldClassName =
+  "h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-accent";
+
+const tableFieldClassName =
+  "h-8 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-xs outline-none focus:border-accent";
+
 function sanitizeLineInput(value: string) {
   if (value === "" || value === "-") {
     return value;
@@ -42,32 +50,20 @@ function sanitizeLineInput(value: string) {
   return match?.[0] ?? "";
 }
 
-function sanitizeRiskInput(value: string) {
-  const cleaned = value.replace(/[^\d.]/g, "");
-  const [whole, ...rest] = cleaned.split(".");
-  const decimals = rest.join("").slice(0, 2);
-  return decimals.length > 0 ? `${whole}.${decimals}` : whole;
-}
-
 function entryToForm(entry: BetEntryComputed): EntryForm {
   return {
     event_date: entry.event_date,
     sport_id: entry.sport_id,
     event_name: entry.event_name,
     line: String(Math.trunc(entry.line)),
-    risk: entry.risk.toFixed(2),
+    risk: formatRiskInput(entry.risk.toFixed(2)),
     status: entry.status,
   };
 }
 
 function PencilIcon() {
   return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      className="h-4 w-4"
-    >
+    <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
       <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
     </svg>
   );
@@ -75,15 +71,34 @@ function PencilIcon() {
 
 function TrashIcon() {
   return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      className="h-4 w-4"
-    >
+    <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
       <path
         fillRule="evenodd"
         d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+      <path
+        fillRule="evenodd"
+        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+function XIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+      <path
+        fillRule="evenodd"
+        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
         clipRule="evenodd"
       />
     </svg>
@@ -138,6 +153,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
 
       setEntries(entriesData.entries ?? []);
       setSports(sportsData.sports ?? []);
+      setEditingId(null);
     } catch {
       setError("Network error while loading entries.");
     } finally {
@@ -158,6 +174,9 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
+    setEditingId(null);
+
+    const risk = parseRiskAmount(form.risk);
 
     try {
       const response = await fetch("/api/bets", {
@@ -168,7 +187,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
           sport_id: form.sport_id,
           event_name: form.event_name,
           line: Number.parseInt(form.line, 10),
-          risk: Number.parseFloat(form.risk).toFixed(2),
+          risk,
         }),
       });
 
@@ -204,11 +223,16 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
     setEditForm(entryToForm(entry));
   }
 
+  function cancelEdit() {
+    setEditingId(null);
+    setEditForm(emptyForm);
+  }
+
   async function handleSaveEdit(id: string) {
     setError(null);
 
     const line = Number.parseInt(editForm.line, 10);
-    const risk = Number.parseFloat(editForm.risk);
+    const risk = parseRiskAmount(editForm.risk);
 
     if (Number.isNaN(line) || line === 0) {
       setError("Line must be a non-zero whole number.");
@@ -250,13 +274,17 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
         );
       }
 
-      setEditingId(null);
+      cancelEdit();
     } catch {
       setError("Network error while updating entry.");
     }
   }
 
   async function handleStatusChange(id: string, status: BetStatus) {
+    if (editingId) {
+      return;
+    }
+
     setError(null);
 
     try {
@@ -304,15 +332,12 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
 
       setEntries((current) => current.filter((entry) => entry.id !== id));
       if (editingId === id) {
-        setEditingId(null);
+        cancelEdit();
       }
     } catch {
       setError("Network error while deleting entry.");
     }
   }
-
-  const inputClassName =
-    "w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-accent";
 
   return (
     <div className="space-y-8">
@@ -339,7 +364,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                 onChange={(event) =>
                   setForm((current) => ({ ...current, event_date: event.target.value }))
                 }
-                className={inputClassName}
+                className={fieldClassName}
               />
             </div>
 
@@ -354,7 +379,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                 onChange={(event) =>
                   setForm((current) => ({ ...current, sport_id: event.target.value }))
                 }
-                className={inputClassName}
+                className={fieldClassName}
               >
                 <option value="" disabled>
                   Select sport
@@ -379,7 +404,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                   setForm((current) => ({ ...current, event_name: event.target.value }))
                 }
                 placeholder="Ben Shelton ML"
-                className={inputClassName}
+                className={fieldClassName}
               />
             </div>
 
@@ -399,7 +424,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                   }))
                 }
                 placeholder="-110"
-                className={`${inputClassName} font-mono`}
+                className={`${fieldClassName} font-mono`}
               />
             </div>
 
@@ -419,11 +444,11 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                   onChange={(event) =>
                     setForm((current) => ({
                       ...current,
-                      risk: sanitizeRiskInput(event.target.value),
+                      risk: formatRiskInput(event.target.value),
                     }))
                   }
                   placeholder="11.00"
-                  className={`${inputClassName} pl-7 font-mono`}
+                  className={`${fieldClassName} pl-7 font-mono`}
                 />
               </div>
             </div>
@@ -447,49 +472,53 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
         </p>
       )}
 
+      {editingId && (
+        <p className="rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-xs text-accent">
+          Editing a row — use the checkmark to save or X to cancel.
+        </p>
+      )}
+
       <section className="overflow-hidden rounded-2xl border border-border">
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
+          <table className="min-w-[960px] w-full table-fixed text-xs">
             <thead className="border-b border-border bg-surface-elevated text-left">
               <tr>
-                <th className="px-4 py-3 font-medium text-muted">Date</th>
-                <th className="px-4 py-3 font-medium text-muted">Sport</th>
-                <th className="px-4 py-3 font-medium text-muted">Event</th>
-                <th className="px-4 py-3 font-medium text-muted">Line</th>
-                <th className="px-4 py-3 font-medium text-muted text-right">Risk</th>
-                <th className="px-4 py-3 font-medium text-muted text-right">To Win</th>
-                <th className="px-4 py-3 font-medium text-muted">Win/Loss</th>
-                <th className="px-4 py-3 font-medium text-muted text-right">P/L</th>
+                <th className="w-[88px] px-2 py-2 font-medium text-muted">Date</th>
+                <th className="w-[88px] px-2 py-2 font-medium text-muted">Sport</th>
+                <th className="px-2 py-2 font-medium text-muted">Event</th>
+                <th className="w-[56px] px-2 py-2 font-medium text-muted">Line</th>
+                <th className="w-[88px] px-2 py-2 font-medium text-muted text-right">Risk</th>
+                <th className="w-[80px] px-2 py-2 font-medium text-muted text-right">To Win</th>
+                <th className="w-[72px] px-2 py-2 font-medium text-muted">W/L</th>
+                <th className="w-[80px] px-2 py-2 font-medium text-muted text-right">P/L</th>
                 {isAdmin && (
-                  <th className="px-4 py-3 font-medium text-muted text-right">Actions</th>
+                  <th className="sticky right-0 z-10 w-[68px] bg-surface-elevated px-2 py-2 font-medium text-muted text-right shadow-[-8px_0_12px_-8px_rgba(0,0,0,0.6)]">
+                    Actions
+                  </th>
                 )}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={isAdmin ? 9 : 8} className="px-4 py-8 text-center text-muted">
+                  <td colSpan={isAdmin ? 9 : 8} className="px-2 py-8 text-center text-muted">
                     Loading entries...
                   </td>
                 </tr>
               ) : entries.length === 0 ? (
                 <tr>
-                  <td colSpan={isAdmin ? 9 : 8} className="px-4 py-8 text-center text-muted">
+                  <td colSpan={isAdmin ? 9 : 8} className="px-2 py-8 text-center text-muted">
                     No entries yet.
                   </td>
                 </tr>
               ) : (
                 entries.map((entry, index) => {
                   const isEditing = editingId === entry.id;
+                  const rowBg = index % 2 === 0 ? "bg-surface" : "bg-surface-elevated/40";
 
                   return (
-                    <tr
-                      key={entry.id}
-                      className={`border-t border-border ${
-                        index % 2 === 0 ? "bg-surface" : "bg-surface-elevated/40"
-                      }`}
-                    >
-                      <td className="px-4 py-3 whitespace-nowrap">
+                    <tr key={entry.id} className={`border-t border-border ${rowBg}`}>
+                      <td className="px-2 py-2">
                         {isEditing ? (
                           <input
                             type="date"
@@ -500,13 +529,13 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                                 event_date: event.target.value,
                               }))
                             }
-                            className="rounded-lg border border-border bg-background px-2 py-1 text-sm"
+                            className={tableFieldClassName}
                           />
                         ) : (
-                          formatEventDate(entry.event_date)
+                          <span className="whitespace-nowrap">{formatEventDate(entry.event_date)}</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="px-2 py-2">
                         {isEditing ? (
                           <select
                             value={editForm.sport_id}
@@ -516,7 +545,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                                 sport_id: event.target.value,
                               }))
                             }
-                            className="max-w-[160px] rounded-lg border border-border bg-background px-2 py-1 text-sm"
+                            className={tableFieldClassName}
                           >
                             {sports.map((sport) => (
                               <option key={sport.id} value={sport.id}>
@@ -525,10 +554,10 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                             ))}
                           </select>
                         ) : (
-                          entry.sport
+                          <span className="truncate">{entry.sport}</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 min-w-[180px]">
+                      <td className="px-2 py-2">
                         {isEditing ? (
                           <input
                             value={editForm.event_name}
@@ -538,13 +567,13 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                                 event_name: event.target.value,
                               }))
                             }
-                            className="w-full min-w-[160px] rounded-lg border border-border bg-background px-2 py-1 text-sm"
+                            className={tableFieldClassName}
                           />
                         ) : (
-                          entry.event_name
+                          <span className="block truncate">{entry.event_name}</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 font-mono whitespace-nowrap">
+                      <td className="px-2 py-2 font-mono">
                         {isEditing ? (
                           <input
                             inputMode="numeric"
@@ -555,13 +584,13 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                                 line: sanitizeLineInput(event.target.value),
                               }))
                             }
-                            className="w-20 rounded-lg border border-border bg-background px-2 py-1 text-sm"
+                            className={`${tableFieldClassName} text-center`}
                           />
                         ) : (
                           formatOdds(entry.line)
                         )}
                       </td>
-                      <td className="px-4 py-3 font-mono whitespace-nowrap text-right">
+                      <td className="px-2 py-2 font-mono text-right">
                         {isEditing ? (
                           <input
                             inputMode="decimal"
@@ -569,31 +598,43 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                             onChange={(event) =>
                               setEditForm((current) => ({
                                 ...current,
-                                risk: sanitizeRiskInput(event.target.value),
+                                risk: formatRiskInput(event.target.value),
                               }))
                             }
-                            className="w-24 rounded-lg border border-border bg-background px-2 py-1 text-sm text-right"
+                            className={`${tableFieldClassName} text-right`}
                           />
                         ) : (
                           formatCurrency(entry.risk)
                         )}
                       </td>
-                      <td className="px-4 py-3 font-mono whitespace-nowrap text-right">
+                      <td className="px-2 py-2 font-mono text-right">
                         {formatCurrency(entry.to_win)}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {isEditing || isAdmin ? (
+                      <td className="px-2 py-2">
+                        {isEditing ? (
                           <select
-                            value={isEditing ? editForm.status : entry.status}
-                            onChange={(event) => {
-                              const status = event.target.value as BetStatus;
-                              if (isEditing) {
-                                setEditForm((current) => ({ ...current, status }));
-                              } else {
-                                handleStatusChange(entry.id, status);
-                              }
-                            }}
-                            className="rounded-lg border border-border bg-background px-2 py-1 text-sm outline-none focus:border-accent"
+                            value={editForm.status}
+                            onChange={(event) =>
+                              setEditForm((current) => ({
+                                ...current,
+                                status: event.target.value as BetStatus,
+                              }))
+                            }
+                            className={tableFieldClassName}
+                          >
+                            {BET_STATUSES.map((status) => (
+                              <option key={status} value={status}>
+                                {status}
+                              </option>
+                            ))}
+                          </select>
+                        ) : isAdmin ? (
+                          <select
+                            value={entry.status}
+                            onChange={(event) =>
+                              handleStatusChange(entry.id, event.target.value as BetStatus)
+                            }
+                            className={tableFieldClassName}
                           >
                             {BET_STATUSES.map((status) => (
                               <option key={status} value={status}>
@@ -606,7 +647,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                         )}
                       </td>
                       <td
-                        className={`px-4 py-3 font-mono whitespace-nowrap text-right ${
+                        className={`px-2 py-2 font-mono text-right ${
                           entry.profit_loss > 0
                             ? "text-emerald-400"
                             : entry.profit_loss < 0
@@ -617,22 +658,28 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                         {formatCurrency(entry.profit_loss)}
                       </td>
                       {isAdmin && (
-                        <td className="px-4 py-3 whitespace-nowrap text-right">
+                        <td
+                          className={`sticky right-0 z-10 px-1 py-2 text-right shadow-[-8px_0_12px_-8px_rgba(0,0,0,0.6)] ${rowBg}`}
+                        >
                           {isEditing ? (
-                            <div className="flex justify-end gap-2">
+                            <div className="flex justify-end gap-1">
                               <button
                                 type="button"
                                 onClick={() => handleSaveEdit(entry.id)}
-                                className="text-xs text-accent hover:underline"
+                                aria-label="Save entry"
+                                title="Save"
+                                className="rounded-md p-1.5 text-emerald-400 transition-colors hover:bg-emerald-500/10"
                               >
-                                Save
+                                <CheckIcon />
                               </button>
                               <button
                                 type="button"
-                                onClick={() => setEditingId(null)}
-                                className="text-xs text-muted hover:underline"
+                                onClick={cancelEdit}
+                                aria-label="Cancel edit"
+                                title="Cancel"
+                                className="rounded-md p-1.5 text-muted transition-colors hover:bg-surface-elevated hover:text-foreground"
                               >
-                                Cancel
+                                <XIcon />
                               </button>
                             </div>
                           ) : (
@@ -641,7 +688,8 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                                 type="button"
                                 onClick={() => startEdit(entry)}
                                 aria-label="Edit entry"
-                                className="rounded-lg p-2 text-muted transition-colors hover:bg-surface-elevated hover:text-foreground"
+                                title="Edit"
+                                className="rounded-md p-1.5 text-muted transition-colors hover:bg-surface-elevated hover:text-foreground"
                               >
                                 <PencilIcon />
                               </button>
@@ -649,7 +697,8 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                                 type="button"
                                 onClick={() => handleDelete(entry.id)}
                                 aria-label="Delete entry"
-                                className="rounded-lg p-2 text-muted transition-colors hover:bg-red-500/10 hover:text-red-300"
+                                title="Delete"
+                                className="rounded-md p-1.5 text-muted transition-colors hover:bg-red-500/10 hover:text-red-300"
                               >
                                 <TrashIcon />
                               </button>
@@ -665,11 +714,11 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
             {entries.length > 0 && (
               <tfoot className="border-t border-border bg-surface-elevated">
                 <tr>
-                  <td colSpan={7} className="px-4 py-3 text-right font-medium">
+                  <td colSpan={7} className="px-2 py-2 text-right font-medium">
                     Total P/L
                   </td>
                   <td
-                    className={`px-4 py-3 font-mono font-semibold text-right ${
+                    className={`px-2 py-2 font-mono font-semibold text-right ${
                       totalProfitLoss > 0
                         ? "text-emerald-400"
                         : totalProfitLoss < 0
@@ -679,7 +728,9 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                   >
                     {formatCurrency(totalProfitLoss)}
                   </td>
-                  {isAdmin && <td />}
+                  {isAdmin && (
+                    <td className="sticky right-0 z-10 bg-surface-elevated shadow-[-8px_0_12px_-8px_rgba(0,0,0,0.6)]" />
+                  )}
                 </tr>
               </tfoot>
             )}

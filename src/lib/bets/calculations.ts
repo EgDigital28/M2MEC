@@ -115,6 +115,31 @@ export function formatEventDate(date: string): string {
   return `${month}/${day}/${year}`;
 }
 
+export function parseRiskAmount(value: string): number {
+  return Number.parseFloat(value.replace(/,/g, "")) || Number.NaN;
+}
+
+export function formatRiskInput(value: string): string {
+  const sanitized = value.replace(/,/g, "").replace(/[^\d.]/g, "");
+  if (!sanitized) {
+    return "";
+  }
+
+  const [wholePart, ...decimalParts] = sanitized.split(".");
+  const decimals = decimalParts.join("").slice(0, 2);
+  const formattedWhole = wholePart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+  if (decimalParts.length > 0) {
+    return `${formattedWhole}.${decimals}`;
+  }
+
+  return formattedWhole;
+}
+
+export function sanitizeRiskInput(value: string): string {
+  return value.replace(/,/g, "").replace(/[^\d.]/g, "").replace(/^(\d*\.\d{0,2}).*$/, "$1");
+}
+
 export function isBetStatus(value: string): value is BetStatus {
   return (BET_STATUSES as readonly string[]).includes(value);
 }
