@@ -3,7 +3,4 @@ export type InvestorNavItem = {
   href: string;
 };
 
-export const investorNavItems: InvestorNavItem[] = [
-  { label: "Overview", href: "/investor" },
-  { label: "Financials", href: "/investor/financials" },
-];
+export const investorNavItems: InvestorNavItem[] = [];
