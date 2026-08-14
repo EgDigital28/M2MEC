@@ -40,6 +40,7 @@ type EntryForm = {
 };
 
 const PAGE_SIZE = 20;
+const LEDGER_STARTING_BALANCE = 2_845_000;
 
 const emptyForm: EntryForm = {
   event_date: new Date().toISOString().slice(0, 10),
@@ -355,7 +356,21 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
 
       {!loading && (
         <section className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <div className="rounded-2xl border border-border bg-surface-elevated p-5">
+              <p className="text-xs font-medium uppercase tracking-widest text-muted">
+                Overall P/L
+              </p>
+              <p
+                className={`mt-2 text-2xl font-semibold tabular-nums ${profitLossClassName(stats.totalProfitLoss)}`}
+              >
+                {formatCurrencyWhole(LEDGER_STARTING_BALANCE + stats.totalProfitLoss)}
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                Starting balance: {formatCurrencyWhole(LEDGER_STARTING_BALANCE)}
+              </p>
+            </div>
+
             <div className="rounded-2xl border border-border bg-surface-elevated p-5">
               <p className="text-xs font-medium uppercase tracking-widest text-muted">
                 Total P/L
