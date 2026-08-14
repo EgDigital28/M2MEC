@@ -16,6 +16,17 @@ export type ExpenseComponent = {
   created_at?: string;
 };
 
+export const EXPENSE_STATUSES = ["invoiced", "paid", "forecasted", "void"] as const;
+
+export type ExpenseStatus = (typeof EXPENSE_STATUSES)[number];
+
+export const EXPENSE_STATUS_LABELS: Record<ExpenseStatus, string> = {
+  invoiced: "Invoiced",
+  paid: "Paid",
+  forecasted: "Forecasted",
+  void: "Void",
+};
+
 export type ExpenseEntry = {
   id: string;
   cost_center_id: string;
@@ -23,12 +34,35 @@ export type ExpenseEntry = {
   amount: number;
   expense_date: string;
   quarter: string;
+  status: ExpenseStatus;
   notes: string | null;
   created_at: string;
   updated_at: string;
   cost_center?: Pick<ExpenseCostCenter, "id" | "name"> | null;
   component?: Pick<ExpenseComponent, "id" | "name"> | null;
 };
+
+export function defaultExpenseStatusForDate(date: string): ExpenseStatus {
+  const normalized = date.slice(0, 10);
+  return normalized > getLocalTodayDateString() ? "forecasted" : "invoiced";
+}
+
+export function isSummaryEligible(entry: Pick<ExpenseEntry, "status">) {
+  return entry.status !== "void";
+}
+
+export function expenseStatusBadgeClass(status: ExpenseStatus) {
+  switch (status) {
+    case "paid":
+      return "border-emerald-500/30 text-emerald-300";
+    case "forecasted":
+      return "border-accent/30 text-accent";
+    case "void":
+      return "border-red-500/30 text-red-300";
+    default:
+      return "border-amber-500/30 text-amber-200";
+  }
+}
 
 /** Local calendar date as YYYY-MM-DD for `<input type="date">`. */
 export function getLocalTodayDateString() {

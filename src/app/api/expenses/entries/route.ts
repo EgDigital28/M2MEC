@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireMinimumTier } from "@/lib/auth/profile";
+import { parseExpenseStatus } from "@/lib/expenses/filters";
 import type { ExpenseEntry } from "@/lib/expenses/types";
+import { defaultExpenseStatusForDate } from "@/lib/expenses/types";
 import { createClient } from "@/lib/supabase/server";
 
 const ENTRY_SELECT = `
@@ -10,6 +12,7 @@ const ENTRY_SELECT = `
   amount,
   expense_date,
   quarter,
+  status,
   notes,
   created_at,
   updated_at,
@@ -22,6 +25,7 @@ type CreatePayload = {
   component_id?: string;
   amount?: number | string;
   expense_date?: string;
+  status?: string;
   notes?: string;
 };
 
@@ -103,6 +107,9 @@ export async function POST(request: Request) {
   }
 
   const supabase = await createClient();
+  const status =
+    parseExpenseStatus(body.status) ?? defaultExpenseStatusForDate(expenseDate);
+
   const { data, error } = await supabase
     .from("expense_entries")
     .insert({
@@ -110,6 +117,7 @@ export async function POST(request: Request) {
       component_id: body.component_id,
       amount,
       expense_date: expenseDate,
+      status,
       notes: body.notes?.trim() || null,
       quarter: "1Q00",
     })

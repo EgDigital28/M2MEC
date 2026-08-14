@@ -10,6 +10,20 @@ import {
   XIcon,
 } from "@/components/TableActionIcons";
 import {
+  DEFAULT_EXPENSE_SORT,
+  EMPTY_EXPENSE_FILTERS,
+  filterExpenseEntries,
+  sortExpenseEntries,
+  toggleExpenseSort,
+  type ExpenseFilters,
+  type ExpenseSort,
+  type ExpenseSortKey,
+} from "@/lib/expenses/filters";
+import {
+  defaultExpenseStatusForDate,
+  EXPENSE_STATUSES,
+  EXPENSE_STATUS_LABELS,
+  expenseStatusBadgeClass,
   formatExpenseAmount,
   formatExpenseInput,
   getLocalTodayDateString,
@@ -19,6 +33,7 @@ import {
   type ExpenseComponent,
   type ExpenseCostCenter,
   type ExpenseEntry,
+  type ExpenseStatus,
 } from "@/lib/expenses/types";
 import { getDuplicateSortOrders } from "@/lib/sort";
 
@@ -29,6 +44,7 @@ type EntryForm = {
   component_id: string;
   amount: string;
   expense_date: string;
+  status: ExpenseStatus;
   notes: string;
 };
 
@@ -37,11 +53,12 @@ type CatalogForm = {
   sort_order: string;
 };
 
-const emptyEntryForm = (): EntryForm => ({
+const emptyEntryForm = (date = getLocalTodayDateString()): EntryForm => ({
   cost_center_id: "",
   component_id: "",
   amount: "",
-  expense_date: getLocalTodayDateString(),
+  expense_date: date,
+  status: defaultExpenseStatusForDate(date),
   notes: "",
 });
 
@@ -56,6 +73,44 @@ function formatInputDate(value: string) {
     day: "numeric",
     year: "numeric",
   }).format(new Date(`${value.slice(0, 10)}T00:00:00`));
+}
+
+function normalizeEntry(entry: ExpenseEntry): ExpenseEntry {
+  return {
+    ...entry,
+    status: entry.status ?? defaultExpenseStatusForDate(entry.expense_date),
+  };
+}
+
+function SortableHeader({
+  label,
+  sortKey,
+  sort,
+  onSort,
+  align = "left",
+}: {
+  label: string;
+  sortKey: ExpenseSortKey;
+  sort: ExpenseSort;
+  onSort: (key: ExpenseSortKey) => void;
+  align?: "left" | "right";
+}) {
+  const active = sort.key === sortKey;
+
+  return (
+    <th className={`px-4 py-3 font-medium ${align === "right" ? "text-right" : "text-left"}`}>
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={`inline-flex items-center gap-1 transition-colors hover:text-foreground ${
+          active ? "text-foreground" : ""
+        } ${align === "right" ? "ml-auto" : ""}`}
+      >
+        {label}
+        {active ? <span aria-hidden="true">{sort.direction === "asc" ? "↑" : "↓"}</span> : null}
+      </button>
+    </th>
+  );
 }
 
 function getCostCenterName(entry: ExpenseEntry, costCenters: ExpenseCostCenter[]) {
@@ -338,7 +393,7 @@ export function ExpensesAdmin() {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<EntryForm>(emptyEntryForm);
+  const [editForm, setEditForm] = useState<EntryForm>(() => emptyEntryForm());
   const [editingCostCenterCatalogId, setEditingCostCenterCatalogId] = useState<string | null>(
     null,
   );
@@ -346,6 +401,8 @@ export function ExpensesAdmin() {
     null,
   );
   const [migrationRequired, setMigrationRequired] = useState(false);
+  const [filters, setFilters] = useState<ExpenseFilters>(EMPTY_EXPENSE_FILTERS);
+  const [sort, setSort] = useState<ExpenseSort>(DEFAULT_EXPENSE_SORT);
 
   const activeCostCenters = useMemo(
     () => costCenters.filter((item) => item.is_active),
@@ -359,6 +416,18 @@ export function ExpensesAdmin() {
   const previewQuarter = entryForm.expense_date
     ? getQuarterFromDate(entryForm.expense_date)
     : "—";
+
+  const visibleEntries = useMemo(() => {
+    const filtered = filterExpenseEntries(entries, filters);
+    return sortExpenseEntries(filtered, sort, costCenters, components);
+  }, [entries, filters, sort, costCenters, components]);
+
+  const hasActiveFilters =
+    filters.costCenterId !== "" ||
+    filters.componentId !== "" ||
+    filters.dateFrom !== "" ||
+    filters.dateTo !== "" ||
+    filters.timing !== "all";
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -403,13 +472,15 @@ export function ExpensesAdmin() {
 
       setCostCenters(sortCatalog(costCenterData.costCenters ?? []));
       setComponents(sortCatalog(componentData.components ?? []));
-      setEntries(entryData.entries ?? []);
+      setEntries((entryData.entries ?? []).map(normalizeEntry));
 
+      const today = getLocalTodayDateString();
       setEntryForm((current) => ({
         ...current,
         cost_center_id: current.cost_center_id || costCenterData.costCenters?.[0]?.id || "",
         component_id: current.component_id || componentData.components?.[0]?.id || "",
-        expense_date: getLocalTodayDateString(),
+        expense_date: today,
+        status: defaultExpenseStatusForDate(today),
       }));
     } catch {
       setError("Network error while loading expenses.");
@@ -423,9 +494,11 @@ export function ExpensesAdmin() {
   }, [loadAll]);
 
   useEffect(() => {
+    const today = getLocalTodayDateString();
     setEntryForm((current) => ({
       ...current,
-      expense_date: getLocalTodayDateString(),
+      expense_date: today,
+      status: defaultExpenseStatusForDate(today),
     }));
   }, []);
 
@@ -461,14 +534,17 @@ export function ExpensesAdmin() {
       }
 
       if (data.entry) {
-        setEntries((current) => [data.entry!, ...current]);
+        setEntries((current) => [normalizeEntry(data.entry!), ...current]);
       }
 
-      setEntryForm((current) => ({
-        ...emptyEntryForm(),
-        cost_center_id: current.cost_center_id,
-        component_id: current.component_id,
-      }));
+      setEntryForm((current) => {
+        const today = getLocalTodayDateString();
+        return {
+          ...emptyEntryForm(today),
+          cost_center_id: current.cost_center_id,
+          component_id: current.component_id,
+        };
+      });
     } catch {
       setError("Network error while adding expense.");
     } finally {
@@ -511,7 +587,9 @@ export function ExpensesAdmin() {
 
       if (data.entry) {
         setEntries((current) =>
-          current.map((row) => (row.id === data.entry!.id ? data.entry! : row)),
+          current.map((row) =>
+            row.id === data.entry!.id ? normalizeEntry(data.entry!) : row,
+          ),
         );
       }
 
@@ -531,6 +609,7 @@ export function ExpensesAdmin() {
       component_id: entry.component_id,
       amount: formatExpenseInput(String(Math.round(entry.amount))),
       expense_date: entry.expense_date.slice(0, 10),
+      status: entry.status,
       notes: entry.notes ?? "",
     });
   }
@@ -675,8 +754,9 @@ export function ExpensesAdmin() {
     <div className="space-y-6">
       {migrationRequired && (
         <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-          Run <code className="text-foreground">010_expenses.sql</code> in Supabase to enable expense
-          tracking.
+          Run <code className="text-foreground">010_expenses.sql</code> and{" "}
+          <code className="text-foreground">011_expense_status.sql</code> in Supabase to enable
+          expense tracking.
         </p>
       )}
 
@@ -694,7 +774,7 @@ export function ExpensesAdmin() {
 
       <section className="rounded-2xl border border-border bg-surface-elevated p-5">
         <h2 className="text-lg font-semibold">Add expense</h2>
-        <form onSubmit={createEntry} className="mt-4 grid gap-3 md:grid-cols-6">
+        <form onSubmit={createEntry} className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <select
             value={entryForm.cost_center_id}
             onChange={(event) =>
@@ -753,12 +833,34 @@ export function ExpensesAdmin() {
           <input
             type="date"
             value={entryForm.expense_date}
-            onChange={(event) =>
-              setEntryForm((current) => ({ ...current, expense_date: event.target.value }))
-            }
+            onChange={(event) => {
+              const expenseDate = event.target.value;
+              setEntryForm((current) => ({
+                ...current,
+                expense_date: expenseDate,
+                status: defaultExpenseStatusForDate(expenseDate),
+              }));
+            }}
             required
             className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
           />
+
+          <select
+            value={entryForm.status}
+            onChange={(event) =>
+              setEntryForm((current) => ({
+                ...current,
+                status: event.target.value as ExpenseStatus,
+              }))
+            }
+            className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+          >
+            {EXPENSE_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {EXPENSE_STATUS_LABELS[status]}
+              </option>
+            ))}
+          </select>
 
           <div className="flex items-center rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted">
             Qtr: <span className="ml-2 font-medium text-foreground">{previewQuarter}</span>
@@ -767,7 +869,7 @@ export function ExpensesAdmin() {
           <button
             type="submit"
             disabled={busyId === "new-entry"}
-            className="rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-60"
+            className="rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-60 xl:col-span-2"
           >
             {busyId === "new-entry" ? "Adding..." : "Add line item"}
           </button>
@@ -778,40 +880,173 @@ export function ExpensesAdmin() {
               setEntryForm((current) => ({ ...current, notes: event.target.value }))
             }
             placeholder="Notes"
-            className="md:col-span-6 rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+            className="md:col-span-2 xl:col-span-4 rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
           />
         </form>
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-border">
+        <div className="space-y-4 border-b border-border bg-surface-elevated p-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="min-w-[140px] flex-1 text-xs">
+              <span className="mb-1 block text-muted">Cost center</span>
+              <select
+                value={filters.costCenterId}
+                onChange={(event) =>
+                  setFilters((current) => ({ ...current, costCenterId: event.target.value }))
+                }
+                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+              >
+                <option value="">All</option>
+                {costCenters.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="min-w-[140px] flex-1 text-xs">
+              <span className="mb-1 block text-muted">Component</span>
+              <select
+                value={filters.componentId}
+                onChange={(event) =>
+                  setFilters((current) => ({ ...current, componentId: event.target.value }))
+                }
+                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+              >
+                <option value="">All</option>
+                {components.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="text-xs">
+              <span className="mb-1 block text-muted">From</span>
+              <input
+                type="date"
+                value={filters.dateFrom}
+                onChange={(event) =>
+                  setFilters((current) => ({ ...current, dateFrom: event.target.value }))
+                }
+                className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+              />
+            </label>
+
+            <label className="text-xs">
+              <span className="mb-1 block text-muted">To</span>
+              <input
+                type="date"
+                value={filters.dateTo}
+                onChange={(event) =>
+                  setFilters((current) => ({ ...current, dateTo: event.target.value }))
+                }
+                className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+              />
+            </label>
+
+            <label className="min-w-[140px] text-xs">
+              <span className="mb-1 block text-muted">Timing</span>
+              <select
+                value={filters.timing}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    timing: event.target.value as ExpenseFilters["timing"],
+                  }))
+                }
+                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+              >
+                <option value="all">All dates</option>
+                <option value="past">Past & today</option>
+                <option value="forecast">Forecasted (future)</option>
+              </select>
+            </label>
+
+            {hasActiveFilters ? (
+              <button
+                type="button"
+                onClick={() => setFilters(EMPTY_EXPENSE_FILTERS)}
+                className="rounded-full border border-border px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/40 hover:text-foreground"
+              >
+                Clear filters
+              </button>
+            ) : null}
+          </div>
+
+          <p className="text-xs text-muted">
+            Showing {visibleEntries.length} of {entries.length} line items
+          </p>
+        </div>
+
         <div className="overflow-x-auto">
-          <table className="min-w-[980px] w-full text-xs">
+          <table className="min-w-[1080px] w-full text-xs">
             <thead>
-              <tr className="border-b border-border bg-surface-elevated text-left text-muted">
-                <th className="px-4 py-3 font-medium">Cost center</th>
-                <th className="px-4 py-3 font-medium">Component</th>
-                <th className="px-4 py-3 font-medium">Amount</th>
-                <th className="px-4 py-3 font-medium">Date</th>
-                <th className="px-4 py-3 font-medium">Qtr</th>
-                <th className="px-4 py-3 font-medium">Notes</th>
+              <tr className="border-b border-border bg-surface-elevated text-muted">
+                <SortableHeader
+                  label="Cost center"
+                  sortKey="cost_center"
+                  sort={sort}
+                  onSort={(key) => setSort((current) => toggleExpenseSort(current, key))}
+                />
+                <SortableHeader
+                  label="Component"
+                  sortKey="component"
+                  sort={sort}
+                  onSort={(key) => setSort((current) => toggleExpenseSort(current, key))}
+                />
+                <SortableHeader
+                  label="Amount"
+                  sortKey="amount"
+                  sort={sort}
+                  onSort={(key) => setSort((current) => toggleExpenseSort(current, key))}
+                />
+                <SortableHeader
+                  label="Date"
+                  sortKey="date"
+                  sort={sort}
+                  onSort={(key) => setSort((current) => toggleExpenseSort(current, key))}
+                />
+                <SortableHeader
+                  label="Qtr"
+                  sortKey="quarter"
+                  sort={sort}
+                  onSort={(key) => setSort((current) => toggleExpenseSort(current, key))}
+                />
+                <SortableHeader
+                  label="Status"
+                  sortKey="status"
+                  sort={sort}
+                  onSort={(key) => setSort((current) => toggleExpenseSort(current, key))}
+                />
+                <th className="px-4 py-3 text-left font-medium">Notes</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-muted">
+                  <td colSpan={8} className="px-4 py-8 text-center text-muted">
                     Loading expenses...
                   </td>
                 </tr>
               ) : entries.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-muted">
+                  <td colSpan={8} className="px-4 py-8 text-center text-muted">
                     No expense line items yet.
                   </td>
                 </tr>
+              ) : visibleEntries.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-muted">
+                    No expenses match these filters.
+                  </td>
+                </tr>
               ) : (
-                entries.map((entry) => {
+                visibleEntries.map((entry) => {
                   const isBusy = busyId === entry.id;
                   const isEditing = editingId === entry.id;
                   const editQuarter = isEditing
@@ -819,7 +1054,12 @@ export function ExpensesAdmin() {
                     : entry.quarter;
 
                   return (
-                    <tr key={entry.id} className="border-b border-border/60 align-top">
+                    <tr
+                      key={entry.id}
+                      className={`border-b border-border/60 align-top ${
+                        entry.status === "void" ? "opacity-60" : ""
+                      }`}
+                    >
                       <td className="px-4 py-3">
                         {isEditing ? (
                           <select
@@ -908,6 +1148,33 @@ export function ExpensesAdmin() {
                         )}
                       </td>
                       <td className="px-4 py-3 font-medium">{editQuarter}</td>
+                      <td className="px-4 py-3">
+                        {isEditing ? (
+                          <select
+                            value={editForm.status}
+                            disabled={isBusy}
+                            onChange={(event) =>
+                              setEditForm((current) => ({
+                                ...current,
+                                status: event.target.value as ExpenseStatus,
+                              }))
+                            }
+                            className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs outline-none focus:border-accent"
+                          >
+                            {EXPENSE_STATUSES.map((status) => (
+                              <option key={status} value={status}>
+                                {EXPENSE_STATUS_LABELS[status]}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span
+                            className={`rounded-full border px-2.5 py-1 text-[11px] ${expenseStatusBadgeClass(entry.status)}`}
+                          >
+                            {EXPENSE_STATUS_LABELS[entry.status]}
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         {isEditing ? (
                           <input

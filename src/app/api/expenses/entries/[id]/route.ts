@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireMinimumTier } from "@/lib/auth/profile";
+import { parseExpenseStatus } from "@/lib/expenses/filters";
 import type { ExpenseEntry } from "@/lib/expenses/types";
 import { createClient } from "@/lib/supabase/server";
 
@@ -10,6 +11,7 @@ const ENTRY_SELECT = `
   amount,
   expense_date,
   quarter,
+  status,
   notes,
   created_at,
   updated_at,
@@ -22,6 +24,7 @@ type PatchPayload = {
   component_id?: string;
   amount?: number | string;
   expense_date?: string;
+  status?: string;
   notes?: string | null;
 };
 
@@ -94,6 +97,14 @@ export async function PATCH(
 
   if (body.notes !== undefined) {
     updates.notes = body.notes?.trim() || null;
+  }
+
+  if (body.status !== undefined) {
+    const status = parseExpenseStatus(body.status);
+    if (!status) {
+      return NextResponse.json({ error: "Invalid status." }, { status: 400 });
+    }
+    updates.status = status;
   }
 
   if (Object.keys(updates).length === 0) {

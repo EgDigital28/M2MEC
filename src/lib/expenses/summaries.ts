@@ -1,4 +1,4 @@
-import { sortCatalog, type ExpenseComponent, type ExpenseCostCenter, type ExpenseEntry } from "./types";
+import { isSummaryEligible, sortCatalog, type ExpenseComponent, type ExpenseCostCenter, type ExpenseEntry } from "./types";
 
 export const DEFAULT_SUMMARY_QUARTERS = [
   "1Q26",
@@ -36,7 +36,7 @@ function parseQuarterKey(quarter: string) {
   return { quarter: Number(match[1]), year: Number(match[2]) };
 }
 
-function quarterSortKey(quarter: string) {
+export function quarterSortKey(quarter: string) {
   const parsed = parseQuarterKey(quarter);
   if (!parsed) {
     return Number.MAX_SAFE_INTEGER;
@@ -58,6 +58,10 @@ export function getSummaryQuarters(entries: ExpenseEntry[]) {
   const quarters = new Set<string>(DEFAULT_SUMMARY_QUARTERS);
 
   for (const entry of entries) {
+    if (!isSummaryEligible(entry)) {
+      continue;
+    }
+
     quarters.add(entry.quarter);
   }
 
@@ -109,6 +113,10 @@ export function computeCostCenterQuarterSummary(
   );
 
   for (const entry of entries) {
+    if (!isSummaryEligible(entry)) {
+      continue;
+    }
+
     const values = valuesByCenter.get(entry.cost_center_id);
     if (!values) {
       continue;
@@ -143,6 +151,10 @@ export function computeComponentFiscalYearSummary(
   );
 
   for (const entry of entries) {
+    if (!isSummaryEligible(entry)) {
+      continue;
+    }
+
     const fiscalYear = quarterToFiscalYear(entry.quarter);
     if (!fiscalYear) {
       continue;

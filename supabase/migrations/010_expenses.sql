@@ -1,6 +1,7 @@
 -- Admin expense tracking: cost centers, components, and line items.
+-- Safe to re-run: uses IF NOT EXISTS / ON CONFLICT where possible.
 
-create table public.expense_cost_centers (
+create table if not exists public.expense_cost_centers (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   sort_order integer not null default 0,
@@ -9,7 +10,7 @@ create table public.expense_cost_centers (
   constraint expense_cost_centers_name_unique unique (name)
 );
 
-create table public.expense_components (
+create table if not exists public.expense_components (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   sort_order integer not null default 0,
@@ -18,7 +19,7 @@ create table public.expense_components (
   constraint expense_components_name_unique unique (name)
 );
 
-create table public.expense_entries (
+create table if not exists public.expense_entries (
   id uuid primary key default gen_random_uuid(),
   cost_center_id uuid not null references public.expense_cost_centers (id) on delete restrict,
   component_id uuid not null references public.expense_components (id) on delete restrict,
@@ -30,10 +31,10 @@ create table public.expense_entries (
   updated_at timestamptz not null default now()
 );
 
-create index expense_entries_expense_date_idx
+create index if not exists expense_entries_expense_date_idx
   on public.expense_entries (expense_date desc);
 
-create index expense_entries_quarter_idx
+create index if not exists expense_entries_quarter_idx
   on public.expense_entries (quarter desc);
 
 create or replace function public.set_expense_quarter()
@@ -50,6 +51,8 @@ begin
 end;
 $$;
 
+drop trigger if exists expense_entries_set_quarter on public.expense_entries;
+
 create trigger expense_entries_set_quarter
   before insert or update of expense_date, cost_center_id, component_id, amount, notes
   on public.expense_entries
@@ -60,18 +63,21 @@ alter table public.expense_cost_centers enable row level security;
 alter table public.expense_components enable row level security;
 alter table public.expense_entries enable row level security;
 
+drop policy if exists "Admins manage expense cost centers" on public.expense_cost_centers;
 create policy "Admins manage expense cost centers"
   on public.expense_cost_centers
   for all
   using (public.is_admin())
   with check (public.is_admin());
 
+drop policy if exists "Admins manage expense components" on public.expense_components;
 create policy "Admins manage expense components"
   on public.expense_components
   for all
   using (public.is_admin())
   with check (public.is_admin());
 
+drop policy if exists "Admins manage expense entries" on public.expense_entries;
 create policy "Admins manage expense entries"
   on public.expense_entries
   for all
