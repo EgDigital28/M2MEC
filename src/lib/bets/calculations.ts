@@ -312,7 +312,21 @@ export function computeSportBetStats(
         bySportId.get(sport.id) ?? emptySportAccumulator(),
       ),
     )
-    .sort((a, b) => a.sortOrder - b.sortOrder || a.sport.localeCompare(b.sport));
+    .sort((a, b) => {
+      if (a.hasActivity !== b.hasActivity) {
+        return a.hasActivity ? -1 : 1;
+      }
+
+      if (a.hasActivity) {
+        const aRoi = a.roi ?? Number.NEGATIVE_INFINITY;
+        const bRoi = b.roi ?? Number.NEGATIVE_INFINITY;
+        if (bRoi !== aRoi) {
+          return bRoi - aRoi;
+        }
+      }
+
+      return a.sortOrder - b.sortOrder || a.sport.localeCompare(b.sport);
+    });
 }
 
 export function formatPercent(value: number | null): string {

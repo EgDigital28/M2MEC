@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { getTodayDateString } from "@/lib/bets/calculations";
 import {
   formatExpenseAmount,
   formatExpenseInput,
@@ -31,7 +32,7 @@ const emptyEntryForm = (): EntryForm => ({
   cost_center_id: "",
   component_id: "",
   amount: "",
-  expense_date: new Date().toISOString().slice(0, 10),
+  expense_date: getTodayDateString(),
   notes: "",
 });
 
@@ -349,7 +350,7 @@ export function ExpensesAdmin() {
   const [costCenters, setCostCenters] = useState<ExpenseCostCenter[]>([]);
   const [components, setComponents] = useState<ExpenseComponent[]>([]);
   const [entries, setEntries] = useState<ExpenseEntry[]>([]);
-  const [entryForm, setEntryForm] = useState<EntryForm>(emptyEntryForm);
+  const [entryForm, setEntryForm] = useState<EntryForm>(() => emptyEntryForm());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
