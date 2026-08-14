@@ -16,7 +16,11 @@ function AmountCell({ amount }: { amount: number }) {
   );
 }
 
-export function CostCoverageTable() {
+type CostCoverageTableProps = {
+  apiPath?: string;
+};
+
+export function CostCoverageTable({ apiPath = "/api/financials/cost-coverage" }: CostCoverageTableProps) {
   const [summary, setSummary] = useState<CostCoverageSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +32,7 @@ export function CostCoverageTable() {
     setMigrationRequired(false);
 
     try {
-      const response = await fetch("/api/financials/cost-coverage");
+      const response = await fetch(apiPath);
       const data = (await response.json()) as { summary?: CostCoverageSummary; error?: string };
 
       if (!response.ok) {
@@ -47,7 +51,7 @@ export function CostCoverageTable() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [apiPath]);
 
   useEffect(() => {
     void loadCoverage();
