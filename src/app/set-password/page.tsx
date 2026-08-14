@@ -12,11 +12,11 @@ export default async function SetPasswordPage({ searchParams }: SetPasswordPageP
 
   return (
     <AuthShell
-      title={isRecovery ? "Choose a new password" : "Set your password"}
+      title={isRecovery ? "Choose a new password" : "Complete your registration"}
       description={
         isRecovery
           ? "Enter a new password for your M2MEC account."
-          : "Almost done — choose a password for your M2MEC account."
+          : "Choose a password and enter your name to finish setting up your account."
       }
     >
       <Suspense fallback={<p className="text-sm text-muted">Loading...</p>}>

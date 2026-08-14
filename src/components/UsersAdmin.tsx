@@ -145,8 +145,10 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
     <div className="space-y-4">
       {migrationRequired && (
         <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-          Run <code className="text-foreground">005_user_suspensions.sql</code> in Supabase to
-          enable suspend/unsuspend.
+          Run pending Supabase migrations (
+          <code className="text-foreground">005_user_suspensions.sql</code>,{" "}
+          <code className="text-foreground">008_profile_registration.sql</code>) to enable
+          full user management.
         </p>
       )}
 
@@ -158,10 +160,11 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
 
       <section className="overflow-hidden rounded-2xl border border-border">
         <div className="overflow-x-auto">
-          <table className="min-w-[760px] w-full text-xs">
+          <table className="min-w-[860px] w-full text-xs">
             <thead>
               <tr className="border-b border-border bg-surface-elevated text-left text-muted">
                 <th className="px-4 py-3 font-medium">Email</th>
+                <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Tier</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Joined</th>
@@ -171,13 +174,13 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-muted">
+                  <td colSpan={6} className="px-4 py-8 text-center text-muted">
                     Loading users...
                   </td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-muted">
+                  <td colSpan={6} className="px-4 py-8 text-center text-muted">
                     No users found.
                   </td>
                 </tr>
@@ -185,18 +188,19 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
                 users.map((user) => {
                   const isSelf = user.id === currentUserId;
                   const isSuspended = Boolean(user.suspended_at);
+                  const isPendingInvite = !user.registered_at;
                   const isBusy = actionUserId === user.id;
 
                   return (
                     <tr key={user.id} className="border-b border-border/60">
                       <td className="px-4 py-3">
                         <p className="font-medium">{user.email}</p>
-                        {user.display_name ? (
-                          <p className="mt-0.5 text-muted">{user.display_name}</p>
-                        ) : null}
                         {isSelf ? (
                           <p className="mt-0.5 text-accent">This is you</p>
                         ) : null}
+                      </td>
+                      <td className="px-4 py-3 text-muted">
+                        {user.display_name?.trim() || "—"}
                       </td>
                       <td className="px-4 py-3">{TIER_LABELS[user.tier as UserTier]}</td>
                       <td className="px-4 py-3">
@@ -210,7 +214,13 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
                           {isSuspended ? "Suspended" : "Active"}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-muted">{formatDate(user.created_at)}</td>
+                      <td className="px-4 py-3 text-muted">
+                        {isPendingInvite ? (
+                          <span className="text-amber-200">Invite sent</span>
+                        ) : (
+                          formatDate(user.registered_at!)
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-2">
                           {!isSelf && (

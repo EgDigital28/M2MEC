@@ -97,13 +97,31 @@ export async function POST(request: Request) {
     );
   }
 
-  const { data: existingProfile, error: existingProfileError } = await admin
+  const profileSelect = await admin
     .from("profiles")
-    .select("id, email, tier")
+    .select("id, email, tier, registered_at")
     .ilike("email", email)
     .maybeSingle();
 
-  if (existingProfileError) {
+  let existingProfile = profileSelect.data;
+  const existingProfileError = profileSelect.error;
+
+  if (existingProfileError?.message?.includes("registered_at")) {
+    const legacySelect = await admin
+      .from("profiles")
+      .select("id, email, tier, created_at")
+      .ilike("email", email)
+      .maybeSingle();
+
+    if (legacySelect.error) {
+      console.error("Invite profile lookup failed:", legacySelect.error);
+      return NextResponse.json({ error: "Could not validate invite." }, { status: 500 });
+    }
+
+    existingProfile = legacySelect.data
+      ? { ...legacySelect.data, registered_at: legacySelect.data.created_at }
+      : null;
+  } else if (existingProfileError) {
     console.error("Invite profile lookup failed:", existingProfileError);
     return NextResponse.json({ error: "Could not validate invite." }, { status: 500 });
   }
@@ -116,10 +134,12 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json(
-      { error: existingAccountMessage(existingProfile.tier) },
-      { status: 400 },
-    );
+    if (existingProfile.registered_at) {
+      return NextResponse.json(
+        { error: existingAccountMessage(existingProfile.tier) },
+        { status: 400 },
+      );
+    }
   }
 
   const origin = getSiteOrigin(request);

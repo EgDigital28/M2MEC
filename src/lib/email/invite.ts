@@ -17,6 +17,7 @@ type InviteCopy = {
   title: string;
   subtitle: string;
   paragraphs: string[];
+  buttonLabel?: string;
 };
 
 function getInviteCopy(tier: UserTier): InviteCopy {
@@ -48,14 +49,15 @@ function getInviteCopy(tier: UserTier): InviteCopy {
 
   if (tier === "investor") {
     return {
-      subject: "Your M2MEC investor access is ready",
+      subject: "Welcome to the M2MEC team",
       eyebrow: "Investor invite",
-      title: "Welcome to M2MEC",
-      subtitle: "You've been invited with investor access.",
+      title: "Welcome to the team!",
+      subtitle: "You've been invited as an M2MEC investor.",
       paragraphs: [
-        `${TIER_DESCRIPTIONS.investor}. Set your password to sign in and view the platform.`,
-        "This invite is for <strong style=\"color:#e8edf5;\">Investor</strong> access only. Each email address can be tied to one access tier.",
+        "We're glad to have you. Complete your registration to set a password, add your name, and sign in to the platform.",
+        `${TIER_DESCRIPTIONS.investor}. This invite is for <strong style="color:#e8edf5;">Investor</strong> access only.`,
       ],
+      buttonLabel: "Complete registration",
     };
   }
 
@@ -98,7 +100,7 @@ export function inviteEmailHtml({ tier, actionLink }: InviteEmailParams) {
       subtitle: copy.subtitle,
     })}
     ${copy.paragraphs.map((paragraph) => renderEmailParagraph(paragraph)).join("")}
-    ${renderEmailButton(actionLink, "Set your password")}
+    ${renderEmailButton(actionLink, copy.buttonLabel ?? "Complete registration")}
     ${renderEmailParagraph("If you weren't expecting this invite, you can ignore this email.")}
   `);
 }
@@ -113,7 +115,7 @@ ${copy.subtitle}
 
 ${copy.paragraphs.map((paragraph) => paragraph.replace(/<[^>]+>/g, "")).join("\n\n")}
 
-Set your password: ${actionLink}
+${copy.buttonLabel ?? "Complete registration"}: ${actionLink}
 
 If you weren't expecting this invite, you can ignore this email.
 

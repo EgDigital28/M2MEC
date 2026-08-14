@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 import { requireMinimumTier } from "@/lib/auth/profile";
 import { createClient } from "@/lib/supabase/server";
 import {
+  isMissingRegistrationColumn,
   isMissingSuspensionColumn,
+  PROFILE_BASE_COLUMNS,
   PROFILE_COLUMNS,
   PROFILE_COLUMNS_WITH_SUSPENSION,
+  withRegisteredAtFallback,
   withSuspendedAt,
   type ManagedUser,
 } from "@/lib/users/types";
@@ -41,6 +44,27 @@ export async function GET() {
       }
 
       const users = (withoutSuspension.data ?? []).map((profile) => withSuspendedAt(profile));
+
+      return NextResponse.json({
+        users,
+        migrationRequired: true,
+      });
+    }
+
+    if (withSuspension.error && isMissingRegistrationColumn(withSuspension.error.message)) {
+      const withoutRegistration = await supabase
+        .from("profiles")
+        .select(`${PROFILE_BASE_COLUMNS}, suspended_at`)
+        .order("created_at", { ascending: false });
+
+      if (withoutRegistration.error) {
+        console.error("Users fetch failed:", withoutRegistration.error);
+        return NextResponse.json({ error: "Could not load users." }, { status: 500 });
+      }
+
+      const users = (withoutRegistration.data ?? []).map((profile) =>
+        withRegisteredAtFallback({ ...profile, registered_at: profile.created_at }),
+      );
 
       return NextResponse.json({
         users,

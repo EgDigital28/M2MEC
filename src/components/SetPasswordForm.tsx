@@ -9,6 +9,7 @@ export function SetPasswordForm() {
   const searchParams = useSearchParams();
   const isRecovery = searchParams.get("reason") === "recovery";
 
+  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +42,13 @@ export function SetPasswordForm() {
     event.preventDefault();
     setError(null);
 
+    const trimmedName = name.trim();
+
+    if (!isRecovery && !trimmedName) {
+      setError("Your name is required.");
+      return;
+    }
+
     if (password.length < 8) {
       setError("Password must be at least 8 characters.");
       return;
@@ -53,12 +61,38 @@ export function SetPasswordForm() {
 
     setLoading(true);
     const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setError("Session expired. Open the invite link again.");
+      setLoading(false);
+      return;
+    }
+
     const { error: updateError } = await supabase.auth.updateUser({ password });
 
     if (updateError) {
       setError(updateError.message);
       setLoading(false);
       return;
+    }
+
+    if (!isRecovery) {
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({
+          display_name: trimmedName,
+          registered_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+
+      if (profileError) {
+        setError("Password saved, but we could not save your profile. Try again or contact support.");
+        setLoading(false);
+        return;
+      }
     }
 
     if (isRecovery) {
@@ -81,6 +115,24 @@ export function SetPasswordForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {!isRecovery && (
+        <div>
+          <label htmlFor="name" className="mb-1.5 block text-sm font-medium">
+            Full name
+          </label>
+          <input
+            id="name"
+            type="text"
+            autoComplete="name"
+            required
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted focus:border-accent"
+            placeholder="Your name"
+          />
+        </div>
+      )}
+
       <div>
         <label htmlFor="password" className="mb-1.5 block text-sm font-medium">
           {isRecovery ? "New password" : "Password"}
@@ -128,10 +180,10 @@ export function SetPasswordForm() {
         className="w-full rounded-full bg-foreground px-4 py-3 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {loading
-          ? "Saving password..."
+          ? "Saving..."
           : isRecovery
             ? "Update password"
-            : "Set password and continue"}
+            : "Complete registration"}
       </button>
     </form>
   );
