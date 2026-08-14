@@ -3,7 +3,9 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   formatExpenseAmount,
+  formatExpenseInput,
   getQuarterFromDate,
+  parseExpenseAmount,
   sortCatalog,
   type ExpenseComponent,
   type ExpenseCostCenter,
@@ -46,28 +48,120 @@ function formatInputDate(value: string) {
   }).format(new Date(`${value.slice(0, 10)}T00:00:00`));
 }
 
+function PencilIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+      <path
+        fillRule="evenodd"
+        d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+      <path
+        fillRule="evenodd"
+        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+function XIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+      <path
+        fillRule="evenodd"
+        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+function getCostCenterName(entry: ExpenseEntry, costCenters: ExpenseCostCenter[]) {
+  const joined = entry.cost_center;
+  if (joined && !Array.isArray(joined)) {
+    return joined.name;
+  }
+
+  return costCenters.find((item) => item.id === entry.cost_center_id)?.name ?? "—";
+}
+
+function getComponentName(entry: ExpenseEntry, components: ExpenseComponent[]) {
+  const joined = entry.component;
+  if (joined && !Array.isArray(joined)) {
+    return joined.name;
+  }
+
+  return components.find((item) => item.id === entry.component_id)?.name ?? "—";
+}
+
+function sortCatalogItems<T extends CatalogItem>(items: T[]) {
+  return [...items].sort((a, b) => {
+    if (a.is_active !== b.is_active) {
+      return a.is_active ? -1 : 1;
+    }
+
+    return a.sort_order - b.sort_order || a.name.localeCompare(b.name);
+  });
+}
+
 function CatalogManager<T extends CatalogItem>({
   title,
   description,
   items,
   busyId,
+  catalogEditingId,
+  onCatalogEditingIdChange,
   onCreate,
   onUpdate,
-  onDelete,
+  onSetArchived,
 }: {
   title: string;
   description: string;
   items: T[];
   busyId: string | null;
+  catalogEditingId: string | null;
+  onCatalogEditingIdChange: (id: string | null) => void;
   onCreate: (payload: { name: string; sort_order: number }) => Promise<void>;
   onUpdate: (
     item: T,
     payload: { name?: string; sort_order?: number; is_active?: boolean },
   ) => Promise<void>;
-  onDelete: (item: T) => Promise<void>;
+  onSetArchived: (item: T, archived: boolean) => Promise<void>;
 }) {
   const [form, setForm] = useState(emptyCatalogForm);
   const [creating, setCreating] = useState(false);
+  const [editForm, setEditForm] = useState(emptyCatalogForm);
+
+  const sortedItems = sortCatalogItems(items);
+
+  function startEdit(item: T) {
+    onCatalogEditingIdChange(item.id);
+    setEditForm({
+      name: item.name,
+      sort_order: String(item.sort_order),
+    });
+  }
+
+  function cancelEdit() {
+    onCatalogEditingIdChange(null);
+    setEditForm(emptyCatalogForm());
+  }
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -78,6 +172,36 @@ function CatalogManager<T extends CatalogItem>({
     });
     setForm(emptyCatalogForm());
     setCreating(false);
+  }
+
+  async function saveEdit(item: T) {
+    const name = editForm.name.trim();
+    const sortOrder = Number(editForm.sort_order);
+
+    if (!name || !Number.isFinite(sortOrder)) {
+      return;
+    }
+
+    await onUpdate(item, { name, sort_order: sortOrder });
+    cancelEdit();
+  }
+
+  async function handleArchive(item: T) {
+    const confirmed = window.confirm(
+      item.is_active
+        ? `Archive "${item.name}"? Historical expenses stay linked, but it will be hidden from new dropdowns.`
+        : `Restore "${item.name}" to active dropdowns?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    if (catalogEditingId === item.id) {
+      cancelEdit();
+    }
+
+    await onSetArchived(item, item.is_active);
   }
 
   return (
@@ -112,59 +236,106 @@ function CatalogManager<T extends CatalogItem>({
       </form>
 
       <div className="mt-4 space-y-2">
-        {items.length === 0 ? (
+        {sortedItems.length === 0 ? (
           <p className="text-sm text-muted">No items yet.</p>
         ) : (
-          items.map((item) => {
+          sortedItems.map((item) => {
             const isBusy = busyId === item.id;
+            const isEditing = catalogEditingId === item.id;
 
             return (
               <div
                 key={item.id}
-                className="flex flex-wrap items-center gap-2 rounded-xl border border-border/60 px-3 py-2"
+                className={`flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 ${
+                  item.is_active
+                    ? "border-border/60"
+                    : "border-border/40 bg-surface-elevated/40 opacity-80"
+                }`}
               >
-                <input
-                  defaultValue={item.name}
-                  disabled={isBusy}
-                  onBlur={(event) => {
-                    const name = event.target.value.trim();
-                    if (name && name !== item.name) {
-                      void onUpdate(item, { name });
-                    }
-                  }}
-                  className="min-w-[120px] flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-accent"
-                />
-                <input
-                  defaultValue={String(item.sort_order)}
-                  type="number"
-                  disabled={isBusy}
-                  onBlur={(event) => {
-                    const sortOrder = Number(event.target.value);
-                    if (Number.isFinite(sortOrder) && sortOrder !== item.sort_order) {
-                      void onUpdate(item, { sort_order: sortOrder });
-                    }
-                  }}
-                  className="w-20 rounded-lg border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-accent"
-                />
-                <label className="flex items-center gap-1.5 text-xs text-muted">
-                  <input
-                    type="checkbox"
-                    checked={item.is_active}
-                    disabled={isBusy}
-                    onChange={(event) =>
-                      void onUpdate(item, { is_active: event.target.checked })
-                    }
-                  />
-                  Active
-                </label>
-                <button
-                  type="button"
-                  disabled={isBusy}
-                  onClick={() => void onDelete(item)}
-                  className="rounded-full border border-red-500/30 px-3 py-1 text-xs text-red-300 transition-colors hover:border-red-400/50 disabled:opacity-60"
-                >
-                  Delete
-                </button>
+                {isEditing ? (
+                  <>
+                    <input
+                      value={editForm.name}
+                      onChange={(event) =>
+                        setEditForm((current) => ({ ...current, name: event.target.value }))
+                      }
+                      disabled={isBusy}
+                      className="min-w-[120px] flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-accent"
+                    />
+                    <input
+                      value={editForm.sort_order}
+                      type="number"
+                      disabled={isBusy}
+                      onChange={(event) =>
+                        setEditForm((current) => ({
+                          ...current,
+                          sort_order: event.target.value,
+                        }))
+                      }
+                      className="w-20 rounded-lg border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-accent"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <p className="min-w-[120px] flex-1 text-sm font-medium">{item.name}</p>
+                    <p className="w-20 text-sm text-muted">Order {item.sort_order}</p>
+                    {!item.is_active ? (
+                      <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">
+                        Archived
+                      </span>
+                    ) : null}
+                  </>
+                )}
+
+                <div className="ml-auto flex items-center gap-1">
+                  {isEditing ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => void saveEdit(item)}
+                        disabled={isBusy}
+                        aria-label="Save changes"
+                        title="Save"
+                        className="rounded-md p-1.5 text-emerald-400 transition-colors hover:bg-emerald-500/10 disabled:opacity-60"
+                      >
+                        <CheckIcon />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelEdit}
+                        disabled={isBusy}
+                        aria-label="Cancel edit"
+                        title="Cancel"
+                        className="rounded-md p-1.5 text-muted transition-colors hover:bg-surface-elevated hover:text-foreground disabled:opacity-60"
+                      >
+                        <XIcon />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => startEdit(item)}
+                        disabled={isBusy || catalogEditingId !== null}
+                        aria-label="Edit item"
+                        title="Edit"
+                        className="rounded-md p-1.5 text-muted transition-colors hover:bg-surface-elevated hover:text-foreground disabled:opacity-60"
+                      >
+                        <PencilIcon />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleArchive(item)}
+                        disabled={isBusy || catalogEditingId !== null}
+                        aria-label={item.is_active ? "Archive item" : "Restore item"}
+                        title={item.is_active ? "Archive" : "Restore"}
+                        className="rounded-full border border-border px-2.5 py-1 text-[11px] text-muted transition-colors hover:border-accent/40 hover:text-foreground disabled:opacity-60"
+                      >
+                        {item.is_active ? "Archive" : "Restore"}
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             );
           })
@@ -182,6 +353,14 @@ export function ExpensesAdmin() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<EntryForm>(emptyEntryForm);
+  const [editingCostCenterCatalogId, setEditingCostCenterCatalogId] = useState<string | null>(
+    null,
+  );
+  const [editingComponentCatalogId, setEditingComponentCatalogId] = useState<string | null>(
+    null,
+  );
   const [migrationRequired, setMigrationRequired] = useState(false);
 
   const activeCostCenters = useMemo(
@@ -263,11 +442,22 @@ export function ExpensesAdmin() {
     setBusyId("new-entry");
     setError(null);
 
+    const amount = parseExpenseAmount(entryForm.amount);
+
+    if (!Number.isFinite(amount) || amount < 0) {
+      setError("Enter a valid dollar amount.");
+      setBusyId(null);
+      return;
+    }
+
     try {
       const response = await fetch("/api/expenses/entries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(entryForm),
+        body: JSON.stringify({
+          ...entryForm,
+          amount,
+        }),
       });
 
       const data = (await response.json()) as { entry?: ExpenseEntry; error?: string };
@@ -298,11 +488,25 @@ export function ExpensesAdmin() {
     setBusyId(entry.id);
     setError(null);
 
+    const payload: Record<string, string | number | null> = { ...updates };
+
+    if (updates.amount !== undefined) {
+      const amount = parseExpenseAmount(updates.amount);
+
+      if (!Number.isFinite(amount) || amount < 0) {
+        setError("Enter a valid dollar amount.");
+        setBusyId(null);
+        return false;
+      }
+
+      payload.amount = amount;
+    }
+
     try {
       const response = await fetch(`/api/expenses/entries/${entry.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
+        body: JSON.stringify(payload),
       });
 
       const data = (await response.json()) as { entry?: ExpenseEntry; error?: string };
@@ -310,7 +514,7 @@ export function ExpensesAdmin() {
       if (!response.ok) {
         setError(data.error ?? "Could not update expense.");
         setBusyId(null);
-        return;
+        return false;
       }
 
       if (data.entry) {
@@ -318,16 +522,54 @@ export function ExpensesAdmin() {
           current.map((row) => (row.id === data.entry!.id ? data.entry! : row)),
         );
       }
+
+      return true;
     } catch {
       setError("Network error while updating expense.");
+      return false;
     } finally {
       setBusyId(null);
+    }
+  }
+
+  function startEdit(entry: ExpenseEntry) {
+    setEditingId(entry.id);
+    setEditForm({
+      cost_center_id: entry.cost_center_id,
+      component_id: entry.component_id,
+      amount: formatExpenseInput(String(Math.round(entry.amount))),
+      expense_date: entry.expense_date.slice(0, 10),
+      notes: entry.notes ?? "",
+    });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditForm(emptyEntryForm());
+  }
+
+  async function saveEdit(entryId: string) {
+    const entry = entries.find((row) => row.id === entryId);
+
+    if (!entry) {
+      return;
+    }
+
+    const saved = await updateEntry(entry, editForm);
+
+    if (saved) {
+      setEditingId(null);
+      setEditForm(emptyEntryForm());
     }
   }
 
   async function deleteEntry(entry: ExpenseEntry) {
     if (!window.confirm(`Delete expense for ${formatExpenseAmount(entry.amount)}?`)) {
       return;
+    }
+
+    if (editingId === entry.id) {
+      cancelEdit();
     }
 
     setBusyId(entry.id);
@@ -390,19 +632,12 @@ export function ExpensesAdmin() {
     }
   }
 
-  async function deleteCostCenter(item: ExpenseCostCenter) {
-    if (!window.confirm(`Delete cost center "${item.name}"?`)) {
-      return;
-    }
-    setBusyId(item.id);
-    const response = await fetch(`/api/expenses/cost-centers/${item.id}`, { method: "DELETE" });
-    const data = (await response.json()) as { error?: string };
-    setBusyId(null);
-    if (!response.ok) {
-      setError(data.error ?? "Could not delete cost center.");
-      return;
-    }
-    setCostCenters((current) => current.filter((row) => row.id !== item.id));
+  async function archiveCostCenter(item: ExpenseCostCenter, archived: boolean) {
+    await updateCostCenter(item, { is_active: !archived });
+  }
+
+  async function archiveComponent(item: ExpenseComponent, archived: boolean) {
+    await updateComponent(item, { is_active: !archived });
   }
 
   async function createComponent(payload: { name: string; sort_order: number }) {
@@ -442,21 +677,6 @@ export function ExpensesAdmin() {
         sortCatalog(current.map((row) => (row.id === data.component!.id ? data.component! : row))),
       );
     }
-  }
-
-  async function deleteComponent(item: ExpenseComponent) {
-    if (!window.confirm(`Delete component "${item.name}"?`)) {
-      return;
-    }
-    setBusyId(item.id);
-    const response = await fetch(`/api/expenses/components/${item.id}`, { method: "DELETE" });
-    const data = (await response.json()) as { error?: string };
-    setBusyId(null);
-    if (!response.ok) {
-      setError(data.error ?? "Could not delete component.");
-      return;
-    }
-    setComponents((current) => current.filter((row) => row.id !== item.id));
   }
 
   return (
@@ -513,15 +733,24 @@ export function ExpensesAdmin() {
             ))}
           </select>
 
-          <input
-            value={entryForm.amount}
-            onChange={(event) =>
-              setEntryForm((current) => ({ ...current, amount: event.target.value }))
-            }
-            placeholder="Amount"
-            required
-            className="rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
-          />
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted">
+              $
+            </span>
+            <input
+              value={entryForm.amount}
+              onChange={(event) =>
+                setEntryForm((current) => ({
+                  ...current,
+                  amount: formatExpenseInput(event.target.value),
+                }))
+              }
+              inputMode="numeric"
+              placeholder="0"
+              required
+              className="w-full rounded-xl border border-border bg-background py-2 pl-7 pr-3 text-sm outline-none focus:border-accent"
+            />
+          </div>
 
           <input
             type="date"
@@ -586,94 +815,168 @@ export function ExpensesAdmin() {
               ) : (
                 entries.map((entry) => {
                   const isBusy = busyId === entry.id;
+                  const isEditing = editingId === entry.id;
+                  const editQuarter = isEditing
+                    ? getQuarterFromDate(editForm.expense_date)
+                    : entry.quarter;
 
                   return (
                     <tr key={entry.id} className="border-b border-border/60 align-top">
                       <td className="px-4 py-3">
-                        <select
-                          defaultValue={entry.cost_center_id}
-                          disabled={isBusy}
-                          onChange={(event) =>
-                            void updateEntry(entry, { cost_center_id: event.target.value })
-                          }
-                          className="w-full min-w-[120px] rounded-lg border border-border bg-background px-2 py-1.5 text-xs outline-none focus:border-accent"
-                        >
-                          {costCenters.map((item) => (
-                            <option key={item.id} value={item.id} disabled={!item.is_active}>
-                              {item.name}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="px-4 py-3">
-                        <select
-                          defaultValue={entry.component_id}
-                          disabled={isBusy}
-                          onChange={(event) =>
-                            void updateEntry(entry, { component_id: event.target.value })
-                          }
-                          className="w-full min-w-[120px] rounded-lg border border-border bg-background px-2 py-1.5 text-xs outline-none focus:border-accent"
-                        >
-                          {components.map((item) => (
-                            <option key={item.id} value={item.id} disabled={!item.is_active}>
-                              {item.name}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="px-4 py-3">
-                        <input
-                          defaultValue={String(entry.amount)}
-                          disabled={isBusy}
-                          onBlur={(event) => {
-                            const amount = event.target.value.trim();
-                            if (amount && amount !== String(entry.amount)) {
-                              void updateEntry(entry, { amount });
+                        {isEditing ? (
+                          <select
+                            value={editForm.cost_center_id}
+                            disabled={isBusy}
+                            onChange={(event) =>
+                              setEditForm((current) => ({
+                                ...current,
+                                cost_center_id: event.target.value,
+                              }))
                             }
-                          }}
-                          className="w-28 rounded-lg border border-border bg-background px-2 py-1.5 text-xs outline-none focus:border-accent"
-                        />
+                            className="w-full min-w-[120px] rounded-lg border border-border bg-background px-2 py-1.5 text-xs outline-none focus:border-accent"
+                          >
+                            {costCenters.map((item) => (
+                              <option key={item.id} value={item.id} disabled={!item.is_active}>
+                                {item.name}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          getCostCenterName(entry, costCenters)
+                        )}
                       </td>
                       <td className="px-4 py-3">
-                        <input
-                          type="date"
-                          defaultValue={entry.expense_date.slice(0, 10)}
-                          disabled={isBusy}
-                          onBlur={(event) => {
-                            const expense_date = event.target.value;
-                            if (expense_date && expense_date !== entry.expense_date.slice(0, 10)) {
-                              void updateEntry(entry, { expense_date });
+                        {isEditing ? (
+                          <select
+                            value={editForm.component_id}
+                            disabled={isBusy}
+                            onChange={(event) =>
+                              setEditForm((current) => ({
+                                ...current,
+                                component_id: event.target.value,
+                              }))
                             }
-                          }}
-                          className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs outline-none focus:border-accent"
-                        />
-                        <p className="mt-1 text-[11px] text-muted">
-                          {formatInputDate(entry.expense_date)}
-                        </p>
+                            className="w-full min-w-[120px] rounded-lg border border-border bg-background px-2 py-1.5 text-xs outline-none focus:border-accent"
+                          >
+                            {components.map((item) => (
+                              <option key={item.id} value={item.id} disabled={!item.is_active}>
+                                {item.name}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          getComponentName(entry, components)
+                        )}
                       </td>
-                      <td className="px-4 py-3 font-medium">{entry.quarter}</td>
                       <td className="px-4 py-3">
-                        <input
-                          defaultValue={entry.notes ?? ""}
-                          disabled={isBusy}
-                          onBlur={(event) => {
-                            const notes = event.target.value;
-                            if (notes !== (entry.notes ?? "")) {
-                              void updateEntry(entry, { notes });
-                            }
-                          }}
-                          className="w-full min-w-[160px] rounded-lg border border-border bg-background px-2 py-1.5 text-xs outline-none focus:border-accent"
-                        />
+                        {isEditing ? (
+                          <div className="relative">
+                            <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted">
+                              $
+                            </span>
+                            <input
+                              value={editForm.amount}
+                              disabled={isBusy}
+                              onChange={(event) =>
+                                setEditForm((current) => ({
+                                  ...current,
+                                  amount: formatExpenseInput(event.target.value),
+                                }))
+                              }
+                              inputMode="numeric"
+                              className="w-28 rounded-lg border border-border bg-background py-1.5 pl-5 pr-2 text-xs outline-none focus:border-accent"
+                            />
+                          </div>
+                        ) : (
+                          formatExpenseAmount(entry.amount)
+                        )}
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          type="button"
-                          disabled={isBusy}
-                          onClick={() => void deleteEntry(entry)}
-                          className="rounded-full border border-red-500/30 px-3 py-1.5 text-[11px] text-red-300 transition-colors hover:border-red-400/50 disabled:opacity-60"
-                        >
-                          Delete
-                        </button>
+                      <td className="px-4 py-3">
+                        {isEditing ? (
+                          <input
+                            type="date"
+                            value={editForm.expense_date}
+                            disabled={isBusy}
+                            onChange={(event) =>
+                              setEditForm((current) => ({
+                                ...current,
+                                expense_date: event.target.value,
+                              }))
+                            }
+                            className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs outline-none focus:border-accent"
+                          />
+                        ) : (
+                          formatInputDate(entry.expense_date)
+                        )}
+                      </td>
+                      <td className="px-4 py-3 font-medium">{editQuarter}</td>
+                      <td className="px-4 py-3">
+                        {isEditing ? (
+                          <input
+                            value={editForm.notes}
+                            disabled={isBusy}
+                            onChange={(event) =>
+                              setEditForm((current) => ({
+                                ...current,
+                                notes: event.target.value,
+                              }))
+                            }
+                            className="w-full min-w-[160px] rounded-lg border border-border bg-background px-2 py-1.5 text-xs outline-none focus:border-accent"
+                          />
+                        ) : (
+                          <span className="text-muted">{entry.notes?.trim() || "—"}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end gap-1">
+                          {isEditing ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => void saveEdit(entry.id)}
+                                disabled={isBusy}
+                                aria-label="Save expense"
+                                title="Save"
+                                className="rounded-md p-1.5 text-emerald-400 transition-colors hover:bg-emerald-500/10 disabled:opacity-60"
+                              >
+                                <CheckIcon />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={cancelEdit}
+                                disabled={isBusy}
+                                aria-label="Cancel edit"
+                                title="Cancel"
+                                className="rounded-md p-1.5 text-muted transition-colors hover:bg-surface-elevated hover:text-foreground disabled:opacity-60"
+                              >
+                                <XIcon />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => startEdit(entry)}
+                                disabled={isBusy || editingId !== null}
+                                aria-label="Edit expense"
+                                title="Edit"
+                                className="rounded-md p-1.5 text-muted transition-colors hover:bg-surface-elevated hover:text-foreground disabled:opacity-60"
+                              >
+                                <PencilIcon />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void deleteEntry(entry)}
+                                disabled={isBusy || editingId !== null}
+                                aria-label="Delete expense"
+                                title="Delete"
+                                className="rounded-md p-1.5 text-muted transition-colors hover:bg-red-500/10 hover:text-red-300 disabled:opacity-60"
+                              >
+                                <TrashIcon />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -687,21 +990,25 @@ export function ExpensesAdmin() {
       <div className="grid gap-6 lg:grid-cols-2">
         <CatalogManager
           title="Cost centers"
-          description="Manage the cost center list used in expense line items."
+          description="Edit name and order, or archive items to hide them from new expenses while keeping historical links."
           items={costCenters}
           busyId={busyId}
+          catalogEditingId={editingCostCenterCatalogId}
+          onCatalogEditingIdChange={setEditingCostCenterCatalogId}
           onCreate={createCostCenter}
           onUpdate={updateCostCenter}
-          onDelete={deleteCostCenter}
+          onSetArchived={archiveCostCenter}
         />
         <CatalogManager
           title="Components"
-          description="Manage the component list used in expense line items."
+          description="Edit name and order, or archive items to hide them from new expenses while keeping historical links."
           items={components}
           busyId={busyId}
+          catalogEditingId={editingComponentCatalogId}
+          onCatalogEditingIdChange={setEditingComponentCatalogId}
           onCreate={createComponent}
           onUpdate={updateComponent}
-          onDelete={deleteComponent}
+          onSetArchived={archiveComponent}
         />
       </div>
     </div>

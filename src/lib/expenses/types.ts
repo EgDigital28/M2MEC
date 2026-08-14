@@ -49,6 +49,20 @@ export function formatExpenseAmount(amount: number) {
   }).format(amount);
 }
 
+export function formatExpenseInput(value: string) {
+  const sanitized = value.replace(/,/g, "").replace(/[^\d]/g, "");
+
+  if (!sanitized) {
+    return "";
+  }
+
+  return sanitized.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+export function parseExpenseAmount(value: string) {
+  return Number.parseFloat(value.replace(/,/g, "")) || Number.NaN;
+}
+
 export function sortCatalog<T extends { sort_order: number; name: string }>(items: T[]) {
   return [...items].sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
 }
