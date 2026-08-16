@@ -15,6 +15,7 @@ import {
   getResendFromEmail,
   parseEmailRecipients,
 } from "@/lib/email/utils";
+import { logBetEmailSends } from "@/lib/bets/email-sends";
 import { createClient } from "@/lib/supabase/server";
 
 type YesterdaysResultsPayload = {
@@ -89,6 +90,18 @@ export async function POST(request: Request) {
   if (emailError) {
     console.error("Yesterday's results email failed:", emailError);
     return NextResponse.json({ error: "Could not send email." }, { status: 502 });
+  }
+
+  try {
+    await logBetEmailSends({
+      emailType: "yesterdays_results",
+      recipients,
+      sentById: auth.profile.id,
+      playCount: entries.length,
+      contextDate: resultsDate,
+    });
+  } catch (logError) {
+    console.error("Yesterday's results email log failed:", logError);
   }
 
   return NextResponse.json({
