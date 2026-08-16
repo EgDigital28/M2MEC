@@ -15,6 +15,7 @@ import {
   getResendFromEmail,
   parseEmailRecipients,
 } from "@/lib/email/utils";
+import { logBetEmailSends } from "@/lib/bets/email-sends";
 import { createClient } from "@/lib/supabase/server";
 
 type WeeklySummaryPayload = {
@@ -91,6 +92,19 @@ export async function POST(request: Request) {
   if (emailError) {
     console.error("Weekly summary email failed:", emailError);
     return NextResponse.json({ error: "Could not send email." }, { status: 502 });
+  }
+
+  try {
+    await logBetEmailSends({
+      emailType: "weekly_summary",
+      recipients,
+      sentById: auth.profile.id,
+      playCount: entries.length,
+      contextDate: weekRange.weekStart,
+      contextWeekEnd: weekRange.weekEnd,
+    });
+  } catch (logError) {
+    console.error("Weekly summary email log failed:", logError);
   }
 
   return NextResponse.json({
