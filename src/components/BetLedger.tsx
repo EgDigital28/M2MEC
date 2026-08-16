@@ -345,7 +345,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                 Overall P/L
               </p>
               <p
-                className={`mt-2 text-2xl font-semibold tabular-nums ${profitLossClassName(stats.totalProfitLoss)}`}
+                className={`mt-2 text-2xl font-semibold tabular-nums ${profitLossClassName(computeOverallPl(stats.totalProfitLoss))}`}
               >
                 {formatCurrencyWhole(computeOverallPl(stats.totalProfitLoss))}
               </p>
