@@ -13,6 +13,6 @@ export const metadata: Metadata = {
 
 export default function HamboatsLayout({
   children,
-}: LayoutProps<"/hamboats">) {
+}: Readonly<{ children: React.ReactNode }>) {
   return children;
 }
