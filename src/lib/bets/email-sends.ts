@@ -96,11 +96,15 @@ export async function findBetEmailDuplicatesToday(
     }));
 }
 
-export async function fetchBetEmailSendHistory(limit = 50) {
+export async function fetchBetEmailSendHistory(
+  sentOnDate = getTodayDateString(),
+  limit = 50,
+) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("bet_email_sends")
     .select("*")
+    .eq("sent_on_date", sentOnDate)
     .order("sent_at", { ascending: false })
     .limit(limit);
 

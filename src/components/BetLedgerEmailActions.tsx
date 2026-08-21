@@ -271,8 +271,8 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
       <div className="rounded-2xl border border-border bg-surface-elevated p-5">
         <h3 className="text-sm font-semibold">Send history</h3>
         <p className="mt-1 text-xs text-muted">
-          Recent ledger emails by type, recipient, and time. Resending the same type to a recipient
-          today will prompt a warning.
+          Today’s ledger emails by type, recipient, and time. Resending the same type to a
+          recipient today will prompt a warning.
         </p>
 
         {migrationRequired && (
@@ -303,7 +303,7 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
                 ) : history.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="px-4 py-6 text-center text-muted">
-                      No emails sent yet.
+                      No emails sent today.
                     </td>
                   </tr>
                 ) : (
