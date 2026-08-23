@@ -1,4 +1,4 @@
-import { getTodayDateString } from "@/lib/bets/calculations";
+import { getTodayDateString, getYesterdayDateString } from "@/lib/bets/calculations";
 import type { BetEmailSendBatch, BetEmailSendRow, BetEmailType } from "@/lib/bets/email-sends-types";
 import { createClient } from "@/lib/supabase/server";
 
@@ -96,15 +96,13 @@ export async function findBetEmailDuplicatesToday(
     }));
 }
 
-export async function fetchBetEmailSendHistory(
-  sentOnDate = getTodayDateString(),
-  limit = 50,
-) {
+export async function fetchBetEmailSendHistory(limit = 50) {
+  const sentOnDates = [getYesterdayDateString(), getTodayDateString()];
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("bet_email_sends")
     .select("*")
-    .eq("sent_on_date", sentOnDate)
+    .in("sent_on_date", sentOnDates)
     .order("sent_at", { ascending: false })
     .limit(limit);
 
