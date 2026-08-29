@@ -571,14 +571,14 @@ export function filterEntriesByEventDateRange(
     });
 }
 
-export function filterOpenPlaysTodayAndUpcoming(
+export function filterOpenPlaysToday(
   entries: BetEntryComputed[],
   timeZone = DEFAULT_BET_TIMEZONE,
 ): BetEntryComputed[] {
   const today = getTodayDateString(timeZone);
 
   return entries
-    .filter((entry) => entry.status === "Open" && entry.event_date >= today)
+    .filter((entry) => entry.status === "Open" && entry.event_date === today)
     .sort((a, b) => {
       const dateCompare = a.event_date.localeCompare(b.event_date);
 

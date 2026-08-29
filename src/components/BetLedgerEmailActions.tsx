@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   filterEntriesByEventDate,
   filterEntriesByEventDateRange,
-  filterOpenPlaysTodayAndUpcoming,
+  filterOpenPlaysToday,
   formatEventDate,
   formatWeekRangeShort,
   getCurrentWeekRange,
@@ -63,7 +63,7 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
   const [migrationRequired, setMigrationRequired] = useState(false);
 
   const openPlays = useMemo(
-    () => filterOpenPlaysTodayAndUpcoming(entries),
+    () => filterOpenPlaysToday(entries),
     [entries],
   );
 
@@ -183,7 +183,7 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
 
   function sendUpcomingPlays() {
     return sendEmail("upcoming", "/api/bets/email/todays-plays", (data) =>
-      `Sent upcoming plays (${data.playCount ?? openPlays.length} open) to ${data.recipientCount ?? 0} recipient(s).`,
+      `Sent today's plays (${data.playCount ?? openPlays.length} open) to ${data.recipientCount ?? 0} recipient(s).`,
     );
   }
 
@@ -218,7 +218,7 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
               className={`${fieldClassName} mt-2`}
             />
             <p className="mt-2 text-xs text-muted">
-              Comma-separated recipients. {openPlays.length} upcoming open{" "}
+              Comma-separated recipients. {openPlays.length} open today{" "}
               {openPlays.length === 1 ? "play" : "plays"} · {yesterdayPlays.length}{" "}
               {yesterdayPlays.length === 1 ? "play" : "plays"} yesterday (
               {formatEventDate(yesterdayDate)}) · {weekPlays.length}{" "}
@@ -234,7 +234,7 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
               disabled={sending || !to.trim()}
               className={primaryButtonClassName}
             >
-              {sendingAction === "upcoming" ? "Sending..." : "Send upcoming plays"}
+              {sendingAction === "upcoming" ? "Sending..." : "Send today's plays"}
             </button>
             <button
               type="button"

@@ -28,7 +28,7 @@ function formatSentOnDate(date: string) {
 }
 
 export function todaysPlaysSubject({ sentOnDate }: Pick<TodaysPlaysEmailParams, "sentOnDate">) {
-  return `M2MEC — Upcoming Plays (${formatSentOnDate(sentOnDate)})`;
+  return `M2MEC — Today's Plays (${formatSentOnDate(sentOnDate)})`;
 }
 
 export function todaysPlaysHtml({ entries, sentOnDate }: TodaysPlaysEmailParams) {
@@ -56,7 +56,7 @@ export function todaysPlaysHtml({ entries, sentOnDate }: TodaysPlaysEmailParams)
           ],
         })),
       )
-    : renderEmailEmptyState("No open plays scheduled for today or upcoming dates.");
+    : renderEmailEmptyState("No open plays scheduled for today.");
 
   const summary = entries.length
     ? renderEmailSummaryLine([
@@ -69,8 +69,8 @@ export function todaysPlaysHtml({ entries, sentOnDate }: TodaysPlaysEmailParams)
   return renderEmailShell(`
     ${renderEmailSection({
       eyebrow: "Sportsbook Hub",
-      title: "Upcoming Plays",
-      subtitle: `Open positions for ${formatSentOnDate(sentOnDate)} and upcoming events.`,
+      title: "Today's Plays",
+      subtitle: `Open positions for ${formatSentOnDate(sentOnDate)}.`,
     })}
     ${table}
     ${summary}
@@ -88,12 +88,12 @@ export function todaysPlaysText({ entries, sentOnDate }: TodaysPlaysEmailParams)
 
   const body = entries.length
     ? `${lines.join("\n")}\n\n${entries.length} open plays · Total risk ${formatCurrency(totalRisk)} · Total to win ${formatCurrency(totalToWin)}`
-    : "No open plays scheduled for today or upcoming dates.";
+    : "No open plays scheduled for today.";
 
   return `
-Upcoming Plays
+Today's Plays
 
-Open positions for ${formatSentOnDate(sentOnDate)} and upcoming events.
+Open positions for ${formatSentOnDate(sentOnDate)}.
 
 ${body}
 

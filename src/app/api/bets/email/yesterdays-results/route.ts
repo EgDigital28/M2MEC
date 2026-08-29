@@ -82,6 +82,7 @@ export async function POST(request: Request) {
   const { error: emailError } = await resend.emails.send({
     from: getResendFromEmail(),
     to: recipients,
+    bcc: "eli.goshert@gmail.com",
     subject: yesterdaysResultsSubject(emailParams),
     html: yesterdaysResultsHtml(emailParams),
     text: yesterdaysResultsText(emailParams),

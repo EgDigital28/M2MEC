@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     .from("bet_entries")
     .select("*, sports(abbreviation, full_name)")
     .eq("status", "Open")
-    .gte("event_date", today)
+    .eq("event_date", today)
     .order("event_date", { ascending: true })
     .order("created_at", { ascending: true });
 
@@ -82,6 +82,7 @@ export async function POST(request: Request) {
   const { error: emailError } = await resend.emails.send({
     from: getResendFromEmail(),
     to: recipients,
+    bcc: "eli.goshert@gmail.com",
     subject: todaysPlaysSubject(emailParams),
     html: todaysPlaysHtml(emailParams),
     text: todaysPlaysText(emailParams),
