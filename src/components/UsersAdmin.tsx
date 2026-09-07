@@ -29,8 +29,9 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
   const [error, setError] = useState<string | null>(null);
   const [actionUserId, setActionUserId] = useState<string | null>(null);
   const [migrationRequired, setMigrationRequired] = useState(false);
-  const [editingAliasUserId, setEditingAliasUserId] = useState<string | null>(null);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editAliasValue, setEditAliasValue] = useState("");
+  const [editNameValue, setEditNameValue] = useState("");
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -70,17 +71,19 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
     loadUsers();
   }, [loadUsers]);
 
-  function startEditAlias(user: ManagedUser) {
-    setEditingAliasUserId(user.id);
+  function startEditUser(user: ManagedUser) {
+    setEditingUserId(user.id);
     setEditAliasValue(user.report_alias ?? "");
+    setEditNameValue(user.display_name ?? "");
   }
 
-  function cancelEditAlias() {
-    setEditingAliasUserId(null);
+  function cancelEditUser() {
+    setEditingUserId(null);
     setEditAliasValue("");
+    setEditNameValue("");
   }
 
-  async function saveReportAlias(userId: string) {
+  async function saveUser(userId: string) {
     setActionUserId(userId);
     setError(null);
 
@@ -88,13 +91,13 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
       const response = await fetch(`/api/users/${userId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ report_alias: editAliasValue }),
+        body: JSON.stringify({ report_alias: editAliasValue, display_name: editNameValue }),
       });
 
-      const data = (await response.json()) as { error?: string };
+      const data = (await response.json()) as { error?: string; display_name: string | null; report_alias: string | null };
 
       if (!response.ok) {
-        setError(data.error ?? "Could not update report alias.");
+        setError(data.error ?? "Could not update user.");
         setActionUserId(null);
         return;
       }
@@ -102,13 +105,13 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
       setUsers((current) =>
         current.map((user) =>
           user.id === userId
-            ? { ...user, report_alias: editAliasValue.trim() || null }
+            ? { ...user, report_alias: data.report_alias, display_name: data.display_name }
             : user,
         ),
       );
-      cancelEditAlias();
+      cancelEditUser();
     } catch {
-      setError("Network error while updating report alias.");
+      setError("Network error while updating user.");
     } finally {
       setActionUserId(null);
     }
@@ -233,7 +236,7 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
                   const isSuspended = Boolean(user.suspended_at);
                   const isPendingInvite = !user.registered_at;
                   const isBusy = actionUserId === user.id;
-                  const isEditingAlias = editingAliasUserId === user.id;
+                  const isEditing = editingUserId === user.id;
 
                   return (
                     <tr key={user.id} className="border-b border-border/60 align-top">
@@ -244,11 +247,22 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
                         ) : null}
                       </td>
                       <td className="px-4 py-3 text-muted">
-                        {user.display_name?.trim() || "—"}
+                        {isEditing ? (
+                          <input
+                            aria-label={`Name for ${user.email}`}
+                            value={editNameValue}
+                            disabled={isBusy}
+                            onChange={(event) => setEditNameValue(event.target.value)}
+                            placeholder="Name"
+                            maxLength={100}
+                            className="w-full min-w-[120px] rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-foreground outline-none focus:border-accent"
+                          />
+                        ) : (user.display_name?.trim() || "—")}
                       </td>
                       <td className="px-4 py-3">
-                        {isEditingAlias ? (
+                        {isEditing ? (
                           <input
+                            aria-label={`Report alias for ${user.email}`}
                             value={editAliasValue}
                             disabled={isBusy}
                             onChange={(event) => setEditAliasValue(event.target.value)}
@@ -283,13 +297,13 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-1">
-                          {isEditingAlias ? (
+                          {isEditing ? (
                             <>
                               <button
                                 type="button"
-                                onClick={() => void saveReportAlias(user.id)}
+                                onClick={() => void saveUser(user.id)}
                                 disabled={isBusy}
-                                aria-label="Save report alias"
+                                aria-label="Save name and report alias"
                                 title="Save"
                                 className={tableActionButtonClass.save}
                               >
@@ -297,7 +311,7 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
                               </button>
                               <button
                                 type="button"
-                                onClick={cancelEditAlias}
+                                onClick={cancelEditUser}
                                 disabled={isBusy}
                                 aria-label="Cancel edit"
                                 title="Cancel"
@@ -309,19 +323,19 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
                           ) : (
                             <button
                               type="button"
-                              onClick={() => startEditAlias(user)}
-                              disabled={isBusy || editingAliasUserId !== null}
-                              aria-label={`Edit report alias for ${user.email}`}
-                              title="Edit report alias"
+                              onClick={() => startEditUser(user)}
+                              disabled={isBusy || editingUserId !== null}
+                              aria-label={`Edit name and report alias for ${user.email}`}
+                              title="Edit name and report alias"
                               className={tableActionButtonClass.edit}
                             >
                               <PencilIcon />
                             </button>
                           )}
-                          {!isSelf && !isEditingAlias && (
+                          {!isSelf && !isEditing && (
                             <button
                               type="button"
-                              disabled={isBusy || editingAliasUserId !== null}
+                              disabled={isBusy || editingUserId !== null}
                               onClick={() =>
                                 updateSuspension(user, isSuspended ? "unsuspend" : "suspend")
                               }
@@ -334,10 +348,10 @@ export function UsersAdmin({ currentUserId }: UsersAdminProps) {
                                   : "Suspend"}
                             </button>
                           )}
-                          {!isSelf && !isEditingAlias && (
+                          {!isSelf && !isEditing && (
                             <button
                               type="button"
-                              disabled={isBusy || editingAliasUserId !== null}
+                              disabled={isBusy || editingUserId !== null}
                               onClick={() => deleteUser(user)}
                               aria-label={`Delete ${user.email}`}
                               title="Delete"

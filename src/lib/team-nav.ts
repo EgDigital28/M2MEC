@@ -9,6 +9,7 @@ export type TeamNavItem = {
 export const teamNavItems: TeamNavItem[] = [
   { label: "Overview", href: "/team" },
   { label: "Ledger", href: "/team/bets" },
+  { label: "Reports", href: "/team/reports" },
   { label: "Expenses", href: "/team/expenses", adminOnly: true },
   { label: "Financials", href: "/team/financials", adminOnly: true },
   { label: "Sports", href: "/team/sports", adminOnly: true },

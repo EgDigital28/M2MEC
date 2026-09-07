@@ -101,7 +101,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     const { id } = await context.params;
 
-    let body: { action?: string; report_alias?: string | null };
+    let body: { action?: string; report_alias?: string | null; display_name?: string | null };
 
     try {
       body = await request.json();
@@ -109,8 +109,21 @@ export async function PATCH(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
     }
 
-    if (body.report_alias !== undefined) {
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    }
+
+    if (body.report_alias !== undefined || body.display_name !== undefined) {
+      if ((body.report_alias != null && typeof body.report_alias !== "string") ||
+          (body.display_name != null && typeof body.display_name !== "string")) {
+        return NextResponse.json({ error: "Name and report alias must be text." }, { status: 400 });
+      }
       const reportAlias = normalizeReportAlias(body.report_alias);
+      const displayName = body.display_name?.trim() || null;
+
+      if (displayName && displayName.length > 100) {
+        return NextResponse.json({ error: "Name must be 100 characters or fewer." }, { status: 400 });
+      }
 
       if (reportAlias && reportAlias.length > 32) {
         return NextResponse.json({ error: "Report alias must be 32 characters or fewer." }, { status: 400 });
@@ -119,13 +132,17 @@ export async function PATCH(request: Request, context: RouteContext) {
       const supabase = await createClient();
       const { data, error: updateError } = await supabase
         .from("profiles")
-        .update({ report_alias: reportAlias, updated_at: new Date().toISOString() })
+        .update({
+          ...(body.report_alias !== undefined ? { report_alias: reportAlias } : {}),
+          ...(body.display_name !== undefined ? { display_name: displayName } : {}),
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", id)
-        .select("id, email, report_alias")
+        .select("id, email, display_name, report_alias")
         .maybeSingle();
 
       if (updateError) {
-        console.error("Report alias update failed:", updateError);
+        console.error("User profile update failed:", updateError);
 
         if (updateError.message.includes("report_alias")) {
           return NextResponse.json(
@@ -134,14 +151,14 @@ export async function PATCH(request: Request, context: RouteContext) {
           );
         }
 
-        return NextResponse.json({ error: "Could not update report alias." }, { status: 500 });
+        return NextResponse.json({ error: "Could not update user." }, { status: 500 });
       }
 
       if (!data) {
         return NextResponse.json({ error: "User not found." }, { status: 404 });
       }
 
-      return NextResponse.json({ ok: true, report_alias: data.report_alias });
+      return NextResponse.json({ ok: true, display_name: data.display_name, report_alias: data.report_alias });
     }
 
     if (id === auth.profile.id) {
