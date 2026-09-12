@@ -44,7 +44,8 @@ confirm no independently running legacy publisher/deploy hook is active.
 
 `release-support.mjs` adapts the same TPL source: different phase names and no TPL-only
 schema inventory/generated Next-type inputs. Hashing, receipt matching, atomic writes,
-subprocess handling and final main/HEAD/cleanliness assertions are retained.
+final main/HEAD/cleanliness assertions are retained. Async subprocess cancellation
+waits for child close before releasing ownership, including abort errors.
 The M2MEC publisher does not use TPL cloud certification, schema-health endpoint or
 inside-lock integration. Those capabilities do not exist here; SQL compatibility and
 application acceptance are explicit coordinator pre/postflight in the Creator handoff.
@@ -73,7 +74,12 @@ original receipt may retain its recorded pre-push main when current main equals 
 exact certified HEAD and that recorded base is still its ancestor. Every other input
 must match; this exception cannot certify a newer/unrelated main or changed source.
 
-SIGINT/SIGTERM request cancellation. Every polling cycle checks cancellation and lock
+SIGINT/SIGTERM request cancellation. Vercel subprocesses are asynchronous and
+abortable; after final synchronous hashing/Git checks an event-loop checkpoint
+processes pending signals before the asynchronous abortable main push starts.
+A stopped manifest distinguishes `not_started`, `uncertain` (push began but did not
+return successfully), `confirmed`, and `already_at_head`. Interruption after push
+begins must never be described as proof that nothing was published. Every polling cycle checks cancellation and lock
 ownership; the finally block removes only its own queue ticket. A crash or SIGKILL
 may strand a ticket. The coordinator must verify that exact owner process is gone and
 no push/deployment step is still running before an explicitly reviewed CAS removal of
@@ -86,5 +92,9 @@ Focused validation: three guard tests use a temporary local bare Git remote for 
 FIFO/CAS ownership transfer, plus input/receipt drift and deployment-identity rejection.
 `/private/tmp/m2mec-release-guard-focused.log` actual exit 0;
 `/private/tmp/m2mec-release-guard-eslint.log` focused lint actual exit 0.
-No full certification, main push, deployment, SQL or configuration mutation has been
-performed while preparing this path. The coordinator must separately approve it.
+Publisher-level regressions preserve the actual publisher source while replacing
+external IO with hermetic fixtures. SIGTERM during project metadata verification
+and final input hashing cannot start a push; SIGTERM after push begins records
+an uncertain outcome. `/private/tmp/m2mec-release-cancellation-focused.log`: six
+guard/orchestration cases, actual exit 0. No full certification, main push,
+deployment, SQL or configuration mutation has been performed while preparing this path. The coordinator must separately approve it.

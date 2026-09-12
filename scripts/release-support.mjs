@@ -90,9 +90,13 @@ export function assertReleaseSnapshot({ initialMain, finalMain, head, currentHea
 export function runAsync(cmd, args, options = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, args, { stdio: 'inherit', ...options });
-    child.once('error', reject);
+    let processError;
+    child.once('error', error => { processError = error; });
     child.once('close', (code, signal) => {
-      if (code === 0) resolve();
+      // Abort emits error before close. Keep release ownership until the actual
+      // child has closed; an interrupted Git push may have reached the remote.
+      if (processError) reject(processError);
+      else if (code === 0) resolve();
       else reject(new Error(`${cmd} ${args.join(' ')} failed (exit ${code}, signal ${signal})`));
     });
   });

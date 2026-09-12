@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { acquireRelease } from './release-queue.mjs';
-import { atomicJson, git, receiptPath, validationInputs, assertReleaseSnapshot } from './release-support.mjs';
+import { atomicJson, git, runAsync, receiptPath, validationInputs, assertReleaseSnapshot } from './release-support.mjs';
 import { requireDeploymentIdentity, matchesPublicationReceipt } from './release-verification.mjs';
 
 const project = 'm2-mec';
@@ -15,13 +15,26 @@ process.on('SIGINT', stop); process.on('SIGTERM', stop);
 let lock;
 let head;
 let published = false;
+let publicationOutcome = 'not_started';
 const pause = () => new Promise(resolve => setTimeout(resolve, 5000));
 function checkInterrupted() { if (controller.signal.aborted) throw new Error('Release interrupted'); }
-function vercel(args) {
+async function vercel(args) {
   checkInterrupted();
-  const result = spawnSync('npx', ['--yes', 'vercel@59.16.0', ...args, '--scope', scope], { encoding: 'utf8', timeout: 60000 });
-  if (result.error || result.status !== 0) throw new Error(`Vercel ${args[0]} failed (exit ${result.status})`);
-  try { return JSON.parse(result.stdout); } catch { throw new Error('Vercel returned invalid JSON'); }
+  const output = await new Promise((resolve, reject) => {
+    const child = spawn('npx', ['--yes', 'vercel@59.16.0', ...args, '--scope', scope], {
+      stdio: ['ignore', 'pipe', 'ignore'], signal: controller.signal, timeout: 60000,
+    });
+    let body = ''; let bytes = 0;
+    child.stdout.on('data', chunk => {
+      bytes += chunk.length;
+      if (bytes > 8 * 1024 * 1024) { child.kill(); reject(new Error('Vercel response exceeds release metadata limit')); }
+      else body += chunk.toString();
+    });
+    child.once('error', () => reject(new Error(`Vercel ${args[0]} interrupted or could not start`)));
+    child.once('close', code => code === 0 ? resolve(body) : reject(new Error(`Vercel ${args[0]} failed (exit ${code})`)));
+  });
+  checkInterrupted();
+  try { return JSON.parse(output); } catch { throw new Error('Vercel returned invalid JSON'); }
 }
 function ancestor(main, commit) {
   return spawnSync('git', ['merge-base', '--is-ancestor', main, commit]).status === 0;
@@ -55,7 +68,7 @@ try {
   git('fetch', 'origin', '--prune');
   const initialMain = git('rev-parse', 'origin/main');
   exactReceipt();
-  const projectInfo = vercel(['api', `/v9/projects/${projectId}`, '--raw']);
+  const projectInfo = await vercel(['api', `/v9/projects/${projectId}`, '--raw']);
   if (projectInfo.id !== projectId || projectInfo.name !== project || projectInfo.link?.type !== 'github' || projectInfo.link?.org !== 'EgDigital28' || projectInfo.link?.repo !== 'M2MEC' || projectInfo.link?.productionBranch !== 'main') throw new Error('Vercel project Git identity mismatch');
   git('fetch', 'origin', '--prune');
   const finalMain = git('rev-parse', 'origin/main');
@@ -63,20 +76,26 @@ try {
   lock.assertOwned(); checkInterrupted();
   assertReleaseSnapshot({ initialMain, finalMain, head, currentHead: git('rev-parse', 'HEAD'), clean: !git('status', '--porcelain'), ancestor: ancestor(finalMain, head) });
   if (git('branch', '--show-current') !== branch || git('rev-parse', `origin/${branch}`) !== head) throw new Error('Feature branch changed before publication');
+  // Synchronous hashing/Git ownership checks may have queued an OS signal.
+  // Yield before publication, then pass the same cancellation signal to Git.
+  await new Promise(resolve => setImmediate(resolve));
+  checkInterrupted();
   if (finalMain !== head) {
     // Ordinary non-force push; remote main movement is rejected by Git. No merge/rebase/revalidation inside publication.
-    git('push', 'origin', `${head}:refs/heads/main`); published = true;
+    publicationOutcome = 'uncertain';
+    await runAsync('git', ['push', 'origin', `${head}:refs/heads/main`], { cwd: process.cwd(), env: process.env, signal: controller.signal }); published = true; publicationOutcome = 'confirmed';
   }
+  else publicationOutcome = 'already_at_head';
   git('fetch', 'origin', '--prune');
   if (git('rev-parse', 'origin/main') !== head) throw new Error('Remote main differs after publication');
   const deadline = Date.now() + 10 * 60000;
   let deployment;
   while (Date.now() < deadline) {
     checkInterrupted(); lock.assertOwned();
-    const listing = vercel(['list', project, '--meta', `githubCommitSha=${head}`, '--json', '--limit', '20']);
+    const listing = await vercel(['list', project, '--meta', `githubCommitSha=${head}`, '--json', '--limit', '20']);
     deployment = (listing.deployments ?? []).filter(item => item.meta?.githubCommitRef === 'main' && item.meta?.githubCommitSha === head).sort((a,b) => Number(b.createdAt ?? 0) - Number(a.createdAt ?? 0))[0];
     if (deployment) {
-      const inspected = vercel(['api', `/v13/deployments/${encodeURIComponent(deployment.url)}`, '--raw']);
+      const inspected = await vercel(['api', `/v13/deployments/${encodeURIComponent(deployment.url)}`, '--raw']);
       if (['ERROR', 'CANCELED'].includes(inspected.readyState)) throw new Error(`Deployment entered ${inspected.readyState}`);
       if (inspected.readyState === 'READY') { requireDeploymentIdentity(inspected, head, projectId); deployment = inspected; break; }
     }
@@ -87,7 +106,7 @@ try {
     let matched = false;
     while (Date.now() < deadline) {
       checkInterrupted(); lock.assertOwned();
-      const deployed = vercel(['api', `/v13/deployments/${encodeURIComponent(new URL(alias).hostname)}`, '--raw']);
+      const deployed = await vercel(['api', `/v13/deployments/${encodeURIComponent(new URL(alias).hostname)}`, '--raw']);
       if (deployed.id === deployment.id) { requireDeploymentIdentity(deployed, head, projectId); matched = true; break; }
       await pause();
     }
@@ -95,10 +114,10 @@ try {
   }
   git('fetch', 'origin', '--prune');
   if (git('rev-parse', 'origin/main') !== head) throw new Error('Main advanced after deployment');
-  atomicJson(`.release/manifests/${head}.json`, { status: 'READY', commit: head, initialMain, published, deploymentId: deployment.id, deploymentUrl: `https://${deployment.url}`, aliases, queueTicket: lock.ticket, validation: receipt, verifiedAt: new Date().toISOString() });
+  atomicJson(`.release/manifests/${head}.json`, { status: 'READY', commit: head, initialMain, published, publicationOutcome, deploymentId: deployment.id, deploymentUrl: `https://${deployment.url}`, aliases, queueTicket: lock.ticket, validation: receipt, verifiedAt: new Date().toISOString() });
   console.log(`Verified Production deployment ${deployment.id} at exact commit ${head}; application/SQL acceptance is separate.`);
 } catch (error) {
-  atomicJson('.release/manifests/latest-attempt.json', { status: 'stopped', commit: head ?? null, published, queueTicket: lock?.ticket ?? null });
+  atomicJson('.release/manifests/latest-attempt.json', { status: 'stopped', commit: head ?? null, published, publicationOutcome, queueTicket: lock?.ticket ?? null });
   console.error(error instanceof Error ? error.message : String(error)); process.exitCode = 1;
 } finally {
   if (lock) { try { await lock.release(); } catch { console.error('Remote queue cleanup failed; explicit ticket recovery required'); process.exitCode = 1; } }
