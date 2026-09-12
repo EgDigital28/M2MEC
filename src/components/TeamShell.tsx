@@ -9,12 +9,14 @@ import { TeamSignOut } from "@/components/TeamSignOut";
 
 type TeamShellProps = {
   profile: Profile;
+  creatorFeedAccess?: boolean;
   children: React.ReactNode;
 };
 
-export function TeamShell({ profile, children }: TeamShellProps) {
+export function TeamShell({ profile, children, creatorFeedAccess = false }: TeamShellProps) {
   const pathname = usePathname();
   const navItems = getTeamNavItems(profile.tier);
+  if (creatorFeedAccess) navItems.splice(2, 0, { label: "Prediction Ledger", href: "/team/prediction-ledger" });
 
   return (
     <div className="min-h-screen bg-background">
