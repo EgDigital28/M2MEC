@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { RefreshCreatorFeed } from "@/components/refresh-creator-feed";
 import { notFound } from "next/navigation";
+import { partnerLegLabel } from "@/lib/creator/protocol";
 import { canViewCreatorFeed } from "@/lib/creator/access";
 import { createClient } from "@/lib/supabase/server";
 
@@ -43,7 +44,7 @@ export default async function PredictionLedgerPage({ searchParams }: { searchPar
           <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted">{text(creator.displayName)} · {text(record.visibility)}</p><span className="rounded-full border border-border px-3 py-1 text-xs capitalize">{state.replaceAll("_", " ")}</span></div>
           <h2 className="mt-3 text-xl font-semibold">{text(record.headline)}</h2>
           {kind === "pick" ? <><p className="mt-2 text-sm">{String(record.units)}U · {record.oddsAmerican == null ? "Price unavailable" : `${Number(record.oddsAmerican) > 0 ? "+" : ""}${String(record.oddsAmerican)}`} · {text(record.pickType)}</p>
-            <ol className="mt-4 grid gap-2">{legs.map((leg, index) => <li key={index} className="rounded-lg border border-border p-3"><p>{text(leg.selection)} {leg.line == null ? "" : `${Number(leg.line) > 0 ? "+" : ""}${String(leg.line)}`} · {text(leg.marketType).replaceAll("_", " ")}</p><p className="mt-1 text-sm text-muted">{text(leg.eventName)} · {time(leg.startsAt)}</p>{leg.grade ? <p className="mt-1 text-xs text-muted">Leg: {text(leg.grade)}</p> : null}</li>)}</ol>
+            <ol className="mt-4 grid gap-2">{legs.map((leg, index) => <li key={index} className="rounded-lg border border-border p-3"><p>{partnerLegLabel(leg)} · {text(leg.marketType).replaceAll("_", " ")}</p><p className="mt-1 text-sm text-muted">{text(leg.eventName)} · {time(leg.startsAt)}</p>{leg.grade ? <p className="mt-1 text-xs text-muted">Leg: {text(leg.grade)}</p> : null}</li>)}</ol>
           </> : <p className="mt-3 text-sm">{Array.isArray(record.pickIds) ? record.pickIds.length : 0} plays · {text(record.currency)} {(Number(record.priceCents) / 100).toFixed(2)} · {time(record.startsAt)} – {time(record.endsAt)}</p>}
           {kind === "package" && Array.isArray(record.pickIds) ? <ol className="mt-3 grid gap-2 text-sm">{record.pickIds.map((id, index) => <li key={String(id)}><Link href={`?kind=pick&entity=${encodeURIComponent(String(id))}`} className="text-accent underline">View play {index + 1} and its current grade</Link></li>)}</ol> : null}
           {record.analysis ? <p className="mt-4 whitespace-pre-wrap text-sm leading-6">{text(record.analysis)}</p> : null}

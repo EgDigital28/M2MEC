@@ -50,6 +50,16 @@ export function parsePartnerEvent(raw: string): PartnerEvent {
       if (!object(leg) || !uuid.test(String(leg.eventId)) || !text(leg.eventName, 500)
         || !text(leg.selection, 500) || !text(leg.marketType, 100)
         || !Number.isInteger(leg.position) || Number(leg.position) < 0) throw new Error("Invalid partner wager leg");
+      for (const key of ["period", "direction", "marketStatType", "marketOutcome", "mmaMarketCategory", "mmaSelectionScope", "mmaFinishMethod", "mmaDistanceDirection", "mmaTotalDirection"]) {
+        if (leg[key] != null && !text(leg[key], 120)) throw new Error("Invalid partner market semantics");
+      }
+      for (const key of ["selectedSportTeamId", "selectedSportPlayerId", "selectedFootballTeamId", "selectedFootballPlayerId", "selectedTennisParticipantId", "selectedMmaFighterId"]) {
+        if (leg[key] != null && (typeof leg[key] !== "string" || !uuid.test(leg[key]))) throw new Error("Invalid partner participant identity");
+      }
+      for (const key of ["line", "mmaRound", "mmaTotalRounds"]) {
+        if (leg[key] != null && (typeof leg[key] !== "number" || !Number.isFinite(leg[key]))) throw new Error("Invalid partner market number");
+      }
+      if (leg.mmaRounds != null && (!Array.isArray(leg.mmaRounds) || leg.mmaRounds.length > 12 || !leg.mmaRounds.every((round) => Number.isInteger(round) && Number(round) > 0))) throw new Error("Invalid partner round group");
     }
     if (new Set(record.legs.map((leg) => (leg as Record<string, unknown>).position)).size !== record.legs.length) throw new Error("Duplicate leg positions");
   } else if (!uuid.test(String(record.productId)) || !["published", "withdrawn"].includes(String(record.status))
@@ -75,4 +85,23 @@ export function verifyPartnerRequest(raw: string, secret: string, timestamp: str
     || Math.abs(now / 1000 - Number(timestamp)) > 300) return false;
   const expected = signPartnerRequest(raw, secret, timestamp).signature;
   return timingSafeEqual(Buffer.from(signature, "hex"), Buffer.from(expected, "hex"));
+}
+
+
+/** Human-readable wager terms, from the same bounded canonical fields on the wire. */
+export function partnerLegLabel(leg: Record<string, unknown>) {
+  const words = (value: unknown) => typeof value === "string" ? value.replaceAll("_", " ") : "";
+  const parts = [words(leg.selection)];
+  const mmaTotal = leg.mmaTotalRounds != null || leg.mmaTotalDirection != null;
+  const line = typeof leg.line === "number" ? `${leg.line > 0 && ["spread", "handicap", "run_line", "game_spread", "set_spread"].includes(String(leg.marketType)) ? "+" : ""}${leg.line}` : "";
+  if (!mmaTotal) parts.push([words(leg.direction), line, words(leg.marketStatType)].filter(Boolean).join(" "));
+  if (leg.marketOutcome) parts.push(words(leg.marketOutcome));
+  if (leg.mmaFinishMethod) parts.push(`by ${words(leg.mmaFinishMethod)}`);
+  if (leg.mmaRound != null) parts.push(`round ${leg.mmaRound}`);
+  if (Array.isArray(leg.mmaRounds) && leg.mmaRounds.length) parts.push(`rounds ${leg.mmaRounds.join(", ")}`);
+  if (leg.mmaDistanceDirection) parts.push(`${words(leg.mmaDistanceDirection)} distance`);
+  if (mmaTotal) parts.push([words(leg.mmaTotalDirection), leg.mmaTotalRounds, "rounds"].filter((value) => value !== null && value !== undefined && value !== "").join(" "));
+  if (leg.mmaMarketCategory && !leg.mmaFinishMethod && !leg.mmaRound && !leg.mmaDistanceDirection && !mmaTotal) parts.push(words(leg.mmaMarketCategory));
+  if (leg.period) parts.push(words(leg.period));
+  return [...new Set(parts.filter(Boolean))].join(" · ");
 }

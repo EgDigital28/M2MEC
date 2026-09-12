@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
 import { receiveCreatorEvent } from "./receiver.ts";
-import { parsePartnerEvent, partnerBodyDigest, signPartnerRequest, verifyPartnerRequest } from "./protocol.ts";
+import { parsePartnerEvent, partnerLegLabel, partnerBodyDigest, signPartnerRequest, verifyPartnerRequest } from "./protocol.ts";
 
 const migration = readFileSync(new URL("../../../supabase/migrations/20260912213839_add_creator_partner_feed.sql", import.meta.url), "utf8");
 const owner = "10000000-0000-4000-8000-000000000001";
@@ -102,5 +102,29 @@ test("the HTTP receiver authenticates before persistence and returns the durable
     const replay = await receiveCreatorEvent(request(), secret, persist);
     assert.equal((await replay.json()).duplicate, true);
     assert.equal((await db.query("select * from creator_partner_entities")).rows.length, 1);
+  } finally { await db.close(); }
+});
+
+
+test("receiver retains complete multi-leg prop, total and MMA wager semantics for display", async () => {
+  const db = await setup();
+  try {
+    await db.exec("set role service_role");
+    const wager = event();
+    const legs = [
+      { position: 0, eventId: other, eventName: "A vs B", selection: "Player A", marketType: "player_prop", direction: "under", line: 5.5, marketStatType: "assists", selectedSportPlayerId: owner },
+      { position: 1, eventId: other, eventName: "A vs B", selection: "Team A", marketType: "team_total", direction: "over", line: 20.5, period: "first_half", selectedFootballTeamId: owner },
+      { position: 2, eventId: other, eventName: "C vs D", selection: "Fighter C", marketType: "mma_prop", mmaMarketCategory: "method", mmaSelectionScope: "fighter", mmaFinishMethod: "submission", mmaRounds: [1, 2], marketOutcome: "yes", selectedMmaFighterId: owner },
+      { position: 3, eventId: other, eventName: "E vs F", selection: "Fight", marketType: "mma_prop", mmaTotalDirection: "under", mmaTotalRounds: 2.5 },
+    ];
+    wager.record.pickType = "parlay"; wager.record.legs = legs;
+    await accept(db, wager);
+    const stored = (await db.query<{ record: { legs: Record<string, unknown>[] } }>("select record from creator_partner_entities")).rows[0]!.record;
+    assert.deepEqual(stored.legs, legs);
+    assert.match(partnerLegLabel(stored.legs[0]!), /under 5.5 assists/);
+    assert.match(partnerLegLabel(stored.legs[1]!), /over 20.5.*first half/);
+    assert.match(partnerLegLabel(stored.legs[2]!), /by submission.*rounds 1, 2/);
+    assert.match(partnerLegLabel(stored.legs[3]!), /under 2.5 rounds/);
+    assert.throws(() => parsePartnerEvent(JSON.stringify({ ...wager, record: { ...wager.record, legs: [{ ...legs[0], marketStatType: "x".repeat(121) }, legs[1]] } })), /market semantics/);
   } finally { await db.close(); }
 });

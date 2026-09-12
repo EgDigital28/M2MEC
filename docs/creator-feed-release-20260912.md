@@ -13,6 +13,10 @@ TPL adds an explicitly connected M2MEC destination, a transactional versioned ou
 owner delivery history/retry, package publication/withdrawal, Creator origin badges,
 and the existing handicapper profile link. The same recurring Creator delivery job
 sends lifecycle updates every minute using its existing admission and lease controls.
+Generic and partner lanes start independently under the same bounded invocation;
+unstarted partner claims are CAS-deferred without consuming transport attempts.
+Canonical prop, total, participant and MMA wager terms survive signed snapshots
+and the destination display.
 Retraction and correction retain receipts and use existing before-start/change locks.
 
 The Bet navigation and private receipt flow reuse reviewed canonical Creator matching
@@ -41,8 +45,8 @@ migration's inventory entry or relax publication/grading guards.
 
 | Repo | File | SHA-256 | Bytes | Initial status |
 | --- | --- | --- | ---: | --- |
-| TPL | `supabase/migrations/20260912213838_add_creator_m2mec_outbox.sql` | `cb579aeceea0e8bb12003b31e15d776f00f687bcf04356635bc43b96743699ca` | 26816 | Unapplied |
-| TPL | `supabase/migrations/20260912220740_add_creator_bet_receipts.sql` | `cc3ba8b6d74a4843793bbadebc0d26a1a93c909aa804ed7abfeec7d963e9c795` | 21096 | Unapplied |
+| TPL | `supabase/migrations/20260912213838_add_creator_m2mec_outbox.sql` | `e1e8ea7a4b30382240006194d48ca931135153d606ec198e94e19884c89664ed` | 28668 | Unapplied |
+| TPL | `supabase/migrations/20260912220740_add_creator_bet_receipts.sql` | `24deac190866cfe0b35d7c4030794665dbdade43a608be6c0a329e342596f574` | 21991 | Unapplied |
 | TPL | `supabase/creator-m2mec-bet-enable-test-20260912.sql` | `a67af7fc6f439ba87aaad52f4031ff9a8871f2155977893b524e11d1b4224de4` | 1673 | Unapplied |
 | M2MEC | `supabase/migrations/20260912213839_add_creator_partner_feed.sql` | `7612af5a48a137f97d65a097b02b39ea4e2bd90feada3c38fc0416d908d6f4f9` | 6954 | Unapplied |
 | M2MEC | `supabase/creator-feed-enable-test-viewer-20260912.sql` | `6071fe430c061f7bcd6544d77a8a9076ed3da6598a3683d44af6415455577848` | 823 | Unapplied |
@@ -93,8 +97,21 @@ Bet tests execute the actual new receipt RPC, controls, origin/privacy triggers,
 RLS and monetary validations around a contract fixture for the existing publisher.
 They prove atomic rollback, private Bet provenance, stable retry, default units
 separate from cash, cross-owner rejection and that disabling manual entry leaves
-slip-backed recording enabled. They do not execute the entire Production Creator
-publisher/trigger graph or call live OCR. A fixture is not a live acceptance receipt.
+slip-backed recording enabled. Separate integration tests execute the actual historical
+ticket and parent publisher functions, the urgent pick-type guard, and existing
+editorial/designation/immutability triggers. Same-event parlays retain distinct prices;
+different-event legs retain independent live intent; ambiguous reviewed confirmations
+bind to the frozen resolved event. Missing or duplicate frozen identities roll back.
+The minimal surrounding schema and name/league/key helper functions are fixtures,
+not the entire Production graph; live OCR is not called. A fixture is not live acceptance.
+
+Review correction focused results (actual process exit 0):
+- `/private/tmp/creator-review-delta-focused.log`: original 12-case run had one test SQL parameter-cast failure; all publisher, transport and lane cases passed.
+- `/private/tmp/creator-review-delta-recheck.log`: corrected outbox/Bet subset, seven cases passed including atomic identity mismatch and deferred-lease CAS.
+- `/private/tmp/m2mec-review-delta-focused.log`: four receiver/RLS/roundtrip cases passed.
+- `/private/tmp/creator-review-delta-eslint.log` and `/private/tmp/m2mec-review-delta-eslint.log`: focused lint.
+The initial failure was a test query UUID/text parameter inference issue; no failed
+check is represented as a successful certification.
 
 Existing affected Creator destination, upload quota/timeout, event-correction,
 workspace and delivery-route regression checks are included in focused validation.
