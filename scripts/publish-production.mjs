@@ -18,22 +18,30 @@ let published = false;
 let publicationOutcome = 'not_started';
 const pause = () => new Promise(resolve => setTimeout(resolve, 5000));
 function checkInterrupted() { if (controller.signal.aborted) throw new Error('Release interrupted'); }
-async function vercel(args) {
+async function capture(command, args) {
   checkInterrupted();
   const output = await new Promise((resolve, reject) => {
-    const child = spawn('npx', ['--yes', 'vercel@59.16.0', ...args, '--scope', scope], {
+    const child = spawn(command, args, {
       stdio: ['ignore', 'pipe', 'ignore'], signal: controller.signal, timeout: 60000,
     });
-    let body = ''; let bytes = 0;
+    let body = ''; let bytes = 0; let processError;
     child.stdout.on('data', chunk => {
       bytes += chunk.length;
-      if (bytes > 8 * 1024 * 1024) { child.kill(); reject(new Error('Vercel response exceeds release metadata limit')); }
+      if (bytes > 8 * 1024 * 1024) { processError = new Error('Release metadata response exceeds limit'); child.kill(); }
       else body += chunk.toString();
     });
-    child.once('error', () => reject(new Error(`Vercel ${args[0]} interrupted or could not start`)));
-    child.once('close', code => code === 0 ? resolve(body) : reject(new Error(`Vercel ${args[0]} failed (exit ${code})`)));
+    child.once('error', error => { processError = error; });
+    child.once('close', code => {
+      if (processError) reject(new Error(`${command} interrupted or could not complete`));
+      else if (code === 0) resolve(body);
+      else reject(new Error(`${command} failed (exit ${code})`));
+    });
   });
   checkInterrupted();
+  return output;
+}
+async function vercel(args) {
+  const output = await capture('npx', ['--yes', 'vercel@59.16.0', ...args, '--scope', scope]);
   try { return JSON.parse(output); } catch { throw new Error('Vercel returned invalid JSON'); }
 }
 function ancestor(main, commit) {
@@ -79,6 +87,12 @@ try {
   // Synchronous hashing/Git ownership checks may have queued an OS signal.
   // Yield before publication, then pass the same cancellation signal to Git.
   await new Promise(resolve => setImmediate(resolve));
+  checkInterrupted();
+  // A check-phase callback alone can precede queued OS signal delivery. Finish
+  // a cancellable read-only child IO boundary before any publication child.
+  const remoteRefs = await capture('git', ['ls-remote', 'origin', 'refs/heads/main', `refs/heads/${branch}`]);
+  const remoteHeads = new Map(remoteRefs.trim().split('\n').map(line => { const [sha, ref] = line.split(/\s+/); return [ref, sha]; }));
+  if (remoteHeads.size !== 2 || remoteHeads.get('refs/heads/main') !== finalMain || remoteHeads.get(`refs/heads/${branch}`) !== head) throw new Error('Remote main or feature changed at final publication boundary');
   checkInterrupted();
   if (finalMain !== head) {
     // Ordinary non-force push; remote main movement is rejected by Git. No merge/rebase/revalidation inside publication.

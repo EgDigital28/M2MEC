@@ -98,3 +98,21 @@ and final input hashing cannot start a push; SIGTERM after push begins records
 an uncertain outcome. `/private/tmp/m2mec-release-cancellation-focused.log`: six
 guard/orchestration cases, actual exit 0. No full certification, main push,
 deployment, SQL or configuration mutation has been performed while preparing this path. The coordinator must separately approve it.
+
+
+### Canonical cancellation timing correction
+
+The first canonical run exposed a timing race in the single check-phase checkpoint:
+a queued signal could arrive only after the push child was requested, producing an
+uncertain outcome. The successor finishes an asynchronous, abortable, read-only
+`git ls-remote` child after all synchronous hashing/ownership work. It verifies both
+remote main and the pushed feature SHA, waits for child close, and checks cancellation
+before starting the publication child. No long synchronous chain follows that IO
+boundary. Both SIGINT and SIGTERM are covered before publication and after push starts;
+genuinely started but interrupted pushes retain uncertain status. Canonical failure
+is retained at `/private/tmp/m2mec-canonical-3ab7b067.log`; no failed run is certified.
+
+Focused successor evidence: `/private/tmp/m2mec-final-boundary-focused.log` (11 guard/orchestration cases),
+`/private/tmp/m2mec-final-boundary-stress.log` (20 repetitions, 40 final-inputs
+SIGINT/SIGTERM cases, all exit 0), and `/private/tmp/m2mec-final-boundary-eslint.log`.
+Remote main and remote feature movement are independently rejected before publication.
