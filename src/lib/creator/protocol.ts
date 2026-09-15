@@ -40,9 +40,18 @@ export function parsePartnerEvent(raw: string): PartnerEvent {
   if (profile.origin !== "https://www.thepredictionledger.com" || !profile.pathname.startsWith("/handicappers/")) throw new Error("Invalid Creator profile URL");
   if (value.entityType !== "bet" && (record.recordKind === "bet" || record.bet != null)) throw new Error("Invalid partner Bet entity type");
   if (value.entityType === "bet") {
+    // Reject unknown fields rather than sanitizing: signed bytes and durable receipt digests must agree.
+    const onlyKeys = (obj: Record<string, unknown>, keys: string[]) => Object.keys(obj).every((key) => keys.includes(key));
+    if (!onlyKeys(value, ["schemaVersion", "source", "eventId", "entityType", "entityId", "entityVersion", "occurredAt", "creatorId", "destinationId", "record"])
+      || !onlyKeys(record, ["id", "creator", "ledgerPickId", "visibility", "headline", "publicationStatus", "pickType", "units", "oddsAmerican", "publishedAt", "grade", "gradedAt", "replacementCreatorPickId", "correctionOfCreatorPickId", "legs", "recordKind", "creatorPickId", "bet"])
+      || !onlyKeys(record.creator, ["id", "handicapperId", "displayName", "profileUrl"])) throw new Error("Invalid partner Bet fields");
+    if (Array.isArray(record.legs)) for (const leg of record.legs) {
+      if (!object(leg) || !onlyKeys(leg, ["position", "eventId", "eventName", "sport", "league", "startsAt", "selection", "marketType", "period", "line", "direction", "marketStatType", "marketOutcome", "selectedSportTeamId", "selectedSportPlayerId", "selectedFootballTeamId", "selectedFootballPlayerId", "selectedTennisParticipantId", "selectedMmaFighterId", "mmaMarketCategory", "mmaSelectionScope", "mmaFinishMethod", "mmaRound", "mmaRounds", "mmaDistanceDirection", "mmaTotalDirection", "mmaTotalRounds", "grade", "gradeComponents", "acceptedOddsAmerican", "isLive"])
+        || (leg.gradeComponents != null && (!Array.isArray(leg.gradeComponents) || !leg.gradeComponents.every((component) => object(component) && onlyKeys(component, ["dimension", "status"]))))) throw new Error("Invalid partner Bet leg fields");
+    }
     const bet = record.bet;
     const amount = (v: unknown, signed = false) => typeof v === "string" && (signed ? /^-?\d{1,14}(\.\d{1,4})?$/ : /^\d{1,14}(\.\d{1,4})?$/).test(v);
-    if (record.recordKind !== "bet" || !uuid.test(String(record.creatorPickId)) || !object(bet) || bet.id !== value.entityId
+    if (record.headline !== (record.pickType === "parlay" ? "Parlay Bet" : "Single Bet") || record.recordKind !== "bet" || !uuid.test(String(record.creatorPickId)) || !object(bet) || bet.id !== value.entityId
       || !text(bet.sportsbook, 200) || !/^[A-Z]{3}$/.test(String(bet.currency))
       || !amount(bet.cashStake) || !amount(bet.bonusStake) || Number(bet.cashStake) > 100_000_000 || Number(bet.bonusStake) > 100_000_000 || Number(bet.cashStake) + Number(bet.bonusStake) <= 0
       || !["manual_test", "betslip_upload", "sportsbook_import"].includes(String(bet.sourceMethod))
@@ -53,7 +62,7 @@ export function parsePartnerEvent(raw: string): PartnerEvent {
       || (bet.settledAt != null && (!text(bet.settledAt, 40) || !Number.isFinite(Date.parse(String(bet.settledAt)))))
       || ["potentialReturn", "settledReturn"].some((key) => bet[key] != null && !amount(bet[key]))
       || (bet.settledNet != null && !amount(bet.settledNet, true))
-      || ["accountId", "accountLabel", "ticketNumber", "notes", "evidenceId", "providerTicketId"].some((key) => key in bet)) throw new Error("Invalid partner Bet receipt");
+      || !onlyKeys(bet, ["id", "sourceMethod", "verificationStatus", "sportsbook", "currency", "cashStake", "bonusStake", "potentialReturn", "settledReturn", "settledNet", "placedAt", "recordedAt", "settledAt", "providerStatus"])) throw new Error("Invalid partner Bet receipt");
   }
   if (value.entityType === "pick" || value.entityType === "bet") {
     if (!uuid.test(String(record.ledgerPickId)) || !["published", "corrected", "retracted"].includes(String(record.publicationStatus))
