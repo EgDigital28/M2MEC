@@ -6,7 +6,7 @@ export type PartnerEvent = {
   schemaVersion: typeof PARTNER_PROTOCOL;
   source: "thepredictionledger";
   eventId: string;
-  entityType: "pick" | "package";
+  entityType: "pick" | "package" | "bet";
   entityId: string;
   entityVersion: number;
   occurredAt: string;
@@ -24,21 +24,47 @@ export function parsePartnerEvent(raw: string): PartnerEvent {
   const value: unknown = JSON.parse(raw);
   if (!object(value) || value.schemaVersion !== PARTNER_PROTOCOL || value.source !== "thepredictionledger"
     || ![value.eventId, value.entityId, value.creatorId, value.destinationId].every((id) => typeof id === "string" && uuid.test(id))
-    || !["pick", "package"].includes(String(value.entityType))
+    || !["pick", "package", "bet"].includes(String(value.entityType))
     || !Number.isSafeInteger(value.entityVersion) || Number(value.entityVersion) < 1
     || !text(value.occurredAt, 40) || !Number.isFinite(Date.parse(String(value.occurredAt)))
     || !object(value.record)) throw new Error("Invalid partner event envelope");
   const record = value.record;
   if (!object(record.creator) || record.creator.id !== value.creatorId
     || !text(record.creator.displayName, 200) || !text(record.creator.profileUrl, 500)
-    || !["public", "premium"].includes(String(record.visibility))
+    || !(value.entityType === "bet" ? record.visibility === "private" : ["public", "premium"].includes(String(record.visibility)))
     || record.id !== value.entityId || !text(record.headline, 200)
     || (record.analysis !== null && record.analysis !== undefined && (typeof record.analysis !== "string" || record.analysis.length > 6000))) {
     throw new Error("Invalid partner entity identity or editorial content");
   }
   const profile = new URL(String(record.creator.profileUrl));
   if (profile.origin !== "https://www.thepredictionledger.com" || !profile.pathname.startsWith("/handicappers/")) throw new Error("Invalid Creator profile URL");
-  if (value.entityType === "pick") {
+  if (value.entityType !== "bet" && (record.recordKind === "bet" || record.bet != null)) throw new Error("Invalid partner Bet entity type");
+  if (value.entityType === "bet") {
+    // Reject unknown fields rather than sanitizing: signed bytes and durable receipt digests must agree.
+    const onlyKeys = (obj: Record<string, unknown>, keys: string[]) => Object.keys(obj).every((key) => keys.includes(key));
+    if (!onlyKeys(value, ["schemaVersion", "source", "eventId", "entityType", "entityId", "entityVersion", "occurredAt", "creatorId", "destinationId", "record"])
+      || !onlyKeys(record, ["id", "creator", "ledgerPickId", "visibility", "headline", "publicationStatus", "pickType", "units", "oddsAmerican", "publishedAt", "grade", "gradedAt", "replacementCreatorPickId", "correctionOfCreatorPickId", "legs", "recordKind", "creatorPickId", "bet"])
+      || !onlyKeys(record.creator, ["id", "handicapperId", "displayName", "profileUrl"])) throw new Error("Invalid partner Bet fields");
+    if (Array.isArray(record.legs)) for (const leg of record.legs) {
+      if (!object(leg) || !onlyKeys(leg, ["position", "eventId", "eventName", "sport", "league", "startsAt", "selection", "marketType", "period", "line", "direction", "marketStatType", "marketOutcome", "selectedSportTeamId", "selectedSportPlayerId", "selectedFootballTeamId", "selectedFootballPlayerId", "selectedTennisParticipantId", "selectedMmaFighterId", "mmaMarketCategory", "mmaSelectionScope", "mmaFinishMethod", "mmaRound", "mmaRounds", "mmaDistanceDirection", "mmaTotalDirection", "mmaTotalRounds", "grade", "gradeComponents", "acceptedOddsAmerican", "isLive"])
+        || (leg.gradeComponents != null && (!Array.isArray(leg.gradeComponents) || !leg.gradeComponents.every((component) => object(component) && onlyKeys(component, ["dimension", "status"]))))) throw new Error("Invalid partner Bet leg fields");
+    }
+    const bet = record.bet;
+    const amount = (v: unknown, signed = false) => typeof v === "string" && (signed ? /^-?\d{1,14}(\.\d{1,4})?$/ : /^\d{1,14}(\.\d{1,4})?$/).test(v);
+    if (record.headline !== (record.pickType === "parlay" ? "Parlay Bet" : "Single Bet") || record.recordKind !== "bet" || !uuid.test(String(record.creatorPickId)) || !object(bet) || bet.id !== value.entityId
+      || !text(bet.sportsbook, 200) || !/^[A-Z]{3}$/.test(String(bet.currency))
+      || !amount(bet.cashStake) || !amount(bet.bonusStake) || Number(bet.cashStake) > 100_000_000 || Number(bet.bonusStake) > 100_000_000 || Number(bet.cashStake) + Number(bet.bonusStake) <= 0
+      || !["manual_test", "betslip_upload", "sportsbook_import"].includes(String(bet.sourceMethod))
+      || !["unverified", "receipt_reviewed", "sportsbook_verified", "mismatch", "revoked"].includes(String(bet.verificationStatus)) || !text(bet.providerStatus, 100)
+      || (bet.sourceMethod === "betslip_upload" && !["receipt_reviewed", "mismatch", "revoked"].includes(String(bet.verificationStatus)))
+      || (bet.sourceMethod === "manual_test" && bet.verificationStatus !== "unverified")
+      || ![bet.placedAt, bet.recordedAt].every((v) => text(v, 40) && Number.isFinite(Date.parse(String(v))))
+      || (bet.settledAt != null && (!text(bet.settledAt, 40) || !Number.isFinite(Date.parse(String(bet.settledAt)))))
+      || ["potentialReturn", "settledReturn"].some((key) => bet[key] != null && !amount(bet[key]))
+      || (bet.settledNet != null && !amount(bet.settledNet, true))
+      || !onlyKeys(bet, ["id", "sourceMethod", "verificationStatus", "sportsbook", "currency", "cashStake", "bonusStake", "potentialReturn", "settledReturn", "settledNet", "placedAt", "recordedAt", "settledAt", "providerStatus"])) throw new Error("Invalid partner Bet receipt");
+  }
+  if (value.entityType === "pick" || value.entityType === "bet") {
     if (!uuid.test(String(record.ledgerPickId)) || !["published", "corrected", "retracted"].includes(String(record.publicationStatus))
       || !["open", "won", "lost", "push", "void"].includes(String(record.grade))
       || !["single", "parlay"].includes(String(record.pickType))
@@ -56,6 +82,8 @@ export function parsePartnerEvent(raw: string): PartnerEvent {
       for (const key of ["selectedSportTeamId", "selectedSportPlayerId", "selectedFootballTeamId", "selectedFootballPlayerId", "selectedTennisParticipantId", "selectedMmaFighterId"]) {
         if (leg[key] != null && (typeof leg[key] !== "string" || !uuid.test(leg[key]))) throw new Error("Invalid partner participant identity");
       }
+      if (leg.isLive != null && typeof leg.isLive !== "boolean") throw new Error("Invalid Bet timing");
+      if (leg.acceptedOddsAmerican != null && (!Number.isInteger(leg.acceptedOddsAmerican) || Math.abs(Number(leg.acceptedOddsAmerican)) < 100)) throw new Error("Invalid Bet leg odds");
       for (const key of ["line", "mmaRound", "mmaTotalRounds"]) {
         if (leg[key] != null && (typeof leg[key] !== "number" || !Number.isFinite(leg[key]))) throw new Error("Invalid partner market number");
       }

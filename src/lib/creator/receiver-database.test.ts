@@ -26,9 +26,10 @@ async function setup() {
     grant select on profiles to authenticated,service_role;
     insert into profiles values('${owner}','admin',null),('${other}','admin',null);`);
   await db.exec(migration);
+  await db.exec(readFileSync(new URL("../../../supabase/migrations/20260914201913_accept_creator_partner_bets.sql", import.meta.url), "utf8"));
   return db;
 }
-async function accept(db: PGlite, value: ReturnType<typeof event>) {
+async function accept(db: PGlite, value: unknown) {
   const raw = JSON.stringify(value);
   const parsed = parsePartnerEvent(raw);
   return (await db.query<{ receipt: { receiptId: string; outcome: string; duplicate: boolean } }>("select accept_creator_partner_event($1::jsonb,$2) receipt", [JSON.stringify(parsed), partnerBodyDigest(raw)])).rows[0]!.receipt;
@@ -126,5 +127,41 @@ test("receiver retains complete multi-leg prop, total and MMA wager semantics fo
     assert.match(partnerLegLabel(stored.legs[2]!), /by submission.*rounds 1, 2/);
     assert.match(partnerLegLabel(stored.legs[3]!), /under 2.5 rounds/);
     assert.throws(() => parsePartnerEvent(JSON.stringify({ ...wager, record: { ...wager.record, legs: [{ ...legs[0], marketStatType: "x".repeat(121) }, legs[1]] } })), /market semantics/);
+  } finally { await db.close(); }
+});
+
+
+test("Bet receipts retain their type and private visibility through duplicate and later grade delivery", async () => {
+  const db = await setup();
+  try {
+    await db.exec("set role service_role");
+    const make = (version: number) => {
+      const value = event(version);
+      const { analysis: _analysis, ...wagerRecord } = value.record;
+      void _analysis;
+      return {...value, entityType:"bet", record:{...wagerRecord, headline:"Single Bet", visibility:"private", recordKind:"bet", creatorPickId:other,
+        bet:{id:entity,sourceMethod:"manual_test",verificationStatus:"unverified",sportsbook:"Test book",currency:"USD",cashStake:"25.0000",bonusStake:"0.0000",potentialReturn:"50.0000",placedAt:value.occurredAt,recordedAt:value.occurredAt,providerStatus:"self_reported"}}};
+    };
+    const first = make(1);
+    assert.equal((await accept(db, first)).outcome, "applied");
+    assert.equal((await accept(db, first)).duplicate, true);
+    for (const extra of [
+      {...first, notes: "private"},
+      {...first, record: {...first.record, analysis: "private"}},
+      {...first, record: {...first.record, product: {private: true}}},
+      {...first, record: {...first.record, notes: "private"}},
+      {...first, record: {...first.record, reason: "private"}},
+      {...first, record: {...first.record, headline: "PRIVATE_TICKET_MARKER"}},
+      {...first, record: {...first.record, creator: {...first.record.creator, email: "private@example.test"}}},
+      {...first, record: {...first.record, bet: {...first.record.bet, evidenceUrl: "https://private.example.test"}}},
+      {...first, record: {...first.record, legs: [{...first.record.legs[0], providerPayload: {private: true}}]}},
+      {...first, record: {...first.record, legs: [{...first.record.legs[0], gradeComponents: [{dimension: "leg", status: "won", notes: "private"}]}]}},
+    ]) assert.throws(() => parsePartnerEvent(JSON.stringify(extra)), /Invalid partner/);
+    const graded = make(3); graded.record.grade="won";
+    assert.equal((await accept(db, graded)).outcome,"applied");
+    assert.equal((await accept(db, make(2))).outcome,"ignored_stale");
+    assert.throws(() => parsePartnerEvent(JSON.stringify({...first,entityType:"pick"})), /Invalid partner/);
+    assert.throws(() => parsePartnerEvent(JSON.stringify({...first,record:{...first.record,bet:{...first.record.bet,notes:"private"}}})), /Invalid partner/);
+    assert.throws(() => parsePartnerEvent(JSON.stringify({...first,record:{...first.record,bet:{...first.record.bet,cashStake:"NaN"}}})), /Invalid partner/);
   } finally { await db.close(); }
 });
