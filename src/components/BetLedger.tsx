@@ -750,7 +750,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                           />
                         ) : (
                           <span className="block truncate" title={entry.event_name}>
-                            {entry.ledger_entity_id && <span className="mr-2 rounded border border-cyan-400/40 px-1 text-xs text-cyan-300">Ledger</span>}{entry.event_name}
+                            {entry.ledger_entity_id && <span className="mr-2 rounded border border-cyan-400/40 px-1 text-xs text-cyan-300" title="Created from Prediction Ledger">PL</span>}{entry.event_name}
                           </span>
                         )}
                       </td>
@@ -818,7 +818,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                         <td
                           className={`sticky right-0 z-10 px-1 py-2 text-right shadow-[-8px_0_12px_-8px_rgba(0,0,0,0.6)] ${rowBg}`}
                         >
-                          {entry.ledger_entity_id ? <span className="text-xs text-muted" title="Managed and graded by Ledger">Read-only</span> : isEditing ? (
+                          {entry.ledger_entity_id ? <span className="text-xs text-muted" title="Created and automatically graded by Prediction Ledger">Read-only</span> : isEditing ? (
                             <div className="flex justify-end gap-1">
                               <button
                                 type="button"
