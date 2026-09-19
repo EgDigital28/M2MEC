@@ -77,10 +77,14 @@ export async function PATCH(
   }
 
   const supabase = await createClient();
+  const existing = await supabase.from("bet_entries").select("ledger_entity_id").eq("id",id).maybeSingle();
+  if(existing.error) return NextResponse.json({error:"Could not check entry."},{status:503});
+  if(existing.data?.ledger_entity_id) return NextResponse.json({error:"Ledger bets are read-only. Grading and corrections come from Ledger."},{status:403});
+
   const { data, error } = await supabase
     .from("bet_entries")
     .update(updates)
-    .eq("id", id)
+    .eq("id", id).is("ledger_entity_id",null)
     .select("*, sports(abbreviation, full_name)")
     .single();
 
@@ -108,7 +112,11 @@ export async function DELETE(
 
   const { id } = await params;
   const supabase = await createClient();
-  const { error } = await supabase.from("bet_entries").delete().eq("id", id);
+  const existing = await supabase.from("bet_entries").select("ledger_entity_id").eq("id",id).maybeSingle();
+  if(existing.error) return NextResponse.json({error:"Could not check entry."},{status:503});
+  if(existing.data?.ledger_entity_id) return NextResponse.json({error:"Ledger bets are read-only. Grading and corrections come from Ledger."},{status:403});
+
+  const { error } = await supabase.from("bet_entries").delete().eq("id", id).is("ledger_entity_id",null);
 
   if (error) {
     console.error("Bet entry delete failed:", error);
