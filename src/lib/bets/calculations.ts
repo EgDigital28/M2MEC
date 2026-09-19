@@ -6,7 +6,11 @@ export type BetStatus = (typeof BET_STATUSES)[number];
 
 export type BetEntryRow = {
   id: string;
-  created_by: string;
+  created_by: string | null;
+  ledger_entity_id?: string | null;
+  ledger_version?: number | null;
+  ledger_profit_loss?: number | null;
+  ledger_to_win?: number | null;
   event_date: string;
   sport_id: string;
   event_name: string;
@@ -30,6 +34,10 @@ export type BetEntryComputed = BetEntry & {
 export function normalizeBetEntry(row: BetEntryRow): BetEntry {
   return {
     id: row.id,
+    ledger_entity_id: row.ledger_entity_id,
+    ledger_version: row.ledger_version,
+    ledger_profit_loss: row.ledger_profit_loss,
+    ledger_to_win: row.ledger_to_win,
     created_by: row.created_by,
     event_date: row.event_date,
     sport_id: row.sport_id,
@@ -79,14 +87,14 @@ export function calculateProfitLoss(
 
 export function withComputedFields(entry: BetEntry | BetEntryRow): BetEntryComputed {
   const normalized = "sport" in entry ? entry : normalizeBetEntry(entry);
-  const to_win = calculateToWin(Number(normalized.line), Number(normalized.risk));
+  const to_win = normalized.ledger_entity_id && normalized.ledger_to_win != null ? Number(normalized.ledger_to_win) : calculateToWin(Number(normalized.line), Number(normalized.risk));
 
   return {
     ...normalized,
     line: Number(normalized.line),
     risk: Number(normalized.risk),
     to_win,
-    profit_loss: calculateProfitLoss(
+    profit_loss: normalized.ledger_entity_id && normalized.ledger_profit_loss != null ? Number(normalized.ledger_profit_loss) : calculateProfitLoss(
       normalized.status,
       Number(normalized.risk),
       to_win,

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { BetLedger } from "@/components/BetLedger";
 import { getCurrentProfile } from "@/lib/auth/profile";
 
@@ -14,6 +15,7 @@ export default async function TeamBetsPage() {
         <h1 className="mt-3 text-3xl font-semibold tracking-tight">Ledger</h1>
       </section>
 
+      {isAdmin && <Link href="/team/ledger-settings" className="underline">Ledger import settings and errors</Link>}
       <BetLedger isAdmin={isAdmin} />
     </div>
   );
