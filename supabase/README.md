@@ -97,4 +97,18 @@ Admins can suspend or delete users at **/team/users**. Suspended users are banne
 Creates `bet_entries` linked to `sports` via `sport_id`. Requires `004_sports.sql` first.
 
 
+## Scheduled yesterday's-results email
+
+11. **`018_bet_email_sends.sql`** — ledger email send history.
+12. **`019_bet_email_sends_automated.sql`** — adds `bet_email_sends.is_automated` so
+    scheduled sends are distinguishable from ones an admin sent by hand.
+
+The Vercel cron `/api/cron/yesterdays-results` runs at 05:00–08:00 UTC and acts only
+at 1, 2 and 3 AM Eastern. It sends once per results date, skips while any play for
+that date is still `Open`, and on the 3 AM attempt emails an alert naming the
+ungraded plays instead of the digest. It needs `CRON_SECRET` (already set for the
+Ledger consumer) and `RESEND_API_KEY`.
+
+Until `019` is applied the send is still recorded, without the `is_automated` flag.
+
 Early access form submissions go to `waitlist_submissions`. They do **not** create auth users. A welcome email is sent via Resend on submit.

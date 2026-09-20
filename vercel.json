@@ -1,1 +1,6 @@
-{"crons":[{"path":"/api/integrations/ledger-consumer","schedule":"* * * * *"}]}
+{
+  "crons": [
+    { "path": "/api/integrations/ledger-consumer", "schedule": "* * * * *" },
+    { "path": "/api/cron/yesterdays-results", "schedule": "0 5-8 * * *" }
+  ]
+}

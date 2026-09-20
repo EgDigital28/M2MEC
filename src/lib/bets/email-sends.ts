@@ -1,5 +1,7 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getTodayDateString, getYesterdayDateString } from "@/lib/bets/calculations";
 import type { BetEmailSendBatch, BetEmailSendRow, BetEmailType } from "@/lib/bets/email-sends-types";
+import { isMissingAutomatedColumn } from "@/lib/bets/email-sends-types";
 import { createClient } from "@/lib/supabase/server";
 
 export type { BetEmailSendBatch, BetEmailSendRow, BetEmailType };
@@ -7,6 +9,7 @@ export {
   BET_EMAIL_TYPES,
   BET_EMAIL_TYPE_LABELS,
   isBetEmailType,
+  isMissingAutomatedColumn,
   isMissingBetEmailSendsTable,
   mapLedgerEmailAction,
 } from "@/lib/bets/email-sends-types";
@@ -14,11 +17,16 @@ export {
 type LogBetEmailSendsInput = {
   emailType: BetEmailType;
   recipients: string[];
-  sentById: string;
+  /** Null for scheduled sends, which have no signed-in admin. */
+  sentById: string | null;
   playCount: number;
   contextDate?: string | null;
   contextWeekEnd?: string | null;
   sentOnDate?: string;
+  /** True for the scheduled job, false for an admin pressing send. */
+  isAutomated?: boolean;
+  /** Supplied by callers without a session, such as the cron job. */
+  client?: SupabaseClient;
 };
 
 export async function logBetEmailSends({
@@ -29,11 +37,13 @@ export async function logBetEmailSends({
   contextDate = null,
   contextWeekEnd = null,
   sentOnDate = getTodayDateString(),
+  isAutomated = false,
+  client,
 }: LogBetEmailSendsInput) {
-  const supabase = await createClient();
+  const supabase = client ?? (await createClient());
   const batchId = crypto.randomUUID();
 
-  const rows = recipients.map((recipient) => ({
+  const baseRows = recipients.map((recipient) => ({
     batch_id: batchId,
     email_type: emailType,
     recipient_email: recipient,
@@ -44,13 +54,27 @@ export async function logBetEmailSends({
     context_week_end: contextWeekEnd,
   }));
 
-  const { error } = await supabase.from("bet_email_sends").insert(rows);
+  const { error } = await supabase
+    .from("bet_email_sends")
+    .insert(baseRows.map((row) => ({ ...row, is_automated: isAutomated })));
 
-  if (error) {
-    throw error;
+  if (!error) {
+    return { batchId };
   }
 
-  return { batchId };
+  // Before 019 is applied the column does not exist. Record the send anyway:
+  // a missing row would let the scheduled job resend the same digest.
+  if (isMissingAutomatedColumn(error.message)) {
+    const fallback = await supabase.from("bet_email_sends").insert(baseRows);
+
+    if (fallback.error) {
+      throw fallback.error;
+    }
+
+    return { batchId, automatedColumnMissing: true };
+  }
+
+  throw error;
 }
 
 export async function findBetEmailDuplicatesToday(
@@ -130,6 +154,7 @@ export async function fetchBetEmailSendHistory(limit = 50) {
       context_date: row.context_date,
       context_week_end: row.context_week_end,
       sent_by_email: null,
+      is_automated: Boolean(row.is_automated),
     });
   }
 

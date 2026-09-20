@@ -17,6 +17,7 @@ export type BetEmailSendRow = {
   play_count: number;
   context_date: string | null;
   context_week_end: string | null;
+  is_automated: boolean;
 };
 
 export type BetEmailSendBatch = {
@@ -29,6 +30,7 @@ export type BetEmailSendBatch = {
   context_date: string | null;
   context_week_end: string | null;
   sent_by_email: string | null;
+  is_automated: boolean;
 };
 
 export const BET_EMAIL_TYPE_LABELS: Record<BetEmailType, string> = {
@@ -56,4 +58,9 @@ export function mapLedgerEmailAction(
 
 export function isMissingBetEmailSendsTable(message: string | undefined) {
   return Boolean(message?.includes("bet_email_sends"));
+}
+
+/** True before 019_bet_email_sends_automated.sql has been applied. */
+export function isMissingAutomatedColumn(message: string | undefined) {
+  return Boolean(message?.includes("is_automated"));
 }
