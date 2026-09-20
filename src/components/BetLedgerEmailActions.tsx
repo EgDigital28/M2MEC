@@ -311,6 +311,14 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
                     <tr key={batch.batch_id} className="border-b border-border/60">
                       <td className="px-4 py-3 font-medium">
                         {BET_EMAIL_TYPE_LABELS[batch.email_type]}
+                        {batch.is_automated && (
+                          <span
+                            className="ml-2 rounded border border-cyan-400/40 px-1 text-[10px] font-normal text-cyan-300"
+                            title="Sent automatically by the scheduled job"
+                          >
+                            Auto
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-muted">{batch.recipients.join(", ")}</td>
                       <td className="px-4 py-3 text-muted">{formatSentTime(batch.sent_at)}</td>
