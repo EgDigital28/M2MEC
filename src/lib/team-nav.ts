@@ -9,13 +9,8 @@ export type TeamNavItem = {
 export const teamNavItems: TeamNavItem[] = [
   { label: "Overview", href: "/team" },
   { label: "Ledger", href: "/team/bets" },
+  // "Prediction Ledger" is inserted here by TeamShell for allowlisted viewers.
   { label: "Reports", href: "/team/reports" },
-  { label: "Expenses", href: "/team/expenses", adminOnly: true },
-  { label: "Financials", href: "/team/financials", adminOnly: true },
-  { label: "Sports", href: "/team/sports", adminOnly: true },
-  { label: "Users", href: "/team/users", adminOnly: true },
-  { label: "Waitlist", href: "/team/waitlist", adminOnly: true },
-  { label: "Invites", href: "/team/invite" },
 ];
 
 export function getTeamNavItems(tier: UserTier) {

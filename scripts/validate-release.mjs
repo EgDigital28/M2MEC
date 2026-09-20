@@ -9,7 +9,7 @@ let owned = false;
 let path;
 const results = [];
 try {
-  if (!git('branch', '--show-current').startsWith('codex/') || git('status', '--porcelain')) throw new Error('Certification requires a clean committed feature worktree');
+  if (!/^(codex|claude)\//.test(git('branch', '--show-current')) || git('status', '--porcelain')) throw new Error('Certification requires a clean committed feature worktree');
   mkdirSync('.release', { recursive: true });
   mkdirSync('.release/validation.lock'); owned = true;
   writeFileSync('.release/validation.lock/owner.json', JSON.stringify({ pid: process.pid, worktree: resolve('.'), startedAt: new Date().toISOString() }));
