@@ -54,6 +54,7 @@ export type InvestorRow = {
 export type DepletionRow = {
   key: string;
   label: string;
+  excludedFromBetting: boolean;
   cash: number;
   ytd: number;
   remainingThisYear: number;
@@ -207,8 +208,8 @@ export function computePoolMembers(
  * while the pool still covers spend, cash is untouched. That is why the sheet
  * shows zero depletion for YTD and Q4 but a real draw in 2027.
  *
- * Investors flagged out of the betting pool are omitted entirely: they carry no
- * exposure, so a row of zeroes would only imply one.
+ * Every investor is listed, including those outside the betting pool: they hold
+ * cash that the model must still account for, it simply never depletes.
  */
 export function computeDepletion(
   investors: InvestorRow[],
@@ -220,28 +221,27 @@ export function computeDepletion(
       .map((member) => [member.profileId!, member]),
   );
 
-  return investors
-    .filter((investor) => !investor.excludedFromBetting)
-    .map((investor) => {
-      const member = investor.profileId
-        ? byProfile.get(investor.profileId)
-        : undefined;
-      const ytd = 0;
-      const remainingThisYear = member ? Math.min(0, member.remainingPl) : 0;
-      const endOfYearCash = investor.cashValue + ytd + remainingThisYear;
-      const nextYear = member ? Math.min(0, member.nextYearPl) : 0;
+  return investors.map((investor) => {
+    const member = investor.profileId
+      ? byProfile.get(investor.profileId)
+      : undefined;
+    const ytd = 0;
+    const remainingThisYear = member ? Math.min(0, member.remainingPl) : 0;
+    const endOfYearCash = investor.cashValue + ytd + remainingThisYear;
+    const nextYear = member ? Math.min(0, member.nextYearPl) : 0;
 
-      return {
-        key: investor.key,
-        label: investor.label,
-        cash: investor.cashValue,
-        ytd,
-        remainingThisYear,
-        endOfYearCash,
-        nextYear,
-        endOfNextYearCash: endOfYearCash + nextYear,
-      };
-    });
+    return {
+      key: investor.key,
+      label: investor.label,
+      excludedFromBetting: Boolean(investor.excludedFromBetting),
+      cash: investor.cashValue,
+      ytd,
+      remainingThisYear,
+      endOfYearCash,
+      nextYear,
+      endOfNextYearCash: endOfYearCash + nextYear,
+    };
+  });
 }
 
 export function formatPct(value: number | null, digits = 2) {
