@@ -570,9 +570,41 @@ export default async function FinSummaryPage() {
                   </td>
                 </tr>
               ))}
+              <tr className="font-semibold">
+                <td className={td}>Total</td>
+                <td className={tdr}>{formatCurrencyWhole(valuation)}</td>
+                <td className={tdr}>{formatCurrencyWhole(totalDeposits)}</td>
+                <td className={tdr} />
+                <td className={tdr} />
+                <td className={tdr}>
+                  {formatCurrencyWhole(
+                    depletion.reduce((sum, row) => sum + row.endOfYearCash, 0),
+                  )}
+                </td>
+                <td className={tdr}>
+                  {formatCurrencyWhole(
+                    depletion.reduce((sum, row) => sum + row.nextYear, 0),
+                  )}
+                </td>
+                <td className={tdr}>
+                  {formatCurrencyWhole(
+                    depletion.reduce(
+                      (sum, row) => sum + row.endOfNextYearCash,
+                      0,
+                    ),
+                  )}
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
+        <p className="text-xs text-muted">
+          Forecasts and depletion are calculated against total deposits of{" "}
+          {formatCurrencyWhole(totalDeposits)}, not the{" "}
+          {formatCurrencyWhole(valuation)} of allocation value. An investor can
+          end negative where their share of a loss exceeds what they have paid
+          in.
+        </p>
       </Card>
     </div>
   );
