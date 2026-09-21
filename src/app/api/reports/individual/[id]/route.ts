@@ -214,7 +214,18 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     sections,
   };
 
-  const buffer = await renderToBuffer(IndividualPdf({ data }));
+  let buffer: Buffer;
+
+  try {
+    buffer = await renderToBuffer(IndividualPdf({ data }));
+  } catch (error) {
+    // A render failure used to return an empty body, which looked like a blank
+    // page rather than an error. Say what happened.
+    const message = error instanceof Error ? error.message : "PDF rendering failed.";
+    console.error("reports.individual.render_failed", message);
+    return NextResponse.json({ error: `Could not render the PDF: ${message}` }, { status: 500 });
+  }
+
   const fileName = `${reportFileName(name)}.pdf`;
 
   return new Response(new Uint8Array(buffer), {
