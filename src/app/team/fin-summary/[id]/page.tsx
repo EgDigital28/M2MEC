@@ -1,4 +1,8 @@
 import { notFound, redirect } from "next/navigation";
+import {
+  PrintReportButton,
+  reportFileName,
+} from "@/components/PrintReportButton";
 import { getCurrentProfile } from "@/lib/auth/profile";
 import { formatCurrencyWhole } from "@/lib/bets/calculations";
 import { formatPct } from "@/lib/financials/fin-summary";
@@ -133,16 +137,27 @@ export default async function IndividualSummaryPage({
 
   return (
     <div className="space-y-6">
-      <section>
-        <p className="text-sm font-medium uppercase tracking-widest text-accent">
-          Individual summary
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight">{name}</h1>
-        <p className="mt-2 text-sm text-muted">
-          {person.report_alias ? `${person.report_alias} · ` : ""}
-          {person.email} · {person.tier}
-          {person.excluded_from_betting ? " · outside the betting pool" : ""}
-        </p>
+      <section className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium uppercase tracking-widest text-accent">
+            Individual summary
+          </p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight">{name}</h1>
+          <p className="mt-2 text-sm text-muted">
+            {person.report_alias ? `${person.report_alias} · ` : ""}
+            {person.email} · {person.tier}
+            {person.excluded_from_betting ? " · outside the betting pool" : ""}
+          </p>
+          {/* Only meaningful once printed, where the tab chrome is gone. */}
+          <p className="hidden text-xs text-muted print:mt-2 print:block">
+            M2MEC · generated{" "}
+            {new Intl.DateTimeFormat("en-US", {
+              dateStyle: "long",
+              timeZone: "America/New_York",
+            }).format(new Date())}
+          </p>
+        </div>
+        <PrintReportButton fileName={reportFileName(name)} />
       </section>
 
       <section className="rounded-2xl border border-border bg-surface p-5">
@@ -171,13 +186,15 @@ export default async function IndividualSummaryPage({
         </div>
 
         <p className="mt-3 text-sm text-muted">
-          Capital deposited, less this person&apos;s share of the{" "}
-          {fin.nextYear} forecast shortfall, plus anything deposited outside
-          either pool. The test is whether {fin.expenses.currentYear} closes
-          with enough funded to cover {fin.nextYear} spend.
+          The {fin.nextYear} bill is met by the betting pool first; whatever it
+          cannot cover is a company obligation split by equity allocation. This
+          is capital deposited, less this person&apos;s share of that remainder,
+          plus anything deposited outside either pool. The test is whether{" "}
+          {fin.expenses.currentYear} closes with enough funded to cover{" "}
+          {fin.nextYear} spend.
           {member
             ? ""
-            : ` Outside the betting pool, but the shortfall is a company obligation shared by equity, so a share is still carried here.`}
+            : ` Taking no part in the betting pool does not remove the obligation — it is driven by company holdings, so a share is still carried here.`}
         </p>
 
         {netPosition < 0 ? (

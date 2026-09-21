@@ -1,5 +1,9 @@
 import { redirect } from "next/navigation";
 import { FinSummaryIndividualPicker } from "@/components/FinSummaryIndividualPicker";
+import {
+  PrintReportButton,
+  reportFileName,
+} from "@/components/PrintReportButton";
 import { getCurrentProfile } from "@/lib/auth/profile";
 import { formatCurrencyWhole } from "@/lib/bets/calculations";
 import { formatPct } from "@/lib/financials/fin-summary";
@@ -74,7 +78,8 @@ export default async function FinSummaryPage() {
 
   return (
     <div className="space-y-6">
-      <section>
+      <section className="flex flex-wrap items-start justify-between gap-4">
+        <div>
         <p className="text-sm font-medium uppercase tracking-widest text-accent">
           Admin
         </p>
@@ -85,6 +90,8 @@ export default async function FinSummaryPage() {
           Company equity, the betting pool, revenue and the expense outlook,
           built from ledger, expense and income data.
         </p>
+        </div>
+        <PrintReportButton fileName={reportFileName("summary")} />
       </section>
 
       <FinSummaryIndividualPicker
@@ -377,7 +384,7 @@ export default async function FinSummaryPage() {
 
       <Card
         title="M2MEC capital depletion"
-        subtitle={`Depletion draws on cash deposited, not allocation value. ${nextYear} spend beyond what the pool can fund is a company obligation, shared by equity allocation, so an investor outside the betting pool still carries their share.`}
+        subtitle={`The ${nextYear} bill is met by the betting pool first; the remainder is a company obligation split by equity allocation, so an investor outside the pool still carries a share. Depletion draws on cash deposited, not allocation value.`}
       >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">

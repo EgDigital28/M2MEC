@@ -10,7 +10,7 @@ export function FinSummaryIndividualPicker({ people }: { people: Person[] }) {
   const choices = people.filter((person) => person.id);
 
   return (
-    <section className="flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-surface p-5">
+    <section className="flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-surface p-5 print:hidden">
       <label className="min-w-[220px] flex-1 sm:max-w-xs">
         <span className="text-[10px] font-semibold uppercase tracking-widest text-muted">
           Individual
