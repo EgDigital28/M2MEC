@@ -64,7 +64,31 @@ export type GenerateImagesOutput = {
   model: string;
   images: GeneratedImage[];
   warnings: string[];
+  /** xAI's own cost figure for the call, null when the provider omits it. */
+  costInUsdTicks: number | null;
 };
+
+/**
+ * xAI reports cost as integer "ticks" and documents no scale, so this is the
+ * one place the assumption lives: verify a few generations against the console
+ * spend figure and change this constant if it disagrees.
+ */
+export const TICKS_PER_USD = 1_000_000_000;
+
+export function usdFromTicks(ticks: number | null | undefined) {
+  return ticks == null ? null : ticks / TICKS_PER_USD;
+}
+
+export function formatUsd(value: number | null, fractionDigits = 3) {
+  return value == null
+    ? "—"
+    : new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: fractionDigits,
+        maximumFractionDigits: fractionDigits,
+      }).format(value);
+}
 
 export function isAspectRatio(value: unknown): value is AspectRatio {
   return (ASPECT_RATIOS as readonly unknown[]).includes(value);
@@ -99,9 +123,18 @@ export async function generateImages({
     providerOptions: { xai: { resolution } },
   });
 
+  // Cost rides on provider metadata, not the SDK's usage field, and a large n
+  // may be split across several calls.
+  const costInUsdTicks = result.calls.reduce<number | null>((total, call) => {
+    const meta = call.providerMetadata?.xai as { costInUsdTicks?: unknown } | undefined;
+    const ticks = typeof meta?.costInUsdTicks === "number" ? meta.costInUsdTicks : null;
+    return ticks == null ? total : (total ?? 0) + ticks;
+  }, null);
+
   return {
     provider: "xai",
     model,
+    costInUsdTicks,
     images: result.images.map((image) => ({
       bytes: image.uint8Array,
       mediaType: image.mediaType || "image/png",

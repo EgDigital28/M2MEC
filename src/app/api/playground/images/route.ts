@@ -127,6 +127,15 @@ export async function POST(request: Request) {
     paths.push(path);
   }
 
+  // The provider prices the call; split it evenly so each image carries its
+  // own share. Remainder ticks land on the first image so the parts still sum
+  // to exactly what was charged.
+  const totalTicks = generated.costInUsdTicks;
+  const perImage =
+    totalTicks == null ? null : Math.floor(totalTicks / generated.images.length);
+  const remainder =
+    totalTicks == null || perImage == null ? 0 : totalTicks - perImage * generated.images.length;
+
   const inserted = await db
     .from("playground_images")
     .insert({
@@ -138,10 +147,10 @@ export async function POST(request: Request) {
       aspect_ratio: body.aspectRatio,
       resolution: body.resolution,
       media_type: mediaType,
-      storage_paths: paths,
       duration_ms: durationMs,
+      cost_in_usd_ticks: totalTicks,
     })
-    .select("id, model, prompt, aspect_ratio, resolution, media_type, storage_paths, duration_ms, created_at")
+    .select("id")
     .single();
 
   if (inserted.error) {
@@ -152,7 +161,37 @@ export async function POST(request: Request) {
     );
   }
 
-  const [generation] = await withSignedUrls(db, [inserted.data as PlaygroundGenerationRow]);
+  const files = await db.from("playground_image_files").insert(
+    paths.map((path, index) => ({
+      generation_id: generationId,
+      position: index,
+      storage_path: path,
+      cost_in_usd_ticks: perImage == null ? null : perImage + (index === 0 ? remainder : 0),
+    })),
+  );
+
+  if (files.error) {
+    console.error("playground.record_files_failed", files.error.message);
+    return NextResponse.json(
+      { error: "Images were stored but could not be recorded." },
+      { status: 502 },
+    );
+  }
+
+  const reread = await db
+    .from("playground_images")
+    .select(
+      "id, model, prompt, aspect_ratio, resolution, media_type, duration_ms, cost_in_usd_ticks, created_at, playground_image_files (position, storage_path, cost_in_usd_ticks)",
+    )
+    .eq("id", generationId)
+    .single();
+
+  if (reread.error) {
+    console.error("playground.reread_failed", reread.error.message);
+    return NextResponse.json({ error: "Could not load the new generation." }, { status: 502 });
+  }
+
+  const [generation] = await withSignedUrls(db, [reread.data as unknown as PlaygroundGenerationRow]);
 
   return NextResponse.json({ generation, warnings: generated.warnings, durationMs });
 }
