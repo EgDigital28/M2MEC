@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WeekInReviewEmail } from "@/components/WeekInReviewEmail";
 import { requireTeamProfile } from "@/lib/auth/team";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -116,7 +117,7 @@ export default async function WeekInReviewPage({
 }: {
   searchParams: Promise<{ view?: string }>;
 }) {
-  await requireTeamProfile("/team/week-in-review");
+  const profile = await requireTeamProfile("/team/week-in-review");
 
   const params = await searchParams;
   const view: WeekView = params.view === "week" ? "week" : "rolling";
@@ -318,6 +319,9 @@ export default async function WeekInReviewPage({
           </div>
         )}
       </section>
+
+      {/* Sending is admin-only, matching the other ledger email routes. */}
+      {profile.tier === "admin" ? <WeekInReviewEmail view={view} /> : null}
     </div>
   );
 }
