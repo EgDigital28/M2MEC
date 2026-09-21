@@ -1,5 +1,8 @@
 import { notFound, redirect } from "next/navigation";
-import { PrintReportButton } from "@/components/PrintReportButton";
+import {
+  PrintReportButton,
+  reportFileName,
+} from "@/components/PrintReportButton";
 import { getCurrentProfile } from "@/lib/auth/profile";
 import { formatCurrencyWhole } from "@/lib/bets/calculations";
 import { formatPct } from "@/lib/financials/fin-summary";
@@ -154,7 +157,7 @@ export default async function IndividualSummaryPage({
             }).format(new Date())}
           </p>
         </div>
-        <PrintReportButton />
+        <PrintReportButton fileName={reportFileName(name)} />
       </section>
 
       <section className="rounded-2xl border border-border bg-surface p-5">

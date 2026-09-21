@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 import { FinSummaryIndividualPicker } from "@/components/FinSummaryIndividualPicker";
-import { PrintReportButton } from "@/components/PrintReportButton";
+import {
+  PrintReportButton,
+  reportFileName,
+} from "@/components/PrintReportButton";
 import { getCurrentProfile } from "@/lib/auth/profile";
 import { formatCurrencyWhole } from "@/lib/bets/calculations";
 import { formatPct } from "@/lib/financials/fin-summary";
@@ -88,7 +91,7 @@ export default async function FinSummaryPage() {
           built from ledger, expense and income data.
         </p>
         </div>
-        <PrintReportButton />
+        <PrintReportButton fileName={reportFileName("summary")} />
       </section>
 
       <FinSummaryIndividualPicker
