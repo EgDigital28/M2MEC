@@ -9,7 +9,7 @@
 insert into public.creative_templates
   (name, description, width, height, backdrop_prompt, slots, decorations, logo)
 values (
-  'Bet slip',
+  'Bet slip — bold',
   'Torn paper slip over an arena backdrop. Every field is rendered, not generated.',
   1080,
   1350,
