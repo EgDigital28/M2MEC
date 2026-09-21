@@ -35,7 +35,9 @@ type ProfileRef = {
 };
 
 function labelFor(profile: ProfileRef | null, fallback: string) {
-  return profile?.report_alias ?? profile?.display_name ?? profile?.email ?? fallback;
+  return (
+    profile?.report_alias ?? profile?.display_name ?? profile?.email ?? fallback
+  );
 }
 
 function plClass(value: number) {
@@ -57,7 +59,9 @@ function Card({
     <section className="space-y-3 rounded-2xl border border-border bg-surface p-5">
       <div>
         <h2 className="text-lg font-semibold">{title}</h2>
-        {subtitle ? <p className="mt-1 text-sm text-muted">{subtitle}</p> : null}
+        {subtitle ? (
+          <p className="mt-1 text-sm text-muted">{subtitle}</p>
+        ) : null}
       </div>
       {children}
     </section>
@@ -92,24 +96,33 @@ export default async function FinSummaryPage() {
     if (data.length < 1000) break;
   }
 
-  const [equityResult, wageringResult, expenseResult, incomeResult] = await Promise.all([
-    supabase
-      .from("equity_stakes")
-      .select("id, profile_id, io_allocation, io_cash_value, deposit, profiles(id, email, display_name, report_alias, excluded_from_betting)")
-      .order("io_allocation", { ascending: false }),
-    supabase
-      .from("wagering_stakes")
-      .select("id, profile_id, capital_deposit, profiles(id, email, display_name, report_alias, excluded_from_betting)")
-      .order("capital_deposit", { ascending: false }),
-    supabase.from("expense_entries").select("quarter, amount, status"),
-    supabase
-      .from("income_contracts")
-      .select("id, name, counterparty, annual_amount, start_date, end_date, is_active, notes, created_at")
-      .order("start_date"),
-  ]);
+  const [equityResult, wageringResult, expenseResult, incomeResult] =
+    await Promise.all([
+      supabase
+        .from("equity_stakes")
+        .select(
+          "id, profile_id, io_allocation, io_cash_value, deposit, profiles(id, email, display_name, report_alias, excluded_from_betting)",
+        )
+        .order("io_allocation", { ascending: false }),
+      supabase
+        .from("wagering_stakes")
+        .select(
+          "id, profile_id, capital_deposit, profiles(id, email, display_name, report_alias, excluded_from_betting)",
+        )
+        .order("capital_deposit", { ascending: false }),
+      supabase.from("expense_entries").select("quarter, amount, status"),
+      supabase
+        .from("income_contracts")
+        .select(
+          "id, name, counterparty, annual_amount, start_date, end_date, is_active, notes, created_at",
+        )
+        .order("start_date"),
+    ]);
 
   const bankroll = computeOverallPl(
-    betEntries.map(withComputedFields).reduce((sum, entry) => sum + entry.profit_loss, 0),
+    betEntries
+      .map(withComputedFields)
+      .reduce((sum, entry) => sum + entry.profit_loss, 0),
   );
 
   const contracts = (incomeResult.data ?? []) as IncomeContract[];
@@ -117,7 +130,11 @@ export default async function FinSummaryPage() {
   const currentValue = bankroll + incomeEarned;
 
   const expenses = summarizeExpenses(
-    (expenseResult.data ?? []) as { quarter: string; amount: number; status: string }[],
+    (expenseResult.data ?? []) as {
+      quarter: string;
+      amount: number;
+      status: string;
+    }[],
   );
 
   const investors: InvestorRow[] = (
@@ -153,34 +170,57 @@ export default async function FinSummaryPage() {
       capital_deposit: number;
       profiles: ProfileRef | null;
     }[]
-  ).map((stake, index) => ({
-    key: stake.id,
-    label: labelFor(stake.profiles, `Member ${index + 1}`),
-    profileId: stake.profile_id,
-    initialDeposit: Number(stake.capital_deposit),
-  }));
+  )
+    // Flagged investors take no part in the pool, so they never reach the
+    // betting tables or the ownership split.
+    .filter((stake) => !stake.profiles?.excluded_from_betting)
+    .map((stake, index) => ({
+      key: stake.id,
+      label: labelFor(stake.profiles, `Member ${index + 1}`),
+      profileId: stake.profile_id,
+      initialDeposit: Number(stake.capital_deposit),
+    }));
 
   const members = computePoolMembers(poolInputs, currentValue, expenses);
   const depletion = computeDepletion(investors, members);
 
-  const valuation = investors.reduce((sum, investor) => sum + investor.cashValue, 0);
-  const totalDeposits = investors.reduce((sum, investor) => sum + investor.deposit, 0);
-  const totalDue = investors.reduce((sum, investor) => sum + investor.amountDue, 0);
-  const totalCapital = members.reduce((sum, member) => sum + member.initialDeposit, 0);
+  const valuation = investors.reduce(
+    (sum, investor) => sum + investor.cashValue,
+    0,
+  );
+  const totalDeposits = investors.reduce(
+    (sum, investor) => sum + investor.deposit,
+    0,
+  );
+  const totalDue = investors.reduce(
+    (sum, investor) => sum + investor.amountDue,
+    0,
+  );
+  const totalCapital = members.reduce(
+    (sum, member) => sum + member.initialDeposit,
+    0,
+  );
   const nextYear = expenses.currentYear + 1;
 
   return (
     <div className="space-y-6">
       <section>
-        <p className="text-sm font-medium uppercase tracking-widest text-accent">Admin</p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight">Fin Summary</h1>
+        <p className="text-sm font-medium uppercase tracking-widest text-accent">
+          Admin
+        </p>
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight">
+          Fin Summary
+        </h1>
         <p className="mt-2 text-sm text-muted">
-          Company equity, the betting pool, revenue and the expense outlook, built from ledger,
-          expense and income data.
+          Company equity, the betting pool, revenue and the expense outlook,
+          built from ledger, expense and income data.
         </p>
       </section>
 
-      <Card title="Company" subtitle={`Valuation ${formatCurrencyWhole(valuation)}, the sum of investor cash values.`}>
+      <Card
+        title="Company"
+        subtitle={`Valuation ${formatCurrencyWhole(valuation)}, the sum of investor cash values.`}
+      >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
@@ -208,16 +248,24 @@ export default async function FinSummaryPage() {
                     ) : null}
                   </td>
                   <td className={tdr}>{formatPct(investor.allocation)}</td>
-                  <td className={tdr}>{formatCurrencyWhole(investor.cashValue)}</td>
-                  <td className={tdr}>{formatCurrencyWhole(investor.deposit)}</td>
+                  <td className={tdr}>
+                    {formatCurrencyWhole(investor.cashValue)}
+                  </td>
+                  <td className={tdr}>
+                    {formatCurrencyWhole(investor.deposit)}
+                  </td>
                   <td className={tdr}>{formatPct(investor.depositPct)}</td>
-                  <td className={tdr}>{formatCurrencyWhole(investor.amountDue)}</td>
+                  <td className={tdr}>
+                    {formatCurrencyWhole(investor.amountDue)}
+                  </td>
                 </tr>
               ))}
               <tr className="font-semibold">
                 <td className={td}>Total</td>
                 <td className={tdr}>
-                  {formatPct(investors.reduce((sum, i) => sum + i.allocation, 0))}
+                  {formatPct(
+                    investors.reduce((sum, i) => sum + i.allocation, 0),
+                  )}
                 </td>
                 <td className={tdr}>{formatCurrencyWhole(valuation)}</td>
                 <td className={tdr}>{formatCurrencyWhole(totalDeposits)}</td>
@@ -249,9 +297,13 @@ export default async function FinSummaryPage() {
               {members.map((member) => (
                 <tr key={member.key} className="border-b border-border/60">
                   <td className={`${td} font-medium`}>{member.label}</td>
-                  <td className={tdr}>{formatCurrencyWhole(member.initialDeposit)}</td>
+                  <td className={tdr}>
+                    {formatCurrencyWhole(member.initialDeposit)}
+                  </td>
                   <td className={tdr}>{formatPct(member.initialPct)}</td>
-                  <td className={tdr}>{formatCurrencyWhole(member.addedDeposits)}</td>
+                  <td className={tdr}>
+                    {formatCurrencyWhole(member.addedDeposits)}
+                  </td>
                   <td className={tdr}>{formatPct(member.currentPct)}</td>
                   <td className={tdr}>{formatCurrencyWhole(member.value)}</td>
                 </tr>
@@ -263,19 +315,24 @@ export default async function FinSummaryPage() {
                 <td className={tdr} />
                 <td className={tdr} />
                 <td className={tdr}>
-                  {formatCurrencyWhole(members.reduce((sum, m) => sum + m.value, 0))}
+                  {formatCurrencyWhole(
+                    members.reduce((sum, m) => sum + m.value, 0),
+                  )}
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
         <p className="text-xs text-muted">
-          Current ownership equals the initial split until capital-lock deposit events exist, so
-          added deposits read as zero here.
+          Current ownership equals the initial split until capital-lock deposit
+          events exist, so added deposits read as zero here.
         </p>
       </Card>
 
-      <Card title="Revenue" subtitle="Annual contracts recognised daily across calendar years.">
+      <Card
+        title="Revenue"
+        subtitle="Annual contracts recognised daily across calendar years."
+      >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
             <thead>
@@ -301,16 +358,27 @@ export default async function FinSummaryPage() {
                     <td className={`${td} font-medium`}>{contract.name}</td>
                     <td className={`${td} text-muted`}>
                       {formatContractDate(contract.start_date)} —{" "}
-                      {contract.end_date ? formatContractDate(contract.end_date) : "ongoing"}
-                    </td>
-                    <td className={tdr}>{formatIncomeAmount(Number(contract.annual_amount))}</td>
-                    <td className={tdr}>
-                      {formatIncomeAmount(recognizedForYear(contract, expenses.currentYear).amount)}
+                      {contract.end_date
+                        ? formatContractDate(contract.end_date)
+                        : "ongoing"}
                     </td>
                     <td className={tdr}>
-                      {formatIncomeAmount(recognizedForYear(contract, nextYear).amount)}
+                      {formatIncomeAmount(Number(contract.annual_amount))}
                     </td>
-                    <td className={tdr}>{formatIncomeAmount(earnedToDate(contract))}</td>
+                    <td className={tdr}>
+                      {formatIncomeAmount(
+                        recognizedForYear(contract, expenses.currentYear)
+                          .amount,
+                      )}
+                    </td>
+                    <td className={tdr}>
+                      {formatIncomeAmount(
+                        recognizedForYear(contract, nextYear).amount,
+                      )}
+                    </td>
+                    <td className={tdr}>
+                      {formatIncomeAmount(earnedToDate(contract))}
+                    </td>
                   </tr>
                 ))
               )}
@@ -367,15 +435,21 @@ export default async function FinSummaryPage() {
               {members.map((member) => (
                 <tr key={member.key} className="border-b border-border/60">
                   <td className={`${td} font-medium`}>{member.label}</td>
-                  <td className={tdr}>{formatCurrencyWhole(member.ytdContribution)}</td>
+                  <td className={tdr}>
+                    {formatCurrencyWhole(member.ytdContribution)}
+                  </td>
                   <td className={`${tdr} ${plClass(member.ytdPl)}`}>
                     {formatCurrencyWhole(member.ytdPl)}
                   </td>
-                  <td className={tdr}>{formatCurrencyWhole(member.remainingSpend)}</td>
+                  <td className={tdr}>
+                    {formatCurrencyWhole(member.remainingSpend)}
+                  </td>
                   <td className={`${tdr} ${plClass(member.remainingPl)}`}>
                     {formatCurrencyWhole(member.remainingPl)}
                   </td>
-                  <td className={tdr}>{formatCurrencyWhole(member.nextYearSpend)}</td>
+                  <td className={tdr}>
+                    {formatCurrencyWhole(member.nextYearSpend)}
+                  </td>
                   <td className={`${tdr} ${plClass(member.nextYearPl)}`}>
                     {formatCurrencyWhole(member.nextYearPl)}
                   </td>
@@ -384,22 +458,34 @@ export default async function FinSummaryPage() {
               <tr className="font-semibold">
                 <td className={td}>Total</td>
                 <td className={tdr}>
-                  {formatCurrencyWhole(members.reduce((s, m) => s + m.ytdContribution, 0))}
+                  {formatCurrencyWhole(
+                    members.reduce((s, m) => s + m.ytdContribution, 0),
+                  )}
                 </td>
                 <td className={tdr}>
-                  {formatCurrencyWhole(members.reduce((s, m) => s + m.ytdPl, 0))}
+                  {formatCurrencyWhole(
+                    members.reduce((s, m) => s + m.ytdPl, 0),
+                  )}
                 </td>
                 <td className={tdr}>
-                  {formatCurrencyWhole(members.reduce((s, m) => s + m.remainingSpend, 0))}
+                  {formatCurrencyWhole(
+                    members.reduce((s, m) => s + m.remainingSpend, 0),
+                  )}
                 </td>
                 <td className={tdr}>
-                  {formatCurrencyWhole(members.reduce((s, m) => s + m.remainingPl, 0))}
+                  {formatCurrencyWhole(
+                    members.reduce((s, m) => s + m.remainingPl, 0),
+                  )}
                 </td>
                 <td className={tdr}>
-                  {formatCurrencyWhole(members.reduce((s, m) => s + m.nextYearSpend, 0))}
+                  {formatCurrencyWhole(
+                    members.reduce((s, m) => s + m.nextYearSpend, 0),
+                  )}
                 </td>
                 <td className={tdr}>
-                  {formatCurrencyWhole(members.reduce((s, m) => s + m.nextYearPl, 0))}
+                  {formatCurrencyWhole(
+                    members.reduce((s, m) => s + m.nextYearPl, 0),
+                  )}
                 </td>
               </tr>
             </tbody>
@@ -409,7 +495,7 @@ export default async function FinSummaryPage() {
 
       <Card
         title="M2MEC capital depletion"
-        subtitle="Investor cash is only drawn on once a period's forecast P/L turns negative. Investors outside the betting pool are not listed."
+        subtitle="Investor cash is only drawn on once a period's forecast P/L turns negative. Investors outside the betting pool hold cash that never depletes."
       >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
@@ -427,17 +513,31 @@ export default async function FinSummaryPage() {
             <tbody>
               {depletion.map((row) => (
                 <tr key={row.key} className="border-b border-border/60">
-                  <td className={`${td} font-medium`}>{row.label}</td>
+                  <td className={`${td} font-medium`}>
+                    {row.label}
+                    {row.excludedFromBetting ? (
+                      <span
+                        className="ml-2 rounded border border-border px-1 text-[10px] font-normal text-muted"
+                        title="Outside the betting pool, so cash never depletes"
+                      >
+                        No betting
+                      </span>
+                    ) : null}
+                  </td>
                   <td className={tdr}>{formatCurrencyWhole(row.cash)}</td>
                   <td className={tdr}>{formatCurrencyWhole(row.ytd)}</td>
                   <td className={`${tdr} ${plClass(row.remainingThisYear)}`}>
                     {formatCurrencyWhole(row.remainingThisYear)}
                   </td>
-                  <td className={tdr}>{formatCurrencyWhole(row.endOfYearCash)}</td>
+                  <td className={tdr}>
+                    {formatCurrencyWhole(row.endOfYearCash)}
+                  </td>
                   <td className={`${tdr} ${plClass(row.nextYear)}`}>
                     {formatCurrencyWhole(row.nextYear)}
                   </td>
-                  <td className={tdr}>{formatCurrencyWhole(row.endOfNextYearCash)}</td>
+                  <td className={tdr}>
+                    {formatCurrencyWhole(row.endOfNextYearCash)}
+                  </td>
                 </tr>
               ))}
             </tbody>
