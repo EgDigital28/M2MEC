@@ -18,9 +18,10 @@ import {
 import {
   formatContractDate,
   formatIncomeAmount,
+  netAnnualAmount,
   recognizedForYear,
-  sumEarnedToDate,
-  earnedToDate,
+  sumRecognizedAcrossYears,
+  taxRateFor,
   type IncomeContract,
 } from "@/lib/financials/income";
 
@@ -125,10 +126,6 @@ export default async function FinSummaryPage() {
       .reduce((sum, entry) => sum + entry.profit_loss, 0),
   );
 
-  const contracts = (incomeResult.data ?? []) as IncomeContract[];
-  const incomeEarned = sumEarnedToDate(contracts);
-  const currentValue = bankroll + incomeEarned;
-
   const expenses = summarizeExpenses(
     (expenseResult.data ?? []) as {
       quarter: string;
@@ -136,6 +133,17 @@ export default async function FinSummaryPage() {
       status: string;
     }[],
   );
+
+  // Pool value is measured against next year's forecast spend, so it carries
+  // net income recognised over the same horizon rather than only what has
+  // been earned so far.
+  const contracts = (incomeResult.data ?? []) as IncomeContract[];
+  const incomeRecognized = sumRecognizedAcrossYears(
+    contracts,
+    expenses.currentYear,
+    expenses.currentYear + 1,
+  );
+  const currentValue = bankroll + incomeRecognized;
 
   const investors: InvestorRow[] = (
     (equityResult.data ?? []) as unknown as {
@@ -279,7 +287,7 @@ export default async function FinSummaryPage() {
 
       <Card
         title="Betting"
-        subtitle={`Current value ${formatCurrencyWhole(currentValue)} — ledger balance ${formatCurrencyWhole(bankroll)} plus ${formatIncomeAmount(incomeEarned)} income earned to date.`}
+        subtitle={`Current value ${formatCurrencyWhole(currentValue)} — ledger balance ${formatCurrencyWhole(bankroll)} plus ${formatIncomeAmount(incomeRecognized)} net income recognised across ${expenses.currentYear} and ${expenses.currentYear + 1}.`}
       >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
@@ -340,15 +348,16 @@ export default async function FinSummaryPage() {
                 <th className={th}>Contract</th>
                 <th className={th}>Term</th>
                 <th className={thr}>Annual</th>
-                <th className={thr}>{expenses.currentYear} recognised</th>
-                <th className={thr}>{nextYear} recognised</th>
-                <th className={thr}>Earned to date</th>
+                <th className={thr}>Net annual</th>
+                <th className={thr}>{expenses.currentYear} net</th>
+                <th className={thr}>{nextYear} net</th>
+                <th className={thr}>Total net</th>
               </tr>
             </thead>
             <tbody>
               {contracts.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-3 py-6 text-center text-muted">
+                  <td colSpan={7} className="px-3 py-6 text-center text-muted">
                     No income contracts yet.
                   </td>
                 </tr>
@@ -366,6 +375,12 @@ export default async function FinSummaryPage() {
                       {formatIncomeAmount(Number(contract.annual_amount))}
                     </td>
                     <td className={tdr}>
+                      {formatIncomeAmount(netAnnualAmount(contract))}
+                      <span className="ml-2 text-xs text-muted">
+                        less {(taxRateFor(contract) * 100).toFixed(0)}% tax
+                      </span>
+                    </td>
+                    <td className={tdr}>
                       {formatIncomeAmount(
                         recognizedForYear(contract, expenses.currentYear)
                           .amount,
@@ -377,7 +392,10 @@ export default async function FinSummaryPage() {
                       )}
                     </td>
                     <td className={tdr}>
-                      {formatIncomeAmount(earnedToDate(contract))}
+                      {formatIncomeAmount(
+                        recognizedForYear(contract, expenses.currentYear)
+                          .amount + recognizedForYear(contract, nextYear).amount,
+                      )}
                     </td>
                   </tr>
                 ))

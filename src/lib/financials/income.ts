@@ -3,6 +3,8 @@ export type IncomeContract = {
   name: string;
   counterparty: string | null;
   annual_amount: number;
+  /** Share withheld for tax; recognised figures are reported net of it. */
+  tax_rate: number;
   start_date: string;
   end_date: string | null;
   is_active: boolean;
@@ -12,13 +14,27 @@ export type IncomeContract = {
 
 export type IncomeYear = {
   year: number;
+  /** Net of tax. */
   amount: number;
+  grossAmount: number;
   activeDays: number;
   daysInYear: number;
   prorated: boolean;
 };
 
 const MS_PER_DAY = 86_400_000;
+
+export const DEFAULT_TAX_RATE = 0.3;
+
+export function taxRateFor(contract: Pick<IncomeContract, "tax_rate">) {
+  const rate = Number(contract.tax_rate);
+  return Number.isFinite(rate) && rate >= 0 && rate < 1 ? rate : DEFAULT_TAX_RATE;
+}
+
+/** Annual contract value after tax — the figure everything downstream uses. */
+export function netAnnualAmount(contract: Pick<IncomeContract, "annual_amount" | "tax_rate">) {
+  return Number(contract.annual_amount) * (1 - taxRateFor(contract));
+}
 
 function parseDate(value: string) {
   const [year, month, day] = value.split("-").map(Number);
@@ -51,10 +67,12 @@ export function activeDaysInYear(contract: IncomeContract, year: number) {
 export function recognizedForYear(contract: IncomeContract, year: number): IncomeYear {
   const total = daysInYear(year);
   const activeDays = activeDaysInYear(contract, year);
+  const share = activeDays / total;
 
   return {
     year,
-    amount: (Number(contract.annual_amount) * activeDays) / total,
+    amount: netAnnualAmount(contract) * share,
+    grossAmount: Number(contract.annual_amount) * share,
     activeDays,
     daysInYear: total,
     prorated: activeDays > 0 && activeDays < total,
@@ -98,7 +116,7 @@ export function earnedToDate(contract: IncomeContract, asOf = new Date()) {
 
     const from = Math.max(start, yearStart);
     const to = Math.min(end, Date.UTC(year, 11, 31));
-    earned += (Number(contract.annual_amount) * inclusiveDays(from, to)) / daysInYear(year);
+    earned += (netAnnualAmount(contract) * inclusiveDays(from, to)) / daysInYear(year);
   }
 
   return earned;
@@ -114,6 +132,25 @@ export function sumRecognizedForYear(contracts: IncomeContract[], year: number) 
   return contracts
     .filter((contract) => contract.is_active)
     .reduce((total, contract) => total + recognizedForYear(contract, year).amount, 0);
+}
+
+/**
+ * Net income recognised across an inclusive span of calendar years. Pool value
+ * is compared against next year's forecast spend, so it carries the income
+ * expected over the same horizon rather than only what has been earned so far.
+ */
+export function sumRecognizedAcrossYears(
+  contracts: IncomeContract[],
+  fromYear: number,
+  toYear: number,
+) {
+  let total = 0;
+
+  for (let year = fromYear; year <= toYear; year += 1) {
+    total += sumRecognizedForYear(contracts, year);
+  }
+
+  return total;
 }
 
 export function formatIncomeAmount(amount: number) {
@@ -145,6 +182,7 @@ export type IncomeContractPayload = {
   end_date?: unknown;
   is_active?: unknown;
   notes?: unknown;
+  tax_rate?: unknown;
 };
 
 /** Shared by create and update so both reject the same shapes. */
@@ -163,6 +201,12 @@ export function validateIncomePayload(body: IncomeContractPayload) {
 
   if (!Number.isFinite(annualAmount) || annualAmount < 0) {
     return { error: "Enter a valid annual amount." as const };
+  }
+
+  const taxRate = body.tax_rate === undefined ? DEFAULT_TAX_RATE : Number(body.tax_rate);
+
+  if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate >= 1) {
+    return { error: "Enter a tax rate between 0 and 1." as const };
   }
 
   if (!ISO_DATE.test(startDate) || Number.isNaN(Date.parse(startDate))) {
@@ -191,6 +235,7 @@ export function validateIncomePayload(body: IncomeContractPayload) {
       name,
       counterparty,
       annual_amount: annualAmount,
+      tax_rate: taxRate,
       start_date: startDate,
       end_date: endDate,
       is_active: body.is_active === undefined ? true : Boolean(body.is_active),
