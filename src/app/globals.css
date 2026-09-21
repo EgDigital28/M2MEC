@@ -44,3 +44,37 @@ body {
   background: rgba(59, 130, 246, 0.35);
   color: #fff;
 }
+
+@media print {
+  /* Flip the whole palette in one place rather than per component. */
+  :root {
+    --background: #ffffff;
+    --foreground: #111111;
+    --muted: #555555;
+    --surface: #ffffff;
+    --surface-elevated: #f4f4f5;
+    --border: rgba(0, 0, 0, 0.18);
+    --accent: #1d4ed8;
+  }
+
+  body {
+    background: #ffffff;
+    color: #111111;
+  }
+
+  /* Keep profit and loss legible on white. */
+  .text-emerald-400 { color: #047857 !important; }
+  .text-red-400 { color: #b91c1c !important; }
+  .text-amber-300,
+  .text-amber-200 { color: #b45309 !important; }
+
+  /* Do not split a card across pages. */
+  section {
+    break-inside: avoid;
+  }
+
+  main {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+}

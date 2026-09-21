@@ -21,7 +21,7 @@ export function TeamShell({ profile, children, creatorFeedAccess = false }: Team
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b border-border/60 bg-background/90 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-border/60 bg-background/90 backdrop-blur-xl print:hidden">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-6 px-6">
           <div className="flex items-center gap-8">
             <Link href="/team" className="flex items-center gap-2.5">
