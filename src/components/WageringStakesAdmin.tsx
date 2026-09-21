@@ -51,7 +51,7 @@ const moneyCellClassName = "whitespace-nowrap text-right font-mono tabular-nums"
 const emptyWageringForm = (): WageringForm => ({
   profile_id: "",
   group_id: "",
-  capital_deposit: "",
+  capital_deposit: "0",
 });
 
 const emptyGroupForm = (): GroupForm => ({
@@ -691,16 +691,12 @@ export function WageringStakesAdmin() {
             </span>
             <input
               value={form.capital_deposit}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  capital_deposit: formatFinancialInput(event.target.value),
-                }))
-              }
+              readOnly
+              disabled
+              title="Deposits are recorded on the Deposits page"
               inputMode="numeric"
               placeholder="Capital deposit"
-              required
-              className={`${formFieldClassName} pl-7`}
+              className={`${formFieldClassName} pl-7 opacity-60`}
             />
           </div>
 
@@ -827,21 +823,7 @@ export function WageringStakesAdmin() {
                         )}
                       </td>
                       <td className={`${moneyCellClassName} px-4 py-3`}>
-                        {isEditing ? (
-                          <input
-                            value={editForm.capital_deposit}
-                            disabled={isBusy}
-                            onChange={(event) =>
-                              setEditForm((current) => ({
-                                ...current,
-                                capital_deposit: formatFinancialInput(event.target.value),
-                              }))
-                            }
-                            className="w-32 rounded-lg border border-border bg-background px-2 py-1.5 text-right text-xs outline-none focus:border-accent"
-                          />
-                        ) : (
-                          formatFinancialAmount(stake.capital_deposit)
-                        )}
+                        {formatFinancialAmount(stake.capital_deposit)}
                       </td>
                       <td className={`${moneyCellClassName} px-4 py-3`}>
                         {isEditing

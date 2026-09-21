@@ -12,6 +12,7 @@ export const teamNavItems: TeamNavItem[] = [
   // "Predictions" is inserted here by TeamShell for allowlisted viewers.
   { label: "Weekly", href: "/team/week-in-review" },
   { label: "Fin", href: "/team/fin-summary", adminOnly: true },
+  { label: "Deposits", href: "/team/deposits", adminOnly: true },
   { label: "Reports", href: "/team/reports" },
   { label: "Playground", href: "/team/playground", adminOnly: true },
 ];
