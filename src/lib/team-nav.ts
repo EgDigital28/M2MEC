@@ -11,6 +11,7 @@ export const teamNavItems: TeamNavItem[] = [
   { label: "Ledger", href: "/team/bets" },
   // "Prediction Ledger" is inserted here by TeamShell for allowlisted viewers.
   { label: "Week in Review", href: "/team/week-in-review" },
+  { label: "Fin Summary", href: "/team/fin-summary", adminOnly: true },
   { label: "Reports", href: "/team/reports" },
   { label: "Playground", href: "/team/playground", adminOnly: true },
 ];
