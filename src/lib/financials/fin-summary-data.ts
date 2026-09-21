@@ -12,6 +12,7 @@ import {
 import {
   computeDepletion,
   computePoolMembers,
+  computeShortfallByInvestor,
   summarizeExpenses,
   type InvestorRow,
   type PoolInput,
@@ -206,7 +207,10 @@ export async function loadFinSummary() {
     });
 
   const members = computePoolMembers(poolInputs, currentValue, expenses);
-  const depletion = computeDepletion(investors, members);
+  // Spend beyond what the pool can fund falls on the company's owners.
+  const nextYearShortfall = Math.max(0, expenses.nextYear - currentValue);
+  const shortfallByInvestor = computeShortfallByInvestor(investors, nextYearShortfall);
+  const depletion = computeDepletion(investors, members, shortfallByInvestor);
 
   const valuation = investors.reduce(
     (sum, investor) => sum + investor.cashValue,
@@ -235,6 +239,8 @@ export async function loadFinSummary() {
     investors,
     members,
     depletion,
+    nextYearShortfall,
+    shortfallByInvestor,
     lock,
     valuation,
     totalDeposits,

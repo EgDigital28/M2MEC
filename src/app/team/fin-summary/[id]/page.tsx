@@ -128,7 +128,7 @@ export default async function IndividualSummaryPage({
   // positive even while the pool forecasts a loss.
   const ancillaryTotal = depositTotal("ancillary");
   const capitalDeposited = investor?.deposit ?? 0;
-  const forecastPl = member?.nextYearPl ?? 0;
+  const forecastPl = investor ? (fin.shortfallByInvestor.get(investor.key) ?? 0) : 0;
   const netPosition = capitalDeposited + forecastPl + ancillaryTotal;
 
   return (
@@ -177,9 +177,7 @@ export default async function IndividualSummaryPage({
           with enough funded to cover {fin.nextYear} spend.
           {member
             ? ""
-            : person.excluded_from_betting
-              ? ` Outside the betting pool by design, so no share of the shortfall is carried here — it falls on pool members instead.`
-              : ` No stake in the betting pool, so no share of the shortfall is carried here.`}
+            : ` Outside the betting pool, but the shortfall is a company obligation shared by equity, so a share is still carried here.`}
         </p>
 
         {netPosition < 0 ? (
@@ -252,7 +250,7 @@ export default async function IndividualSummaryPage({
 
       {member ? (
         <Card title="Expense share and forecast">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <Stat
               label={`${fin.expenses.currentYear} contribution`}
               value={formatCurrencyWhole(member.ytdContribution)}
@@ -270,15 +268,6 @@ export default async function IndividualSummaryPage({
               label="Rest of year P/L"
               value={formatCurrencyWhole(member.remainingPl)}
               className={plClass(member.remainingPl)}
-            />
-            <Stat
-              label={`${fin.nextYear} spend`}
-              value={formatCurrencyWhole(member.nextYearSpend)}
-            />
-            <Stat
-              label={`${fin.nextYear} P/L`}
-              value={formatCurrencyWhole(member.nextYearPl)}
-              className={plClass(member.nextYearPl)}
             />
           </div>
         </Card>

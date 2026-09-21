@@ -39,8 +39,6 @@ export type PoolMember = {
   ytdPl: number;
   remainingSpend: number;
   remainingPl: number;
-  nextYearSpend: number;
-  nextYearPl: number;
 };
 
 export type InvestorRow = {
@@ -192,7 +190,6 @@ export function computePoolMembers(
     const ytdContribution = expenses.ytd * initialPct;
     const ytdPl = value - ytdContribution;
     const remainingSpend = expenses.remainingThisYear * currentPct;
-    const nextYearShortfall = Math.max(0, expenses.nextYear - currentValue);
 
     return {
       key: member.key,
@@ -210,10 +207,32 @@ export function computePoolMembers(
       ytdPl,
       remainingSpend,
       remainingPl: ytdPl - remainingSpend,
-      nextYearSpend: expenses.nextYear * currentPct,
-      nextYearPl: -nextYearShortfall * currentPct,
     };
   });
+}
+
+/**
+ * Next year's spend beyond what the pool can fund is a company obligation, not
+ * a wagering outcome: it is shared by equity allocation, so an investor who
+ * takes no part in the betting pool still carries their share of it.
+ */
+export function computeShortfallByInvestor(
+  investors: InvestorRow[],
+  shortfall: number,
+): Map<string, number> {
+  const totalAllocation = investors.reduce(
+    (sum, investor) => sum + investor.allocation,
+    0,
+  );
+
+  return new Map(
+    investors.map((investor) => [
+      investor.key,
+      totalAllocation > 0
+        ? -shortfall * (investor.allocation / totalAllocation)
+        : 0,
+    ]),
+  );
 }
 
 /**
@@ -232,6 +251,7 @@ export function computePoolMembers(
 export function computeDepletion(
   investors: InvestorRow[],
   members: PoolMember[],
+  shortfallByInvestor: Map<string, number>,
 ): DepletionRow[] {
   const byProfile = new Map(
     members
@@ -246,7 +266,7 @@ export function computeDepletion(
     const ytd = 0;
     const remainingThisYear = member ? Math.min(0, member.remainingPl) : 0;
     const endOfYearCash = investor.deposit + ytd + remainingThisYear;
-    const nextYear = member ? Math.min(0, member.nextYearPl) : 0;
+    const nextYear = Math.min(0, shortfallByInvestor.get(investor.key) ?? 0);
 
     return {
       key: investor.key,
