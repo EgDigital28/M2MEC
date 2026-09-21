@@ -267,7 +267,9 @@ export function CreativeStudio({
               </select>
             </label>
           ) : (
-            <p className="text-sm text-muted">No kits yet. Create one below.</p>
+            <p className="text-sm text-muted">
+              No kits yet. Name one below — colours, a logo and a style prompt come after.
+            </p>
           )}
 
           {kit ? (
@@ -387,9 +389,17 @@ export function CreativeStudio({
         >
           <div>
             <h2 className="text-sm font-semibold">Creative</h2>
-            <p className="mt-1 text-xs text-muted">
-              The backdrop is generated once per kit version and template, then cached. Everything
-              a reader acts on is drawn from these fields, so the numbers are never hallucinated.
+            <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-muted">
+              <li>Pick a template and fill the fields — they are drawn onto the image as typed.</li>
+              <li>
+                Tick <span className="text-foreground">Generate a new backdrop</span> the first
+                time. After that the backdrop is cached, so changing the copy is free.
+              </li>
+              <li>Render. The result appears on the right and downloads from there.</li>
+            </ol>
+            <p className="mt-2 text-xs text-muted">
+              Only the backdrop is generated. Every figure a reader acts on comes from these
+              fields, so a post can never carry a number the model invented.
             </p>
           </div>
 
@@ -414,7 +424,23 @@ export function CreativeStudio({
           </label>
 
           {template ? (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <>
+              <button
+                type="button"
+                onClick={() =>
+                  setValues(
+                    Object.fromEntries(
+                      template.slots
+                        .filter((slot) => slot.placeholder)
+                        .map((slot) => [slot.key, slot.placeholder as string]),
+                    ),
+                  )
+                }
+                className="text-xs text-accent underline-offset-4 hover:underline"
+              >
+                Fill with an example
+              </button>
+              <div className="grid gap-3 sm:grid-cols-2">
               {template.slots.map((slot) => (
                 <label key={slot.key} className="block">
                   <span className="text-[10px] font-semibold uppercase tracking-widest text-muted">
@@ -426,11 +452,13 @@ export function CreativeStudio({
                       setValues((current) => ({ ...current, [slot.key]: event.target.value }))
                     }
                     maxLength={120}
+                    placeholder={slot.placeholder ?? ""}
                     className="mt-2 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent"
                   />
                 </label>
               ))}
-            </div>
+              </div>
+            </>
           ) : (
             <p className="text-sm text-muted">No templates are active.</p>
           )}
