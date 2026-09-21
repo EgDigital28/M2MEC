@@ -29,14 +29,17 @@ export async function GET() {
   if (error) {
     console.error("Reconciliations fetch failed:", error.message);
 
-    if (error.message.includes("betting_reconciliations")) {
+    if (error.code === "42P01" || error.code === "PGRST205") {
       return NextResponse.json(
         { error: "Reconciliations are not set up. Run 026_betting_reconciliations.sql." },
         { status: 503 },
       );
     }
 
-    return NextResponse.json({ error: "Could not load reconciliations." }, { status: 500 });
+    return NextResponse.json(
+      { error: `Could not load reconciliations: ${error.message}` },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({

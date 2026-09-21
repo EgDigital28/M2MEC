@@ -14,7 +14,7 @@ export type BettingReconciliation = {
 };
 
 export const RECONCILIATION_COLUMNS =
-  "id, profile_id, paid_on, amount, description, created_at, profiles(id, email, display_name, report_alias)";
+  "id, profile_id, paid_on, amount, description, created_at, profiles!betting_reconciliations_profile_id_fkey(id, email, display_name, report_alias)";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

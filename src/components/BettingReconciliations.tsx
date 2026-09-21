@@ -179,7 +179,7 @@ export function BettingReconciliations() {
   }
 
   const field =
-    "w-full rounded-lg border border-border bg-background p-2.5 text-sm outline-none focus:border-accent";
+    "h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent";
   const label = "text-[10px] font-semibold uppercase tracking-widest text-muted";
 
   return (
