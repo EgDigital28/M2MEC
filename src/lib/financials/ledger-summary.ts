@@ -20,5 +20,10 @@ export async function fetchOverallPl() {
   return {
     totalProfitLoss: stats.totalProfitLoss,
     overallPl: computeOverallPl(stats.totalProfitLoss),
+    // The capital lock needs value as at a date, not just the total.
+    dailyProfitLoss: entries.map((entry) => ({
+      date: entry.event_date,
+      profitLoss: entry.profit_loss,
+    })),
   };
 }

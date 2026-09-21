@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireMinimumTier } from "@/lib/auth/profile";
 import { fetchOverallPl } from "@/lib/financials/ledger-summary";
+import { loadCapitalLock } from "@/lib/financials/lock-loader";
 import { normalizeStakeProfileId, type WageringStake } from "@/lib/financials/wagering";
 import { createClient } from "@/lib/supabase/server";
 
@@ -66,9 +67,19 @@ export async function GET() {
 
   try {
     const ledger = await fetchOverallPl();
+    const lock = await loadCapitalLock(ledger.dailyProfitLoss);
+
+    // Ownership is resolved here rather than in the browser so this page and
+    // Fin Summary cannot drift apart.
+    const stakes = (data as unknown as WageringStake[]).map((stake) => ({
+      ...stake,
+      ownership_pct: stake.profile_id
+        ? (lock.ownership.get(stake.profile_id) ?? 0) * 100
+        : 0,
+    }));
 
     return NextResponse.json({
-      stakes: data as unknown as WageringStake[],
+      stakes,
       overallPl: ledger.overallPl,
       totalProfitLoss: ledger.totalProfitLoss,
     });

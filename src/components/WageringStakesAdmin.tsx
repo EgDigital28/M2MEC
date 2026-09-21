@@ -751,10 +751,11 @@ export function WageringStakesAdmin() {
                 stakes.map((stake) => {
                   const isEditing = editingId === stake.id;
                   const isBusy = busyId === stake.id;
-                  const ownershipPct = computeOwnershipPct(
-                    stake.capital_deposit,
-                    totalCapitalDeposits,
-                  );
+                  // Locked share from the server. The deposit split is only a
+                  // fallback for a stake the lock has not seen yet.
+                  const ownershipPct =
+                    stake.ownership_pct ??
+                    computeOwnershipPct(stake.capital_deposit, totalCapitalDeposits);
                   const value = computeWageringStakeValue(ownershipPct, overallPl);
                   const editDeposit = parseFinancialAmount(editForm.capital_deposit);
                   const editTotal =
