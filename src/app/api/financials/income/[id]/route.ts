@@ -8,7 +8,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 
 const COLUMNS =
-  "id, name, counterparty, annual_amount, start_date, end_date, is_active, notes, created_at";
+  "id, name, counterparty, annual_amount, tax_rate, start_date, end_date, is_active, notes, created_at";
 
 async function requireAdmin() {
   const auth = await requireMinimumTier("admin");

@@ -10,9 +10,12 @@ import {
 import {
   formatContractDate,
   formatIncomeAmount,
+  netAnnualAmount,
   recognitionSchedule,
   sumEarnedToDate,
+  sumRecognizedAcrossYears,
   sumRecognizedForYear,
+  taxRateFor,
   type IncomeContract,
 } from "@/lib/financials/income";
 
@@ -81,6 +84,10 @@ export function IncomeAdmin() {
   );
   const nextYear = useMemo(
     () => sumRecognizedForYear(contracts, currentYear + 1),
+    [contracts, currentYear],
+  );
+  const recognizedAcross = useMemo(
+    () => sumRecognizedAcrossYears(contracts, currentYear, currentYear + 1),
     [contracts, currentYear],
   );
 
@@ -157,7 +164,7 @@ export function IncomeAdmin() {
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         <div className="rounded-xl border border-border bg-surface p-4">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-muted">
-            Earned to date
+            Earned to date (net)
           </p>
           <p className="mt-2 text-xl font-semibold tabular-nums">
             {formatIncomeAmount(earnedToDate)}
@@ -165,7 +172,7 @@ export function IncomeAdmin() {
         </div>
         <div className="rounded-xl border border-border bg-surface p-4">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-muted">
-            {currentYear} recognised
+            {currentYear} net
           </p>
           <p className="mt-2 text-xl font-semibold tabular-nums">
             {formatIncomeAmount(thisYear)}
@@ -173,7 +180,7 @@ export function IncomeAdmin() {
         </div>
         <div className="rounded-xl border border-border bg-surface p-4">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-muted">
-            {currentYear + 1} contracted
+            {currentYear + 1} net
           </p>
           <p className="mt-2 text-xl font-semibold tabular-nums">
             {formatIncomeAmount(nextYear)}
@@ -181,10 +188,12 @@ export function IncomeAdmin() {
         </div>
         <div className="rounded-xl border border-border bg-surface p-4">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-muted">
-            Pool + earned income
+            Pool + net income
           </p>
           <p className="mt-2 text-xl font-semibold tabular-nums">
-            {poolValue == null ? "—" : formatCurrencyWhole(poolValue + earnedToDate)}
+            {poolValue == null
+              ? "—"
+              : formatCurrencyWhole(poolValue + recognizedAcross)}
           </p>
           <p className="mt-1 text-xs text-muted">
             {poolValue == null ? "Pool unavailable" : `Pool alone ${formatCurrencyWhole(poolValue)}`}
@@ -269,6 +278,7 @@ export function IncomeAdmin() {
               <th className="px-4 py-3 font-medium">Contract</th>
               <th className="px-4 py-3 font-medium">Term</th>
               <th className="px-4 py-3 text-right font-medium">Annual</th>
+              <th className="px-4 py-3 text-right font-medium">Net annual</th>
               <th className="px-4 py-3 font-medium">Recognition by year</th>
               <th className="px-4 py-3 text-right font-medium">Actions</th>
             </tr>
@@ -276,13 +286,13 @@ export function IncomeAdmin() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-muted">
+                <td colSpan={6} className="px-4 py-6 text-center text-muted">
                   Loading income...
                 </td>
               </tr>
             ) : contracts.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-muted">
+                <td colSpan={6} className="px-4 py-6 text-center text-muted">
                   No income contracts yet.
                 </td>
               </tr>
@@ -301,6 +311,12 @@ export function IncomeAdmin() {
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums">
                     {formatIncomeAmount(Number(contract.annual_amount))}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {formatIncomeAmount(netAnnualAmount(contract))}
+                    <span className="ml-2 text-xs text-muted">
+                      less {(taxRateFor(contract) * 100).toFixed(0)}%
+                    </span>
                   </td>
                   <td className="px-4 py-3">
                     <ul className="space-y-1">
