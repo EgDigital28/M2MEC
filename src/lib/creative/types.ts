@@ -65,6 +65,11 @@ export type CreativeTemplate = {
   slots: TemplateSlot[];
   decorations?: TemplateDecoration[];
   logo?: TemplateRect | null;
+  /** The photograph this design uses. Generated when the template is edited,
+   * never when a post is made. */
+  backdrop_id: string | null;
+  /** A design the template was authored against, kept for the human. */
+  reference_path: string | null;
   is_active: boolean;
 };
 
@@ -167,4 +172,81 @@ export function barcodeBars(seed: string, count = 48) {
     hash = Math.imul(hash ^ (index + 1), 16777619);
     return ((hash >>> 8) % 3) + 1;
   });
+}
+
+const ALIGNMENTS = ["left", "center", "right"] as const;
+const TRANSFORMS = ["none", "uppercase"] as const;
+const DECORATION_TYPES = ["block", "rule", "barcode"] as const;
+
+function fraction(value: unknown, fallback = 0) {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function oneOf<T extends readonly string[]>(value: unknown, options: T, fallback: T[number]) {
+  return (options as readonly unknown[]).includes(value) ? (value as T[number]) : fallback;
+}
+
+/**
+ * Templates are edited through the API, so what arrives is untrusted JSON that
+ * the composer will later index into. Coercing every field here means a bad
+ * payload produces a dull template rather than a render that throws.
+ */
+export function parseSlots(value: unknown): TemplateSlot[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((raw) => {
+    if (!raw || typeof raw !== "object") return [];
+    const slot = raw as Record<string, unknown>;
+    const key = typeof slot.key === "string" ? slot.key.trim() : "";
+    if (!key) return [];
+
+    return [
+      {
+        key,
+        label: typeof slot.label === "string" && slot.label.trim() ? slot.label.trim() : key,
+        kind: "text" as const,
+        x: fraction(slot.x, 0.5),
+        y: fraction(slot.y, 0.5),
+        w: fraction(slot.w, 0.6),
+        align: oneOf(slot.align, ALIGNMENTS, "center"),
+        size: fraction(slot.size, 0.03),
+        weight: typeof slot.weight === "number" ? slot.weight : 700,
+        colorRole: oneOf(slot.colorRole, COLOR_ROLES, "text"),
+        transform: oneOf(slot.transform, TRANSFORMS, "none"),
+        ...(slot.font === "display" ? { font: "display" as const } : {}),
+        ...(typeof slot.tracking === "number" ? { tracking: slot.tracking } : {}),
+        ...(typeof slot.placeholder === "string" && slot.placeholder.trim()
+          ? { placeholder: slot.placeholder.trim().slice(0, 120) }
+          : {}),
+      },
+    ];
+  });
+}
+
+export function parseDecorations(value: unknown): TemplateDecoration[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((raw) => {
+    if (!raw || typeof raw !== "object") return [];
+    const item = raw as Record<string, unknown>;
+
+    return [
+      {
+        type: oneOf(item.type, DECORATION_TYPES, "rule"),
+        x: fraction(item.x),
+        y: fraction(item.y),
+        w: fraction(item.w, 0.5),
+        h: fraction(item.h, 0.005),
+        colorRole: oneOf(item.colorRole, COLOR_ROLES, "accent"),
+        ...(typeof item.radius === "number" ? { radius: item.radius } : {}),
+      },
+    ];
+  });
+}
+
+export function parseRect(value: unknown): TemplateRect | null {
+  if (!value || typeof value !== "object") return null;
+  const rect = value as Record<string, unknown>;
+  if (["x", "y", "w", "h"].some((key) => typeof rect[key] !== "number")) return null;
+  return { x: rect.x as number, y: rect.y as number, w: rect.w as number, h: rect.h as number };
 }

@@ -11,8 +11,9 @@ const nextConfig: NextConfig = {
     ],
     // Read from disk at runtime, so the tracer cannot see them in the bundle.
     // Without these the composer falls back to next/og's single regular face
-    // and every bold weight in a template renders thin.
-    "/api/creative/render": [
+    // and every bold weight in a template renders thin. Every route that
+    // composes needs them, not just the one that stores the result.
+    "/api/creative/{render,preview}": [
       "./node_modules/@fontsource/inter/files/inter-latin-{400,700,900}-normal.woff",
       "./node_modules/@fontsource/anton/files/anton-latin-400-normal.woff",
     ],

@@ -6,7 +6,6 @@ import type { CreativeBootstrap, StudioKit, StudioTemplate } from "@/lib/creativ
 import type { BrandKitVersion } from "@/lib/creative/types";
 
 type CreativeStudioProps = CreativeBootstrap & {
-  configured: boolean;
   loadError: string | null;
 };
 
@@ -40,7 +39,6 @@ export function CreativeStudio({
   kits: initialKits,
   templates,
   renders: initialRenders,
-  configured,
   loadError,
 }: CreativeStudioProps) {
   const [kits, setKits] = useState(initialKits);
@@ -48,7 +46,6 @@ export function CreativeStudio({
   const [kitId, setKitId] = useState(initialKits[0]?.id ?? "");
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? "");
   const [values, setValues] = useState<Record<string, string>>({});
-  const [regenerateBackdrop, setRegenerateBackdrop] = useState(false);
   const [newKitName, setNewKitName] = useState("");
   const [busy, setBusy] = useState<"render" | "kit" | "save" | "logo" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -201,7 +198,6 @@ export function CreativeStudio({
           templateId: template.id,
           kitVersionId: kit.version.id,
           values,
-          regenerateBackdrop,
         }),
       });
 
@@ -214,7 +210,6 @@ export function CreativeStudio({
 
       setLatest(data.render);
       setRenders((current) => [data.render as Render, ...current].slice(0, 12));
-      setRegenerateBackdrop(false);
     } catch {
       setError("Network error while rendering.");
     } finally {
@@ -389,14 +384,11 @@ export function CreativeStudio({
         >
           <div>
             <h2 className="text-sm font-semibold">Creative</h2>
-            <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-muted">
-              <li>Pick a template and fill the fields — they are drawn onto the image as typed.</li>
-              <li>
-                Tick <span className="text-foreground">Generate a new backdrop</span> the first
-                time. After that the backdrop is cached, so changing the copy is free.
-              </li>
-              <li>Render. The result appears on the right and downloads from there.</li>
-            </ol>
+            <p className="mt-1 text-xs text-muted">
+              Pick a design, fill the fields, render. Nothing here is generated and nothing costs
+              anything — the template already owns its photograph, so render as often as you like
+              until the wording is right.
+            </p>
             <p className="mt-2 text-xs text-muted">
               Only the backdrop is generated. Every figure a reader acts on comes from these
               fields, so a post can never carry a number the model invented.
@@ -496,32 +488,17 @@ export function CreativeStudio({
             <p className="text-sm text-muted">No templates are active.</p>
           )}
 
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={regenerateBackdrop}
-              onChange={(event) => setRegenerateBackdrop(event.target.checked)}
-              className="mt-1"
-            />
-            <span>
-              Generate a new backdrop
-              <span className="block text-xs text-muted">
-                This is the only step that costs money. Leave it off to re-use the cached one.
-              </span>
-            </span>
-          </label>
-
           <button
             type="submit"
-            disabled={busy !== null || !kit || !template || !configured}
+            disabled={busy !== null || !kit || !template || !template.backdropUrl}
             className="w-full rounded-full bg-foreground px-4 py-2.5 text-sm font-semibold text-background disabled:opacity-50"
           >
             {busy === "render" ? "Rendering…" : "Render"}
           </button>
 
-          {!configured ? (
+          {template && !template.backdropUrl ? (
             <p className="text-xs text-muted">
-              XAI_API_KEY is not configured, so a backdrop cannot be generated.
+              This design has no photograph yet. Generate one for it on the Templates tab.
             </p>
           ) : null}
         </form>

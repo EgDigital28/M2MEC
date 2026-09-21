@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { CreativeStudio } from "@/components/CreativeStudio";
+import { TemplateStudio } from "@/components/TemplateStudio";
 import { PlaygroundStudio } from "@/components/PlaygroundStudio";
 import { PlaygroundTabs } from "@/components/PlaygroundTabs";
 import { requireMinimumTier } from "@/lib/auth/profile";
@@ -79,10 +80,13 @@ export default async function PlaygroundPage() {
             historyError={historyError}
           />
         }
-        brand={
-          <CreativeStudio
-            {...creative}
+        brand={<CreativeStudio {...creative} loadError={creativeError} />}
+        templates={
+          <TemplateStudio
+            kits={creative.kits}
+            templates={creative.templates}
             configured={isImageProviderConfigured()}
+            defaultModel={defaultImageModelId()}
             loadError={creativeError}
           />
         }
