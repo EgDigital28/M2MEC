@@ -377,7 +377,7 @@ export default async function FinSummaryPage() {
 
       <Card
         title="M2MEC capital depletion"
-        subtitle={`Depletion draws on cash deposited, not allocation value. ${nextYear} spend beyond what the pool can fund is a company obligation, shared by equity allocation, so an investor outside the betting pool still carries their share.`}
+        subtitle={`The ${nextYear} bill is met by the betting pool first; the remainder is a company obligation split by equity allocation, so an investor outside the pool still carries a share. Depletion draws on cash deposited, not allocation value.`}
       >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">

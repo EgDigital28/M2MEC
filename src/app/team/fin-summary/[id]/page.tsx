@@ -171,13 +171,15 @@ export default async function IndividualSummaryPage({
         </div>
 
         <p className="mt-3 text-sm text-muted">
-          Capital deposited, less this person&apos;s share of the{" "}
-          {fin.nextYear} forecast shortfall, plus anything deposited outside
-          either pool. The test is whether {fin.expenses.currentYear} closes
-          with enough funded to cover {fin.nextYear} spend.
+          The {fin.nextYear} bill is met by the betting pool first; whatever it
+          cannot cover is a company obligation split by equity allocation. This
+          is capital deposited, less this person&apos;s share of that remainder,
+          plus anything deposited outside either pool. The test is whether{" "}
+          {fin.expenses.currentYear} closes with enough funded to cover{" "}
+          {fin.nextYear} spend.
           {member
             ? ""
-            : ` Outside the betting pool, but the shortfall is a company obligation shared by equity, so a share is still carried here.`}
+            : ` Taking no part in the betting pool does not remove the obligation — it is driven by company holdings, so a share is still carried here.`}
         </p>
 
         {netPosition < 0 ? (
