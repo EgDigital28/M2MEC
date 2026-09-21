@@ -2,7 +2,11 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { NextResponse } from "next/server";
 import { requireMinimumTier } from "@/lib/auth/profile";
 import { formatCurrencyWhole } from "@/lib/bets/calculations";
-import { DEPOSIT_KIND_LABELS, formatDepositDate } from "@/lib/financials/deposits";
+import {
+  DEPOSIT_KIND_LABELS,
+  depositMethodLabel,
+  formatDepositDate,
+} from "@/lib/financials/deposits";
 import { formatPct } from "@/lib/financials/fin-summary";
 import { formatReconciliationDate } from "@/lib/financials/reconciliations";
 import { reportFileName } from "@/lib/reports/file-name";
@@ -148,6 +152,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       columns: [
         { label: "Type" },
         { label: "Date" },
+        { label: "Method" },
         { label: "Amount", align: "right" },
         { label: "Description" },
       ],
@@ -155,6 +160,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         cells: [
           DEPOSIT_KIND_LABELS[row.kind],
           formatDepositDate(row.deposited_on),
+          depositMethodLabel(row.method),
           formatCurrencyWhole(Number(row.amount)),
           row.description ?? "—",
         ],

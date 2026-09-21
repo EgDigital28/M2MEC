@@ -8,10 +8,50 @@ export const DEPOSIT_KIND_LABELS: Record<DepositKind, string> = {
   ancillary: "Ancillary",
 };
 
+export const DEPOSIT_METHODS = [
+  "wire",
+  "ach",
+  "check",
+  "cash",
+  "zelle",
+  "venmo",
+  "cashapp",
+  "paypal",
+  "apple_pay",
+  "crypto",
+  "other",
+] as const;
+
+export type DepositMethod = (typeof DEPOSIT_METHODS)[number];
+
+export const DEPOSIT_METHOD_LABELS: Record<DepositMethod, string> = {
+  wire: "Wire",
+  ach: "ACH",
+  check: "Check",
+  cash: "Cash",
+  zelle: "Zelle",
+  venmo: "Venmo",
+  cashapp: "Cash App",
+  paypal: "PayPal",
+  apple_pay: "Apple Pay",
+  crypto: "Crypto",
+  other: "Other",
+};
+
+export function isDepositMethod(value: unknown): value is DepositMethod {
+  return (DEPOSIT_METHODS as readonly unknown[]).includes(value);
+}
+
+/** Unknown values can only arrive from a hand-edited row; show them as-is. */
+export function depositMethodLabel(value: string) {
+  return isDepositMethod(value) ? DEPOSIT_METHOD_LABELS[value] : value;
+}
+
 export type CapitalDeposit = {
   id: string;
   profile_id: string;
   kind: DepositKind;
+  method: DepositMethod;
   group_id: string | null;
   deposited_on: string;
   amount: number;
@@ -26,7 +66,7 @@ export type CapitalDeposit = {
 };
 
 export const DEPOSIT_COLUMNS =
-  "id, profile_id, kind, group_id, deposited_on, amount, description, created_at, profiles!capital_deposits_profile_id_fkey(id, email, display_name, report_alias)";
+  "id, profile_id, kind, method, group_id, deposited_on, amount, description, created_at, profiles!capital_deposits_profile_id_fkey(id, email, display_name, report_alias)";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -34,6 +74,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export type DepositPayload = {
   profile_id?: unknown;
   kind?: unknown;
+  method?: unknown;
   group_id?: unknown;
   deposited_on?: unknown;
   amount?: unknown;
@@ -65,6 +106,10 @@ export function validateDeposit(body: DepositPayload) {
     return { error: "Choose what the deposit is into." as const };
   }
 
+  if (!isDepositMethod(body.method)) {
+    return { error: "Choose how the deposit was made." as const };
+  }
+
   // A betting deposit belongs to exactly one wagering group; a company
   // deposit has none, so ownership can never be applied to the wrong pool.
   const groupId = typeof body.group_id === "string" ? body.group_id : "";
@@ -87,6 +132,7 @@ export function validateDeposit(body: DepositPayload) {
     values: {
       profile_id: profileId,
       kind: body.kind,
+      method: body.method,
       group_id: body.kind === "betting" ? groupId : null,
       deposited_on: depositedOn,
       amount,

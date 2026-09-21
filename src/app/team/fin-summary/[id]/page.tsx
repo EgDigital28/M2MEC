@@ -4,6 +4,7 @@ import { formatCurrencyWhole } from "@/lib/bets/calculations";
 import { formatPct } from "@/lib/financials/fin-summary";
 import {
   DEPOSIT_KIND_LABELS,
+  depositMethodLabel,
   formatDepositDate,
   type DepositKind,
 } from "@/lib/financials/deposits";
@@ -325,6 +326,7 @@ export default async function IndividualSummaryPage({
                   <tr className="border-b border-border">
                     <th className={th}>Type</th>
                     <th className={th}>Date</th>
+                    <th className={th}>Method</th>
                     <th className={thr}>Amount</th>
                     <th className={th}>Description</th>
                   </tr>
@@ -335,6 +337,9 @@ export default async function IndividualSummaryPage({
                       <td className={`${td} font-medium`}>{DEPOSIT_KIND_LABELS[row.kind]}</td>
                       <td className={`${td} text-muted`}>
                         {formatDepositDate(row.deposited_on)}
+                      </td>
+                      <td className={`${td} text-muted`}>
+                        {depositMethodLabel(row.method)}
                       </td>
                       <td className={tdr}>{formatCurrencyWhole(Number(row.amount))}</td>
                       <td className={`${td} text-muted`}>{row.description ?? "—"}</td>
