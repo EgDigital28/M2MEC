@@ -69,11 +69,12 @@ export type GenerateImagesOutput = {
 };
 
 /**
- * xAI reports cost as integer "ticks" and documents no scale, so this is the
- * one place the assumption lives: verify a few generations against the console
- * spend figure and change this constant if it disagrees.
+ * xAI reports cost as integer "ticks" and documents no scale anywhere in the
+ * SDK, so it was calibrated against the console: 4 requests totalling
+ * 1.3e9 ticks showed as $0.13 spend, and a measured 2e8-tick call lands on a
+ * round $0.02. Re-check against console spend if figures ever drift.
  */
-export const TICKS_PER_USD = 1_000_000_000;
+export const TICKS_PER_USD = 10_000_000_000;
 
 export function usdFromTicks(ticks: number | null | undefined) {
   return ticks == null ? null : ticks / TICKS_PER_USD;
