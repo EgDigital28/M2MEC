@@ -88,6 +88,15 @@ export function TeamShell({ profile, children, creatorFeedAccess = false }: Team
       </header>
 
       <main className="mx-auto max-w-6xl px-6 py-10">{children}</main>
+
+      {/* Internal pages only. Documents that leave the building carry the
+          fuller confidentiality notice instead. */}
+      <footer className="mx-auto max-w-6xl px-6 pb-10 pt-4 print:hidden">
+        <p className="border-t border-border/60 pt-4 text-xs text-muted">
+          M2MEC · Internal use only · Confidential ·{" "}
+          {new Date().getFullYear()}
+        </p>
+      </footer>
     </div>
   );
 }
