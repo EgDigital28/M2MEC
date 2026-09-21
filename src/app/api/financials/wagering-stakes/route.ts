@@ -112,7 +112,6 @@ export async function POST(request: Request) {
     .insert({
       profile_id: profileId,
       group_id: body.group_id,
-      capital_deposit: capitalDeposit,
     })
     .select(STAKE_SELECT)
     .single();
