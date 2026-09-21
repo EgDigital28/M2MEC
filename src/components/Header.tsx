@@ -13,6 +13,7 @@ type HeaderProps = {
   navLinks: NavLink[];
   homeHref?: string;
   ctaLabel?: string;
+  showCta?: boolean;
   showLogin?: boolean;
   user?: Profile | null;
 };
@@ -21,6 +22,7 @@ export function Header({
   navLinks,
   homeHref = "/",
   ctaLabel = "Get early access",
+  showCta = true,
   showLogin = true,
   user = null,
 }: HeaderProps) {
@@ -73,17 +75,23 @@ export function Header({
               {showLogin && (
                 <Link
                   href="/login"
-                  className="hidden text-sm text-muted transition-colors hover:text-foreground sm:inline"
+                  className={
+                    showCta
+                      ? "hidden text-sm text-muted transition-colors hover:text-foreground sm:inline"
+                      : "rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-90"
+                  }
                 >
                   Log in
                 </Link>
               )}
-              <a
-                href="#contact"
-                className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-90"
-              >
-                {ctaLabel}
-              </a>
+              {showCta && (
+                <a
+                  href="#contact"
+                  className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-90"
+                >
+                  {ctaLabel}
+                </a>
+              )}
             </>
           )}
         </div>

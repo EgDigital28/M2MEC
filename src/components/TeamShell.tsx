@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Profile } from "@/lib/auth/profile";
+import { getProfileDisplayName } from "@/lib/auth/display-name";
 import { getTeamNavItems } from "@/lib/team-nav";
 import { TIER_LABELS } from "@/lib/tiers";
 import { TeamSignOut } from "@/components/TeamSignOut";
@@ -16,7 +17,7 @@ type TeamShellProps = {
 export function TeamShell({ profile, children, creatorFeedAccess = false }: TeamShellProps) {
   const pathname = usePathname();
   const navItems = getTeamNavItems(profile.tier);
-  if (creatorFeedAccess) navItems.splice(2, 0, { label: "Prediction Ledger", href: "/team/prediction-ledger" });
+  if (creatorFeedAccess) navItems.splice(2, 0, { label: "Predictions", href: "/team/prediction-ledger" });
 
   return (
     <div className="min-h-screen bg-background">
@@ -44,7 +45,7 @@ export function TeamShell({ profile, children, creatorFeedAccess = false }: Team
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`rounded-lg px-3 py-2 text-sm transition-colors ${
+                    className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors ${
                       isActive
                         ? "bg-surface-elevated text-foreground"
                         : "text-muted hover:text-foreground"
@@ -59,7 +60,7 @@ export function TeamShell({ profile, children, creatorFeedAccess = false }: Team
 
           <div className="flex items-center gap-4">
             <div className="hidden text-right sm:block">
-              <p className="text-sm font-medium">{profile.email}</p>
+              <p className="text-sm font-medium">{getProfileDisplayName(profile)}</p>
               <p className="text-xs text-muted">{TIER_LABELS[profile.tier]}</p>
             </div>
             <span className="rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent sm:hidden">
