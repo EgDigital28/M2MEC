@@ -60,7 +60,10 @@ export type DepletionRow = {
   key: string;
   label: string;
   excludedFromBetting: boolean;
-  cash: number;
+  /** Allocation at the company valuation — what the stake is worth. */
+  cashValue: number;
+  /** Cash actually paid in. Depletion draws on this, not on the valuation. */
+  deposits: number;
   ytd: number;
   remainingThisYear: number;
   endOfYearCash: number;
@@ -219,6 +222,11 @@ export function computePoolMembers(
  *
  * Every investor is listed, including those outside the betting pool: they hold
  * cash that the model must still account for, it simply never depletes.
+ *
+ * Depletion draws on cash deposited rather than allocation value: only money
+ * actually paid in can be consumed, so an investor who has deposited less than
+ * their share of a loss ends negative — that is a balance owed, not a floor to
+ * clamp away.
  */
 export function computeDepletion(
   investors: InvestorRow[],
@@ -236,14 +244,15 @@ export function computeDepletion(
       : undefined;
     const ytd = 0;
     const remainingThisYear = member ? Math.min(0, member.remainingPl) : 0;
-    const endOfYearCash = investor.cashValue + ytd + remainingThisYear;
+    const endOfYearCash = investor.deposit + ytd + remainingThisYear;
     const nextYear = member ? Math.min(0, member.nextYearPl) : 0;
 
     return {
       key: investor.key,
       label: investor.label,
       excludedFromBetting: Boolean(investor.excludedFromBetting),
-      cash: investor.cashValue,
+      cashValue: investor.cashValue,
+      deposits: investor.deposit,
       ytd,
       remainingThisYear,
       endOfYearCash,
