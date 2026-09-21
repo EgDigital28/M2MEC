@@ -39,16 +39,3 @@ export function PrintReportButton({
     </button>
   );
 }
-
-/** m2mec_sam_bennet_fin_2026-09-21 */
-export function reportFileName(name: string, date = new Date()) {
-  const slug = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-  const day = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/New_York",
-  }).format(date);
-
-  return `m2mec_${slug || "report"}_fin_${day}`;
-}

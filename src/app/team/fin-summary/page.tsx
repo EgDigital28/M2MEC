@@ -1,9 +1,7 @@
 import { redirect } from "next/navigation";
 import { FinSummaryIndividualPicker } from "@/components/FinSummaryIndividualPicker";
-import {
-  PrintReportButton,
-  reportFileName,
-} from "@/components/PrintReportButton";
+import { PrintReportButton } from "@/components/PrintReportButton";
+import { reportFileName } from "@/lib/reports/file-name";
 import { getCurrentProfile } from "@/lib/auth/profile";
 import { formatCurrencyWhole } from "@/lib/bets/calculations";
 import { formatPct } from "@/lib/financials/fin-summary";
