@@ -523,14 +523,15 @@ export default async function FinSummaryPage() {
 
       <Card
         title="M2MEC capital depletion"
-        subtitle="Investor cash is only drawn on once a period's forecast P/L turns negative. Investors outside the betting pool hold cash that never depletes."
+        subtitle="Depletion draws on cash deposited, not allocation value. Cash is only drawn on once a period's forecast P/L turns negative, and investors outside the betting pool never deplete."
       >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
             <thead>
               <tr className="border-b border-border">
                 <th className={th}>Individual</th>
-                <th className={thr}>Cash</th>
+                <th className={thr}>Cash Value</th>
+                <th className={thr}>Deposits</th>
                 <th className={thr}>YTD</th>
                 <th className={thr}>Rest of year</th>
                 <th className={thr}>{expenses.currentYear} end cash</th>
@@ -552,25 +553,58 @@ export default async function FinSummaryPage() {
                       </span>
                     ) : null}
                   </td>
-                  <td className={tdr}>{formatCurrencyWhole(row.cash)}</td>
+                  <td className={tdr}>{formatCurrencyWhole(row.cashValue)}</td>
+                  <td className={tdr}>{formatCurrencyWhole(row.deposits)}</td>
                   <td className={tdr}>{formatCurrencyWhole(row.ytd)}</td>
                   <td className={`${tdr} ${plClass(row.remainingThisYear)}`}>
                     {formatCurrencyWhole(row.remainingThisYear)}
                   </td>
-                  <td className={tdr}>
+                  <td className={`${tdr} ${row.endOfYearCash < 0 ? "text-red-400" : ""}`}>
                     {formatCurrencyWhole(row.endOfYearCash)}
                   </td>
                   <td className={`${tdr} ${plClass(row.nextYear)}`}>
                     {formatCurrencyWhole(row.nextYear)}
                   </td>
-                  <td className={tdr}>
+                  <td className={`${tdr} ${row.endOfNextYearCash < 0 ? "text-red-400" : ""}`}>
                     {formatCurrencyWhole(row.endOfNextYearCash)}
                   </td>
                 </tr>
               ))}
+              <tr className="font-semibold">
+                <td className={td}>Total</td>
+                <td className={tdr}>{formatCurrencyWhole(valuation)}</td>
+                <td className={tdr}>{formatCurrencyWhole(totalDeposits)}</td>
+                <td className={tdr} />
+                <td className={tdr} />
+                <td className={tdr}>
+                  {formatCurrencyWhole(
+                    depletion.reduce((sum, row) => sum + row.endOfYearCash, 0),
+                  )}
+                </td>
+                <td className={tdr}>
+                  {formatCurrencyWhole(
+                    depletion.reduce((sum, row) => sum + row.nextYear, 0),
+                  )}
+                </td>
+                <td className={tdr}>
+                  {formatCurrencyWhole(
+                    depletion.reduce(
+                      (sum, row) => sum + row.endOfNextYearCash,
+                      0,
+                    ),
+                  )}
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
+        <p className="text-xs text-muted">
+          Forecasts and depletion are calculated against total deposits of{" "}
+          {formatCurrencyWhole(totalDeposits)}, not the{" "}
+          {formatCurrencyWhole(valuation)} of allocation value. An investor can
+          end negative where their share of a loss exceeds what they have paid
+          in.
+        </p>
       </Card>
     </div>
   );
