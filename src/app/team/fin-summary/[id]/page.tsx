@@ -122,6 +122,15 @@ export default async function IndividualSummaryPage({
       .filter((row) => row.kind === kind)
       .reduce((sum, row) => sum + Number(row.amount), 0);
 
+  // The headline figure: capital actually paid in, less what the betting
+  // forecast is expected to consume, plus anything deposited outside either
+  // pool. Someone who has funded their allocation in full can finish net
+  // positive even while the pool forecasts a loss.
+  const ancillaryTotal = depositTotal("ancillary");
+  const capitalDeposited = investor?.deposit ?? 0;
+  const forecastPl = member?.nextYearPl ?? 0;
+  const netPosition = capitalDeposited + forecastPl + ancillaryTotal;
+
   return (
     <div className="space-y-6">
       <section>
@@ -134,6 +143,55 @@ export default async function IndividualSummaryPage({
           {person.email} · {person.tier}
           {person.excluded_from_betting ? " · outside the betting pool" : ""}
         </p>
+      </section>
+
+      <section className="rounded-2xl border border-border bg-surface p-5">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted">
+          Net position
+        </p>
+        <p className={`mt-2 text-4xl font-semibold tabular-nums ${plClass(netPosition)}`}>
+          {netPosition > 0 ? "+" : ""}
+          {formatCurrencyWhole(netPosition)}
+        </p>
+
+        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <Stat
+            label="Capital deposited"
+            value={formatCurrencyWhole(capitalDeposited)}
+          />
+          <Stat
+            label={`${fin.nextYear} forecast P/L`}
+            value={`${forecastPl > 0 ? "+" : ""}${formatCurrencyWhole(forecastPl)}`}
+            className={plClass(forecastPl)}
+          />
+          <Stat
+            label="Ancillary deposits"
+            value={formatCurrencyWhole(ancillaryTotal)}
+          />
+        </div>
+
+        {netPosition < 0 ? (
+          <p className="mt-3 rounded-lg border border-amber-400/30 p-3 text-sm text-amber-200">
+            <span className="font-semibold tabular-nums">
+              {formatCurrencyWhole(-netPosition)}
+            </span>{" "}
+            due by 31 December {fin.expenses.currentYear} to bring this to zero.
+          </p>
+        ) : null}
+
+        {investor && investor.amountDue > 0 ? (
+          <p className="mt-3 text-sm text-muted">
+            {formatCurrencyWhole(investor.amountDue)} of the allocation is still
+            unfunded. Paying it in full would move this to{" "}
+            <span
+              className={`tabular-nums ${plClass(netPosition + investor.amountDue)}`}
+            >
+              {netPosition + investor.amountDue > 0 ? "+" : ""}
+              {formatCurrencyWhole(netPosition + investor.amountDue)}
+            </span>
+            .
+          </p>
+        ) : null}
       </section>
 
       {investor ? (
