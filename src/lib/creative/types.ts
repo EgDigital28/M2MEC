@@ -27,6 +27,9 @@ export type TemplateSlot = {
   weight: number;
   colorRole: ColorRole;
   transform: "none" | "uppercase";
+  /** Example value, shown as the field's placeholder so a blank form explains
+   * itself and can be filled with one click. */
+  placeholder?: string;
 };
 
 export type CreativeTemplate = {
