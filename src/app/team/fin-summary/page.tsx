@@ -293,7 +293,7 @@ export default async function FinSummaryPage() {
       </Card>
 
       <Card
-        title="Betting value less expense"
+        title="Betting Value Less Expense"
         subtitle={`Operating expense while the pool funds it, shared by pool ownership. Year to date is every ${expenses.currentYear} quarter through Q${expenses.currentQuarter}; the remainder of the year is forecast. ${nextYear} spend beyond the pool is a company obligation and appears under capital depletion.`}
       >
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -381,7 +381,7 @@ export default async function FinSummaryPage() {
       </Card>
 
       <Card
-        title="M2MEC capital depletion"
+        title="M2MEC Capital Depletion"
         subtitle={`The ${nextYear} bill is met by the betting pool first; the remainder is a company obligation split by equity allocation, so an investor outside the pool still carries a share. Depletion draws on cash deposited, not allocation value.`}
       >
         <div className="overflow-x-auto">

@@ -79,6 +79,14 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica-Bold",
   },
   headlineValue: { fontSize: 19, marginTop: 3, fontFamily: "Helvetica-Bold" },
+  notesLabel: {
+    fontSize: 6,
+    letterSpacing: 1.2,
+    color: COLOR.muted,
+    textTransform: "uppercase",
+    fontFamily: "Helvetica-Bold",
+    marginTop: 8,
+  },
   note: { fontSize: 6.3, color: COLOR.muted, marginTop: 5, lineHeight: 1.35 },
   section: { marginTop: 10 },
   sectionTitle: { fontSize: 9.5, fontFamily: "Helvetica-Bold", marginBottom: 4 },
@@ -162,9 +170,12 @@ export function IndividualPdf({ data }: { data: IndividualPdfData }) {
           <View style={{ marginTop: 7 }}>
             <Stats stats={data.headlineStats} />
           </View>
-          {data.headlineNotes.map((note) => (
+          {data.headlineNotes.length > 0 ? (
+            <Text style={styles.notesLabel}>Notes</Text>
+          ) : null}
+          {data.headlineNotes.map((note, index) => (
             <Text key={note} style={styles.note}>
-              {note}
+              {index + 1}) {note}
             </Text>
           ))}
         </View>

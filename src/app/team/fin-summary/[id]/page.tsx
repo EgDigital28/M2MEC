@@ -142,41 +142,51 @@ export default async function IndividualSummaryPage({
           />
         </div>
 
-        <p className="mt-3 text-sm text-muted">
-          The {fin.nextYear} bill is met by the betting pool first; whatever it
-          cannot cover is a company obligation split by equity allocation. This
-          is capital deposited, less this person&apos;s share of that remainder,
-          plus anything deposited outside either pool. The test is whether{" "}
-          {fin.expenses.currentYear} closes with enough funded to cover{" "}
-          {fin.nextYear} spend.
-          {member
-            ? ""
-            : ` Taking no part in the betting pool does not remove the obligation — it is driven by company holdings, so a share is still carried here.`}
-        </p>
-
-        {netPosition < 0 ? (
-          <p className="mt-3 rounded-lg border border-amber-400/30 p-3 text-sm text-amber-200">
-            <span className="font-semibold tabular-nums">
-              {formatCurrencyWhole(-netPosition)}
-            </span>{" "}
-            due by 31 December {fin.expenses.currentYear} to bring this to zero.{" "}
-            {describePaymentSchedule(paymentSchedule)}
+        {/* Numbered so the reader can refer to a specific point. */}
+        <div className="mt-4">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted">
+            Notes
           </p>
-        ) : null}
+          <ol className="mt-2 space-y-2 text-sm">
+            <li className="text-muted">
+              1) The {fin.nextYear} bill is met by the betting pool first;
+              whatever it cannot cover is a company obligation split by equity
+              allocation. This is capital deposited, less this person&apos;s
+              share of that remainder, plus anything deposited outside either
+              pool. The test is whether {fin.expenses.currentYear} closes with
+              enough funded to cover {fin.nextYear} spend.
+              {member
+                ? ""
+                : ` Taking no part in the betting pool does not remove the obligation — it is driven by company holdings, so a share is still carried here.`}
+            </li>
 
-        {investor && investor.amountDue > 0 ? (
-          <p className="mt-3 text-sm text-muted">
-            {formatCurrencyWhole(investor.amountDue)} of the allocation is still
-            unfunded. Paying it in full would move this to{" "}
-            <span
-              className={`tabular-nums ${plClass(netPosition + investor.amountDue)}`}
-            >
-              {netPosition + investor.amountDue > 0 ? "+" : ""}
-              {formatCurrencyWhole(netPosition + investor.amountDue)}
-            </span>
-            .
-          </p>
-        ) : null}
+            {netPosition < 0 ? (
+              <li className="text-amber-200">
+                2){" "}
+                <span className="font-semibold tabular-nums">
+                  {formatCurrencyWhole(-netPosition)}
+                </span>{" "}
+                due by 31 December {fin.expenses.currentYear} to bring this to
+                zero. {describePaymentSchedule(paymentSchedule)}
+              </li>
+            ) : null}
+
+            {investor && investor.amountDue > 0 ? (
+              <li className="text-muted">
+                {netPosition < 0 ? "3)" : "2)"}{" "}
+                {formatCurrencyWhole(investor.amountDue)} of the allocation is
+                still unfunded. Paying it in full would move this to{" "}
+                <span
+                  className={`tabular-nums ${plClass(netPosition + investor.amountDue)}`}
+                >
+                  {netPosition + investor.amountDue > 0 ? "+" : ""}
+                  {formatCurrencyWhole(netPosition + investor.amountDue)}
+                </span>
+                .
+              </li>
+            ) : null}
+          </ol>
+        </div>
       </section>
 
       {investor ? (
@@ -196,7 +206,7 @@ export default async function IndividualSummaryPage({
       ) : null}
 
       {member ? (
-        <Card title="Betting pool">
+        <Card title="Betting Pool">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <Stat label="Capital deposited" value={formatCurrencyWhole(member.contributed)} />
             <Stat label="Ownership" value={formatPct(member.currentPct)} />
@@ -215,7 +225,7 @@ export default async function IndividualSummaryPage({
           ) : null}
         </Card>
       ) : (
-        <Card title="Betting pool">
+        <Card title="Betting Pool">
           <p className="text-sm text-muted">
             No stake in the betting pool
             {person.excluded_from_betting ? " — excluded by design." : "."}
@@ -224,7 +234,7 @@ export default async function IndividualSummaryPage({
       )}
 
       {member ? (
-        <Card title="Expense share and forecast">
+        <Card title="Expense Share and Forecast">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <Stat
               label={`${fin.expenses.currentYear} contribution`}
@@ -249,7 +259,7 @@ export default async function IndividualSummaryPage({
       ) : null}
 
       {depletion ? (
-        <Card title="Capital depletion">
+        <Card title="Capital Depletion">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <Stat label="Deposits" value={formatCurrencyWhole(depletion.deposits)} />
             <Stat
@@ -322,7 +332,7 @@ export default async function IndividualSummaryPage({
 
       {/* Omitted when empty: an empty card is noise on screen and worse in print. */}
       {reconciliations.length > 0 ? (
-        <Card title="Betting reconciliation">
+        <Card title="Betting Reconciliation">
             <p className={`text-sm tabular-nums ${plClass(reconciliationNet)}`}>
               Net {reconciliationNet > 0 ? "+" : ""}
               {formatCurrencyWhole(reconciliationNet)}
