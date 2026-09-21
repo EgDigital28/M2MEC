@@ -4,8 +4,11 @@ import { requireMinimumTier } from "@/lib/auth/profile";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   fetchPlaygroundHistory,
+  fetchSpendSummary,
   isMissingPlaygroundTable,
+  startOfTodayIso,
   type PlaygroundGeneration,
+  type SpendSummary,
 } from "@/lib/playground/history";
 import { defaultImageModelId, isImageProviderConfigured } from "@/lib/playground/provider";
 
@@ -20,11 +23,16 @@ export default async function PlaygroundPage() {
   }
 
   let history: PlaygroundGeneration[] = [];
+  let spend: SpendSummary = { totalTicks: 0, todayTicks: 0, imageCount: 0, rates: [] };
   let historyError: string | null = null;
 
   try {
     // Signing Storage URLs needs the service role; the bucket is private.
-    history = await fetchPlaygroundHistory(createAdminClient());
+    const db = createAdminClient();
+    [history, spend] = await Promise.all([
+      fetchPlaygroundHistory(db),
+      fetchSpendSummary(db, startOfTodayIso()),
+    ]);
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     historyError = isMissingPlaygroundTable(message)
@@ -45,6 +53,7 @@ export default async function PlaygroundPage() {
 
       <PlaygroundStudio
         initialHistory={history}
+        initialSpend={spend}
         defaultModel={defaultImageModelId()}
         configured={isImageProviderConfigured()}
         historyError={historyError}
