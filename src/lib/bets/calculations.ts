@@ -450,11 +450,29 @@ export function getCurrentWeekRange(timeZone = DEFAULT_BET_TIMEZONE): WeekDateRa
   };
 }
 
-/** The seven days ending today, inclusive — today's plays are part of the week. */
+/**
+ * The seven days ending yesterday. A review covers a finished period, so
+ * today — which is still in play — is deliberately excluded.
+ */
 export function getRollingWeekRange(timeZone = DEFAULT_BET_TIMEZONE): WeekDateRange {
   const end = parseDateString(getTodayDateString(timeZone));
+  end.setDate(end.getDate() - 1);
   const start = new Date(end);
   start.setDate(start.getDate() - 6);
+
+  return { weekStart: formatDateString(start), weekEnd: formatDateString(end) };
+}
+
+/**
+ * The last completed Monday–Sunday week. On a Monday the current week has
+ * barely started, so reviewing it would report almost nothing.
+ */
+export function getPreviousWeekRange(timeZone = DEFAULT_BET_TIMEZONE): WeekDateRange {
+  const current = getCurrentWeekRange(timeZone);
+  const start = parseDateString(current.weekStart);
+  const end = parseDateString(current.weekEnd);
+  start.setDate(start.getDate() - 7);
+  end.setDate(end.getDate() - 7);
 
   return { weekStart: formatDateString(start), weekEnd: formatDateString(end) };
 }
