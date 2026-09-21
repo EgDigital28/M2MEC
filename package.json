@@ -13,8 +13,10 @@
     "release:production": "node scripts/publish-production.mjs"
   },
   "dependencies": {
+    "@ai-sdk/xai": "^5.0.4",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.3",
+    "ai": "^7.0.107",
     "next": "^15.5.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

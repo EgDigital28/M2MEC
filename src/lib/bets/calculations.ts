@@ -450,6 +450,66 @@ export function getCurrentWeekRange(timeZone = DEFAULT_BET_TIMEZONE): WeekDateRa
   };
 }
 
+/** The seven days ending today, inclusive — today's plays are part of the week. */
+export function getRollingWeekRange(timeZone = DEFAULT_BET_TIMEZONE): WeekDateRange {
+  const end = parseDateString(getTodayDateString(timeZone));
+  const start = new Date(end);
+  start.setDate(start.getDate() - 6);
+
+  return { weekStart: formatDateString(start), weekEnd: formatDateString(end) };
+}
+
+export type DayPlPoint = {
+  date: string;
+  profitLoss: number;
+  playCount: number;
+  openCount: number;
+};
+
+/**
+ * One point per calendar day across the range, including days with no plays,
+ * so the strip keeps a stable seven-column shape.
+ */
+export function computeDailyPlSeries(
+  entries: BetEntryComputed[],
+  weekStart: string,
+  weekEnd: string,
+): DayPlPoint[] {
+  const byDate = new Map<string, { profitLoss: number; playCount: number; openCount: number }>();
+
+  for (const entry of entries) {
+    const current = byDate.get(entry.event_date) ?? { profitLoss: 0, playCount: 0, openCount: 0 };
+    current.profitLoss += entry.profit_loss;
+    current.playCount += 1;
+
+    if (entry.status === "Open") {
+      current.openCount += 1;
+    }
+
+    byDate.set(entry.event_date, current);
+  }
+
+  const points: DayPlPoint[] = [];
+  const cursor = parseDateString(weekStart);
+  const last = parseDateString(weekEnd);
+
+  while (cursor <= last) {
+    const date = formatDateString(cursor);
+    const found = byDate.get(date);
+
+    points.push({
+      date,
+      profitLoss: found?.profitLoss ?? 0,
+      playCount: found?.playCount ?? 0,
+      openCount: found?.openCount ?? 0,
+    });
+
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return points;
+}
+
 export function formatWeekRangeLabel(weekStart: string, weekEnd: string) {
   const start = parseDateString(weekStart);
   const end = parseDateString(weekEnd);
