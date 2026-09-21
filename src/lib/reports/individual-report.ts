@@ -1,5 +1,6 @@
 import { loadFinSummary } from "@/lib/financials/fin-summary-data";
 import type { DepositKind } from "@/lib/financials/deposits";
+import { recommendedPaymentSchedule } from "@/lib/reports/payment-schedule";
 import { createClient } from "@/lib/supabase/server";
 
 export type IndividualPerson = {
@@ -74,6 +75,7 @@ export async function loadIndividualReport(id: string) {
   const ancillaryTotal = depositTotal("ancillary");
   const capitalDeposited = investor?.deposit ?? 0;
   const forecastPl = investor ? (fin.shortfallByInvestor.get(investor.key) ?? 0) : 0;
+  const netPosition = capitalDeposited + forecastPl + ancillaryTotal;
 
   return {
     fin,
@@ -89,7 +91,9 @@ export async function loadIndividualReport(id: string) {
     ancillaryTotal,
     capitalDeposited,
     forecastPl,
-    netPosition: capitalDeposited + forecastPl + ancillaryTotal,
+    netPosition,
+    // Empty when nothing is owed, so the section simply does not appear.
+    paymentSchedule: recommendedPaymentSchedule(-netPosition),
   };
 }
 
