@@ -1,5 +1,5 @@
 import { loadFinSummary } from "@/lib/financials/fin-summary-data";
-import type { DepositKind } from "@/lib/financials/deposits";
+import type { DepositKind, DepositMethod } from "@/lib/financials/deposits";
 import { recommendedPaymentSchedule } from "@/lib/reports/payment-schedule";
 import { createClient } from "@/lib/supabase/server";
 
@@ -15,6 +15,7 @@ export type IndividualPerson = {
 export type IndividualDeposit = {
   id: string;
   kind: DepositKind;
+  method: DepositMethod;
   deposited_on: string;
   amount: number;
   description: string | null;
@@ -44,7 +45,7 @@ export async function loadIndividualReport(id: string) {
       .maybeSingle(),
     supabase
       .from("capital_deposits")
-      .select("id, kind, deposited_on, amount, description")
+      .select("id, kind, method, deposited_on, amount, description")
       .eq("profile_id", id)
       .order("deposited_on", { ascending: false }),
     supabase

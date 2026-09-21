@@ -4,6 +4,9 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { formatCurrencyWhole } from "@/lib/bets/calculations";
 import {
   DEPOSIT_KIND_LABELS,
+  DEPOSIT_METHODS,
+  DEPOSIT_METHOD_LABELS,
+  depositMethodLabel,
   depositPersonLabel,
   formatDepositDate,
   sumDeposits,
@@ -17,6 +20,7 @@ import type { ManagedUser } from "@/lib/users/types";
 const emptyForm = (kind: DepositKind) => ({
   profile_id: "",
   kind,
+  method: "wire" as string,
   group_id: "",
   deposited_on: "",
   amount: "",
@@ -106,7 +110,7 @@ function DepositSection({
         </div>
       ) : null}
 
-      <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
         <label>
           <span className={labelClass}>Person</span>
           <select
@@ -152,6 +156,21 @@ function DepositSection({
           />
         </label>
         <label>
+          <span className={labelClass}>Method</span>
+          <select
+            required
+            value={form.method}
+            onChange={(event) => setForm({ ...form, method: event.target.value })}
+            className={`mt-2 ${field}`}
+          >
+            {DEPOSIT_METHODS.map((method) => (
+              <option key={method} value={method}>
+                {DEPOSIT_METHOD_LABELS[method]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
           <span className={labelClass}>Amount</span>
           <input
             required
@@ -186,6 +205,7 @@ function DepositSection({
             <tr className="border-b border-border text-left text-xs text-muted">
               <th className="px-3 py-2 font-medium">Person</th>
               <th className="px-3 py-2 font-medium">Date</th>
+              <th className="px-3 py-2 font-medium">Method</th>
               <th className="px-3 py-2 text-right font-medium">Amount</th>
               <th className="px-3 py-2 font-medium">Description</th>
               <th className="px-3 py-2 text-right font-medium">Actions</th>
@@ -194,7 +214,7 @@ function DepositSection({
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-muted">
+                <td colSpan={6} className="px-3 py-6 text-center text-muted">
                   No deposits recorded.
                 </td>
               </tr>
@@ -226,6 +246,21 @@ function DepositSection({
                         }
                         className={field}
                       />
+                    </td>
+                    <td className="px-3 py-2">
+                      <select
+                        value={editForm.method}
+                        onChange={(event) =>
+                          setEditForm({ ...editForm, method: event.target.value })
+                        }
+                        className={field}
+                      >
+                        {DEPOSIT_METHODS.map((method) => (
+                          <option key={method} value={method}>
+                            {DEPOSIT_METHOD_LABELS[method]}
+                          </option>
+                        ))}
+                      </select>
                     </td>
                     <td className="px-3 py-2">
                       <input
@@ -278,6 +313,9 @@ function DepositSection({
                     <td className="px-3 py-2 text-muted">
                       {formatDepositDate(row.deposited_on)}
                     </td>
+                    <td className="px-3 py-2 text-muted">
+                      {depositMethodLabel(row.method)}
+                    </td>
                     <td className="px-3 py-2 text-right tabular-nums">
                       {formatCurrencyWhole(Number(row.amount))}
                     </td>
@@ -290,6 +328,7 @@ function DepositSection({
                           setEditForm({
                             profile_id: row.profile_id,
                             kind: row.kind,
+                            method: row.method,
                             group_id: row.group_id ?? "",
                             deposited_on: row.deposited_on,
                             amount: String(row.amount),
