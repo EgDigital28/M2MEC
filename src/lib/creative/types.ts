@@ -27,10 +27,33 @@ export type TemplateSlot = {
   weight: number;
   colorRole: ColorRole;
   transform: "none" | "uppercase";
+  /** Display is the condensed heavy face used for headlines. */
+  font?: "display" | "body";
+  /** Fraction of the font size, so tracking scales with the text. */
+  tracking?: number;
   /** Example value, shown as the field's placeholder so a blank form explains
    * itself and can be filled with one click. */
   placeholder?: string;
 };
+
+/**
+ * Anything drawn that is not text. Kept in the template rather than the
+ * composer so the whole layout — rules, chips, the barcode — can be retuned
+ * against a new backdrop by editing one row, with no deploy.
+ */
+export type TemplateDecoration = {
+  type: "block" | "rule" | "barcode";
+  /** Fractions of the canvas, anchored top-left. */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  colorRole: ColorRole;
+  /** Corner radius in pixels. */
+  radius?: number;
+};
+
+export type TemplateRect = { x: number; y: number; w: number; h: number };
 
 export type CreativeTemplate = {
   id: string;
@@ -40,6 +63,8 @@ export type CreativeTemplate = {
   height: number;
   backdrop_prompt: string;
   slots: TemplateSlot[];
+  decorations?: TemplateDecoration[];
+  logo?: TemplateRect | null;
   is_active: boolean;
 };
 
@@ -123,4 +148,23 @@ export function readableOn(background: string) {
 
 export function applyTransform(value: string, transform: TemplateSlot["transform"]) {
   return transform === "uppercase" ? value.toUpperCase() : value;
+}
+
+/**
+ * Bar widths for the decorative barcode, derived from the render's own values
+ * so two different posts do not carry an identical strip, and the same post
+ * re-rendered carries the same one.
+ */
+export function barcodeBars(seed: string, count = 48) {
+  let hash = 2166136261;
+
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return Array.from({ length: count }, (_, index) => {
+    hash = Math.imul(hash ^ (index + 1), 16777619);
+    return ((hash >>> 8) % 3) + 1;
+  });
 }

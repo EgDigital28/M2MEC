@@ -50,7 +50,7 @@ export async function loadKitsWithVersions(client: SupabaseClient) {
 export async function loadTemplates(client: SupabaseClient) {
   const { data } = await client
     .from("creative_templates")
-    .select("id, name, description, width, height, backdrop_prompt, slots, is_active")
+    .select("id, name, description, width, height, backdrop_prompt, slots, decorations, logo, is_active")
     .eq("is_active", true)
     .order("name");
 
