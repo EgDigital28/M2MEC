@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import { useMemo, useRef, useState, type FormEvent } from "react";
-import type { CreativeBootstrap, StudioKit } from "@/lib/creative/queries";
-import type { BrandKitVersion, CreativeTemplate } from "@/lib/creative/types";
+import type { CreativeBootstrap, StudioKit, StudioTemplate } from "@/lib/creative/queries";
+import type { BrandKitVersion } from "@/lib/creative/types";
 
 type CreativeStudioProps = CreativeBootstrap & {
   configured: boolean;
@@ -403,25 +403,58 @@ export function CreativeStudio({
             </p>
           </div>
 
-          <label className="block">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted">
+          <fieldset>
+            <legend className="text-[10px] font-semibold uppercase tracking-widest text-muted">
               Template
-            </span>
-            <select
-              value={templateId}
-              onChange={(event) => {
-                setTemplateId(event.target.value);
-                setValues({});
-              }}
-              className="mt-2 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent"
-            >
-              {templates.map((entry: CreativeTemplate) => (
-                <option key={entry.id} value={entry.id}>
-                  {entry.name} · {entry.width}×{entry.height}
-                </option>
+            </legend>
+            {/* A name in a dropdown says nothing about what you are about to
+                spend money on, so each one shows the last thing it made. */}
+            <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {templates.map((entry: StudioTemplate) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  onClick={() => {
+                    setTemplateId(entry.id);
+                    setValues({});
+                  }}
+                  aria-pressed={templateId === entry.id}
+                  title={entry.description ?? undefined}
+                  className={`overflow-hidden rounded-xl border text-left transition-colors ${
+                    templateId === entry.id
+                      ? "border-accent bg-surface-elevated"
+                      : "border-border hover:border-accent/40"
+                  }`}
+                >
+                  <span className="relative block aspect-[4/5] bg-background">
+                    {entry.previewUrl ? (
+                      <Image
+                        src={entry.previewUrl}
+                        alt=""
+                        fill
+                        unoptimized
+                        sizes="180px"
+                        className="object-cover"
+                      />
+                    ) : (
+                      <span className="flex h-full items-center justify-center px-2 text-center text-[10px] text-muted">
+                        No preview yet — render once
+                      </span>
+                    )}
+                  </span>
+                  <span className="block px-2 py-1.5">
+                    <span className="block truncate text-xs font-medium">{entry.name}</span>
+                    <span className="block text-[10px] tabular-nums text-muted">
+                      {entry.width}×{entry.height}
+                    </span>
+                  </span>
+                </button>
               ))}
-            </select>
-          </label>
+            </div>
+            {template?.description ? (
+              <p className="mt-2 text-xs text-muted">{template.description}</p>
+            ) : null}
+          </fieldset>
 
           {template ? (
             <>
