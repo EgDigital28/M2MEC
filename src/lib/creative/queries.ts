@@ -9,6 +9,9 @@ import {
 
 export const SIGNED_TTL = 3600;
 
+export const TEMPLATE_COLUMNS =
+  "id, name, description, width, height, backdrop_prompt, slots, decorations, logo, backdrop_id, reference_path, is_active";
+
 export async function signedUrl(client: SupabaseClient, path: string | null) {
   if (!path) return null;
   const { data } = await client.storage.from(CREATIVE_BUCKET).createSignedUrl(path, SIGNED_TTL);
@@ -50,17 +53,38 @@ export async function loadKitsWithVersions(client: SupabaseClient) {
 export async function loadTemplates(client: SupabaseClient) {
   const { data } = await client
     .from("creative_templates")
-    .select("id, name, description, width, height, backdrop_prompt, slots, decorations, logo, is_active")
+    .select(TEMPLATE_COLUMNS)
     .eq("is_active", true)
     .order("name");
 
   return (data ?? []) as unknown as CreativeTemplate[];
 }
 
+/** Storage path of the photograph a template is currently pointed at. */
+export async function backdropPathFor(client: SupabaseClient, backdropId: string | null) {
+  if (!backdropId) return null;
+
+  const { data } = await client
+    .from("creative_backdrops")
+    .select("storage_path")
+    .eq("id", backdropId)
+    .maybeSingle();
+
+  return data?.storage_path ?? null;
+}
+
 export type StudioKit = BrandKitWithVersion & { logoUrl: string | null };
 
-/** A template plus the last thing it produced, used as its thumbnail. */
-export type StudioTemplate = CreativeTemplate & { previewUrl: string | null };
+/**
+ * A template plus everything needed to show it without another round trip:
+ * the last thing it produced (its thumbnail), the photograph it will use, and
+ * any design it was authored against.
+ */
+export type StudioTemplate = CreativeTemplate & {
+  previewUrl: string | null;
+  backdropUrl: string | null;
+  referenceUrl: string | null;
+};
 
 export type CreativeBootstrap = {
   kits: StudioKit[];
@@ -106,11 +130,30 @@ export async function loadCreativeBootstrap(
     if (!newest.has(row.template_id)) newest.set(row.template_id, row.storage_path);
   }
 
+  const backdropPaths = new Map<string, string>();
+  const ids = templates.map((template) => template.backdrop_id).filter(Boolean) as string[];
+
+  if (ids.length) {
+    const { data } = await client
+      .from("creative_backdrops")
+      .select("id, storage_path")
+      .in("id", ids);
+
+    for (const row of (data ?? []) as { id: string; storage_path: string }[]) {
+      backdropPaths.set(row.id, row.storage_path);
+    }
+  }
+
   const templatesWithPreviews = await Promise.all(
-    templates.map(async (template) => ({
-      ...template,
-      previewUrl: await signedUrl(client, newest.get(template.id) ?? null),
-    })),
+    templates.map(async (template) => {
+      const [previewUrl, backdropUrl, referenceUrl] = await Promise.all([
+        signedUrl(client, newest.get(template.id) ?? null),
+        signedUrl(client, template.backdrop_id ? backdropPaths.get(template.backdrop_id) ?? null : null),
+        signedUrl(client, template.reference_path),
+      ]);
+
+      return { ...template, previewUrl, backdropUrl, referenceUrl };
+    }),
   );
 
   const kitsWithLogos = await Promise.all(

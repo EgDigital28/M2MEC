@@ -2,18 +2,27 @@
 
 import { useState, type ReactNode } from "react";
 
-type Tab = "freeform" | "brand";
+type Tab = "freeform" | "brand" | "templates";
 
 const TABS: { id: Tab; label: string; note: string }[] = [
   { id: "freeform", label: "Freeform", note: "Prompt straight through to xAI." },
-  { id: "brand", label: "Brand creative", note: "Generated backdrop, real values drawn on top." },
+  { id: "brand", label: "Make a post", note: "Pick a design, fill it in. Free." },
+  { id: "templates", label: "Templates", note: "Design the slips. The only place that spends." },
 ];
 
 /**
  * The two halves are rendered on the server and handed in as elements, so
  * switching tabs never refetches and neither half pays for the other's data.
  */
-export function PlaygroundTabs({ freeform, brand }: { freeform: ReactNode; brand: ReactNode }) {
+export function PlaygroundTabs({
+  freeform,
+  brand,
+  templates,
+}: {
+  freeform: ReactNode;
+  brand: ReactNode;
+  templates: ReactNode;
+}) {
   const [tab, setTab] = useState<Tab>("freeform");
   const active = TABS.find((entry) => entry.id === tab)!;
 
@@ -40,6 +49,7 @@ export function PlaygroundTabs({ freeform, brand }: { freeform: ReactNode; brand
 
       <div hidden={tab !== "freeform"}>{freeform}</div>
       <div hidden={tab !== "brand"}>{brand}</div>
+      <div hidden={tab !== "templates"}>{templates}</div>
     </div>
   );
 }

@@ -1,40 +1,34 @@
 import { NextResponse } from "next/server";
-import { requireMinimumTier } from "@/lib/auth/profile";
 import { composeCreative } from "@/lib/creative/compose";
-import { dataUrl, signedUrl } from "@/lib/creative/queries";
+import { requireCreativeAdmin } from "@/lib/creative/auth";
+import { backdropPathFor, dataUrl, signedUrl, TEMPLATE_COLUMNS } from "@/lib/creative/queries";
 import {
   CREATIVE_BUCKET,
   type BrandKitVersion,
   type CreativeTemplate,
 } from "@/lib/creative/types";
-import {
-  defaultImageModelId,
-  extensionFor,
-  generateImages,
-  isImageProviderConfigured,
-} from "@/lib/playground/provider";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 60;
 
+/**
+ * Makes a post.
+ *
+ * Nothing is generated here. The template already owns its photograph, so
+ * this only composes and stores — which means it is free, fast, and safe to
+ * run as many times as it takes to get the wording right.
+ */
 export async function POST(request: Request) {
-  const auth = await requireMinimumTier("admin");
-
-  if ("error" in auth) {
-    return NextResponse.json(
-      { error: auth.error === "unauthenticated" ? "Sign in required." : "Admin access required." },
-      { status: auth.error === "unauthenticated" ? 401 : 403 },
-    );
-  }
+  const auth = await requireCreativeAdmin();
+  if ("response" in auth) return auth.response;
 
   let body: {
     templateId?: string;
     kitVersionId?: string;
     values?: Record<string, string>;
-    regenerateBackdrop?: boolean;
   };
 
   try {
@@ -48,7 +42,7 @@ export async function POST(request: Request) {
   const [templateResult, versionResult] = await Promise.all([
     supabase
       .from("creative_templates")
-      .select("id, name, description, width, height, backdrop_prompt, slots, decorations, logo, is_active")
+      .select(TEMPLATE_COLUMNS)
       .eq("id", body.templateId ?? "")
       .maybeSingle(),
     supabase
@@ -66,89 +60,20 @@ export async function POST(request: Request) {
   }
 
   const db = createAdminClient();
-  const prompt = [template.backdrop_prompt, version.style_prompt].filter(Boolean).join(" ");
+  const backdropPath = await backdropPathFor(db, template.backdrop_id);
 
-  // Reuse the cached backdrop unless asked for a new one. This is the only
-  // step that costs money, so it must not be the default. The prompt is part
-  // of the key: editing a template's backdrop prompt should not keep serving
-  // the image the old prompt produced.
-  let backdrop = body.regenerateBackdrop
-    ? null
-    : (
-        await db
-          .from("creative_backdrops")
-          .select("id, storage_path")
-          .eq("kit_version_id", version.id)
-          .eq("template_id", template.id)
-          .eq("prompt", prompt)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle()
-      ).data;
-
-  if (!backdrop) {
-    if (!isImageProviderConfigured()) {
-      return NextResponse.json(
-        { error: "XAI_API_KEY is not configured, so a backdrop cannot be generated." },
-        { status: 503 },
-      );
-    }
-
-    let generated;
-
-    try {
-      generated = await generateImages({
-        prompt,
-        count: 1,
-        aspectRatio: "2:3",
-        resolution: "2k",
-        model: defaultImageModelId(),
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Backdrop generation failed.";
-      console.error("creative.backdrop_failed", message);
-      return NextResponse.json({ error: message }, { status: 502 });
-    }
-
-    const image = generated.images[0];
-
-    if (!image) {
-      return NextResponse.json({ error: "No backdrop was returned." }, { status: 502 });
-    }
-
-    const path = `backdrops/${version.id}/${template.id}/${crypto.randomUUID()}.${extensionFor(image.mediaType)}`;
-    const upload = await db.storage
-      .from(CREATIVE_BUCKET)
-      .upload(path, image.bytes, { contentType: image.mediaType, upsert: false });
-
-    if (upload.error) {
-      console.error("creative.backdrop_upload_failed", upload.error.message);
-      return NextResponse.json({ error: "Could not store the backdrop." }, { status: 502 });
-    }
-
-    const inserted = await db
-      .from("creative_backdrops")
-      .insert({
-        kit_version_id: version.id,
-        template_id: template.id,
-        prompt,
-        model: generated.model,
-        storage_path: path,
-        cost_in_usd_ticks: generated.costInUsdTicks,
-      })
-      .select("id, storage_path")
-      .single();
-
-    if (inserted.error) {
-      console.error("creative.backdrop_record_failed", inserted.error.message);
-      return NextResponse.json({ error: "Could not record the backdrop." }, { status: 502 });
-    }
-
-    backdrop = inserted.data;
+  if (!backdropPath) {
+    return NextResponse.json(
+      {
+        error:
+          "This template has no backdrop yet. Generate one for it on the Templates tab, then come back.",
+      },
+      { status: 409 },
+    );
   }
 
   const [backdropData, logoData] = await Promise.all([
-    dataUrl(db, backdrop.storage_path),
+    dataUrl(db, backdropPath),
     dataUrl(db, version.logo_path),
   ]);
 
@@ -168,7 +93,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Could not compose the image: ${message}` }, { status: 500 });
   }
 
-  const renderPath = `renders/${version.id}/${crypto.randomUUID()}.png`;
+  const renderPath = `renders/${template.id}/${crypto.randomUUID()}.png`;
   const stored = await db.storage
     .from(CREATIVE_BUCKET)
     .upload(renderPath, png, { contentType: "image/png", upsert: false });
@@ -183,7 +108,7 @@ export async function POST(request: Request) {
     .insert({
       template_id: template.id,
       kit_version_id: version.id,
-      backdrop_id: backdrop.id,
+      backdrop_id: template.backdrop_id,
       slot_values: body.values ?? {},
       storage_path: renderPath,
       created_by: auth.profile.id,
