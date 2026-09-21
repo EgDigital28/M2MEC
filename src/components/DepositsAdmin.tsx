@@ -10,11 +10,14 @@ import {
   type CapitalDeposit,
   type DepositKind,
 } from "@/lib/financials/deposits";
+import type { EquityStake } from "@/lib/financials/types";
+import type { WageringStakeGroup } from "@/lib/financials/wagering";
 import type { ManagedUser } from "@/lib/users/types";
 
 const emptyForm = (kind: DepositKind) => ({
   profile_id: "",
   kind,
+  group_id: "",
   deposited_on: "",
   amount: "",
   description: "",
@@ -30,9 +33,13 @@ const field =
   "w-full rounded-lg border border-border bg-background p-2.5 text-sm outline-none focus:border-accent";
 const labelClass = "text-[10px] font-semibold uppercase tracking-widest text-muted";
 
+type OutstandingRow = { key: string; label: string; due: number };
+
 type SectionProps = {
   kind: DepositKind;
   blurb: string;
+  outstanding?: OutstandingRow[];
+  groups: WageringStakeGroup[];
   users: ManagedUser[];
   rows: CapitalDeposit[];
   busy: boolean;
@@ -44,6 +51,8 @@ type SectionProps = {
 function DepositSection({
   kind,
   blurb,
+  outstanding,
+  groups,
   users,
   rows,
   busy,
@@ -57,9 +66,14 @@ function DepositSection({
 
   const total = useMemo(() => sumDeposits(rows), [rows]);
 
+  // With one wagering group the choice is not worth asking about, so it is
+  // filled in and only surfaced once a second group exists.
+  const soleGroupId = groups.length === 1 ? groups[0].id : "";
+  const groupId = kind === "betting" ? form.group_id || soleGroupId : "";
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (await onCreate(form)) {
+    if (await onCreate({ ...form, group_id: groupId })) {
       setForm(emptyForm(kind));
     }
   }
@@ -75,6 +89,22 @@ function DepositSection({
           Total <span className="font-semibold text-foreground">{formatCurrencyWhole(total)}</span>
         </p>
       </div>
+
+      {outstanding && outstanding.length > 0 ? (
+        <div className="rounded-xl border border-border p-3">
+          <p className={labelClass}>Outstanding balance</p>
+          <ul className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+            {outstanding.map((row) => (
+              <li key={row.key} className="tabular-nums">
+                <span className="text-muted">{row.label}</span>{" "}
+                <span className={row.due > 0 ? "text-amber-300" : "text-emerald-300"}>
+                  {formatCurrencyWhole(row.due)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <label>
@@ -93,6 +123,24 @@ function DepositSection({
             ))}
           </select>
         </label>
+        {kind === "betting" && groups.length > 1 ? (
+          <label>
+            <span className={labelClass}>Group</span>
+            <select
+              required
+              value={form.group_id}
+              onChange={(event) => setForm({ ...form, group_id: event.target.value })}
+              className={`mt-2 ${field}`}
+            >
+              <option value="">Select…</option>
+              {groups.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         <label>
           <span className={labelClass}>Date</span>
           <input
@@ -203,7 +251,13 @@ function DepositSection({
                         type="button"
                         disabled={busy}
                         onClick={async () => {
-                          if (await onSave(row.id, editForm)) setEditingId(null);
+                          if (
+                            await onSave(row.id, {
+                              ...editForm,
+                              group_id: editForm.group_id || soleGroupId,
+                            })
+                          )
+                            setEditingId(null);
                         }}
                         className="text-xs text-emerald-300 hover:text-emerald-200 disabled:opacity-50"
                       >
@@ -236,6 +290,7 @@ function DepositSection({
                           setEditForm({
                             profile_id: row.profile_id,
                             kind: row.kind,
+                            group_id: row.group_id ?? "",
                             deposited_on: row.deposited_on,
                             amount: String(row.amount),
                             description: row.description ?? "",
@@ -268,6 +323,8 @@ function DepositSection({
 export function DepositsAdmin() {
   const [deposits, setDeposits] = useState<CapitalDeposit[]>([]);
   const [users, setUsers] = useState<ManagedUser[]>([]);
+  const [groups, setGroups] = useState<WageringStakeGroup[]>([]);
+  const [stakes, setStakes] = useState<EquityStake[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -276,9 +333,12 @@ export function DepositsAdmin() {
     setLoading(true);
 
     try {
-      const [depositsResponse, usersResponse] = await Promise.all([
+      const [depositsResponse, usersResponse, groupsResponse, stakesResponse] =
+        await Promise.all([
         fetch("/api/financials/deposits"),
         fetch("/api/users"),
+        fetch("/api/financials/wagering-groups"),
+        fetch("/api/financials/equity-stakes"),
       ]);
 
       const depositsData = (await depositsResponse.json()) as {
@@ -296,6 +356,18 @@ export function DepositsAdmin() {
       if (usersResponse.ok) {
         const usersData = (await usersResponse.json()) as { users?: ManagedUser[] };
         setUsers(usersData.users ?? []);
+      }
+
+      if (groupsResponse.ok) {
+        const groupsData = (await groupsResponse.json()) as {
+          groups?: WageringStakeGroup[];
+        };
+        setGroups(groupsData.groups ?? []);
+      }
+
+      if (stakesResponse.ok) {
+        const stakesData = (await stakesResponse.json()) as { stakes?: EquityStake[] };
+        setStakes(stakesData.stakes ?? []);
       }
     } catch {
       setError("Network error while loading deposits.");
@@ -396,7 +468,21 @@ export function DepositsAdmin() {
     return <p className="text-sm text-muted">Loading deposits...</p>;
   }
 
-  const shared = { users, busy, onCreate: create, onSave: save, onDelete: remove };
+  // Company deposits exist to recoup these, so show what is still owed.
+  const outstanding: OutstandingRow[] = stakes
+    .map((stake) => ({
+      key: stake.id,
+      label:
+        stake.profile?.display_name ??
+        stake.profile?.report_alias ??
+        stake.profile?.email ??
+        "Un-allocated",
+      due: Number(stake.io_cash_value) - Number(stake.deposit),
+    }))
+    .filter((row) => row.due > 0)
+    .sort((a, b) => b.due - a.due);
+
+  const shared = { users, groups, busy, onCreate: create, onSave: save, onDelete: remove };
 
   return (
     <div className="space-y-6">
@@ -408,15 +494,16 @@ export function DepositsAdmin() {
 
       <DepositSection
         kind="betting"
-        blurb="Capital paid into the betting pool. Totals drive each member's ownership share."
+        blurb="Capital paid into the betting pool. A deposit after inception locks existing holders at their value that day."
         rows={deposits.filter((row) => row.kind === "betting")}
         {...shared}
       />
 
       <DepositSection
         kind="company"
-        blurb="Capital paid against an equity allocation. Totals drive Deposit and Amount Due on Financials."
+        blurb="Capital paid against an equity allocation. These deposits recoup the outstanding balance below."
         rows={deposits.filter((row) => row.kind === "company")}
+        outstanding={outstanding}
         {...shared}
       />
     </div>

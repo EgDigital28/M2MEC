@@ -7,6 +7,12 @@ import {
   withComputedFields,
   type BetEntryRow,
 } from "@/lib/bets/calculations";
+import { LEDGER_STARTING_BALANCE } from "@/lib/bets/calculations";
+import {
+  computeCapitalLock,
+  makePoolValueBefore,
+  type LockDeposit,
+} from "@/lib/financials/capital-lock";
 import {
   computeDepletion,
   computePoolMembers,
@@ -97,7 +103,13 @@ export default async function FinSummaryPage() {
     if (data.length < 1000) break;
   }
 
-  const [equityResult, wageringResult, expenseResult, incomeResult] =
+  const [
+    equityResult,
+    wageringResult,
+    expenseResult,
+    bettingDepositResult,
+    incomeResult,
+  ] =
     await Promise.all([
       supabase
         .from("equity_stakes")
@@ -112,6 +124,11 @@ export default async function FinSummaryPage() {
         )
         .order("capital_deposit", { ascending: false }),
       supabase.from("expense_entries").select("quarter, amount, status"),
+      supabase
+        .from("capital_deposits")
+        .select("profile_id, deposited_on, amount")
+        .eq("kind", "betting")
+        .order("deposited_on"),
       supabase
         .from("income_contracts")
         .select(
@@ -171,6 +188,42 @@ export default async function FinSummaryPage() {
     };
   });
 
+  // Ownership comes from the capital lock: deposits made after inception
+  // cannot claim a share of gains earned before they landed.
+  const bettingDeposits: LockDeposit[] = (
+    (bettingDepositResult.data ?? []) as {
+      profile_id: string;
+      deposited_on: string;
+      amount: number;
+    }[]
+  ).map((row) => ({
+    profileId: row.profile_id,
+    depositedOn: row.deposited_on,
+    amount: Number(row.amount),
+  }));
+
+  const dailyProfitLoss = betEntries.map(withComputedFields).map((entry) => ({
+    date: entry.event_date,
+    profitLoss: entry.profit_loss,
+  }));
+
+  const inceptionDate =
+    bettingDeposits.length > 0
+      ? bettingDeposits
+          .map((deposit) => deposit.depositedOn)
+          .sort((a, b) => a.localeCompare(b))[0]
+      : null;
+
+  const lock = computeCapitalLock(
+    bettingDeposits,
+    makePoolValueBefore({
+      openingBankroll: LEDGER_STARTING_BALANCE,
+      dailyProfitLoss,
+      deposits: bettingDeposits,
+      inceptionDate,
+    }),
+  );
+
   const poolInputs: PoolInput[] = (
     (wageringResult.data ?? []) as unknown as {
       id: string;
@@ -182,12 +235,24 @@ export default async function FinSummaryPage() {
     // Flagged investors take no part in the pool, so they never reach the
     // betting tables or the ownership split.
     .filter((stake) => !stake.profiles?.excluded_from_betting)
-    .map((stake, index) => ({
-      key: stake.id,
-      label: labelFor(stake.profiles, `Member ${index + 1}`),
-      profileId: stake.profile_id,
-      initialDeposit: Number(stake.capital_deposit),
-    }));
+    .map((stake, index) => {
+      const added = stake.profile_id
+        ? (lock.addedByProfile.get(stake.profile_id) ?? 0)
+        : 0;
+
+      return {
+        key: stake.id,
+        label: labelFor(stake.profiles, `Member ${index + 1}`),
+        profileId: stake.profile_id,
+        // capital_deposit is the total contributed; the opening portion is
+        // whatever was not added at a later lock event.
+        initialDeposit: Number(stake.capital_deposit) - added,
+        addedDeposits: added,
+        currentPct: stake.profile_id
+          ? (lock.ownership.get(stake.profile_id) ?? null)
+          : null,
+      };
+    });
 
   const members = computePoolMembers(poolInputs, currentValue, expenses);
   const depletion = computeDepletion(investors, members);
@@ -342,8 +407,12 @@ export default async function FinSummaryPage() {
           </table>
         </div>
         <p className="text-xs text-muted">
-          Ownership is the current split. It equals the initial deposit split
-          until capital-lock deposit events exist.
+          Ownership is the locked current split: each deposit after inception
+          freezes existing holders at their value that day, so later capital
+          claims no share of earlier gains.
+          {lock.events.length > 0
+            ? ` ${lock.events.length} lock ${lock.events.length === 1 ? "event" : "events"} applied.`
+            : ""}
         </p>
       </Card>
 
