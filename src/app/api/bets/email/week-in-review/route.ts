@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireMinimumTier } from "@/lib/auth/profile";
 import {
   computeDailyPlSeries,
-  getCurrentWeekRange,
+  getPreviousWeekRange,
   getRollingWeekRange,
   withComputedFields,
   type BetEntryRow,
@@ -62,7 +62,9 @@ export async function POST(request: Request) {
 
   // Mirror whichever range the page is showing.
   const rolling = body.view !== "week";
-  const { weekStart, weekEnd } = rolling ? getRollingWeekRange() : getCurrentWeekRange();
+  const { weekStart, weekEnd } = rolling
+    ? getRollingWeekRange()
+    : getPreviousWeekRange();
 
   const supabase = await createClient();
   const [entriesResult, sportsResult] = await Promise.all([
@@ -90,7 +92,7 @@ export async function POST(request: Request) {
     weekStart,
     weekEnd,
     series: computeDailyPlSeries(entries, weekStart, weekEnd),
-    viewLabel: rolling ? "Rolling 7 days" : "Monday – Sunday",
+    viewLabel: rolling ? "Rolling 7 days to yesterday" : "Last Monday – Sunday",
   };
 
   const { error: emailError } = await resend.emails.send({

@@ -9,7 +9,7 @@ import {
   formatCurrencyWhole,
   formatPercent,
   formatWeekRangeLabel,
-  getCurrentWeekRange,
+  getPreviousWeekRange,
   getRollingWeekRange,
   withComputedFields,
   type BetEntryRow,
@@ -122,7 +122,7 @@ export default async function WeekInReviewPage({
   const params = await searchParams;
   const view: WeekView = params.view === "week" ? "week" : "rolling";
   const { weekStart, weekEnd } =
-    view === "week" ? getCurrentWeekRange() : getRollingWeekRange();
+    view === "week" ? getPreviousWeekRange() : getRollingWeekRange();
 
   const supabase = await createClient();
   const [entriesResult, sportsResult] = await Promise.all([
@@ -154,7 +154,8 @@ export default async function WeekInReviewPage({
           </p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight">Week in Review</h1>
           <p className="mt-2 text-sm text-muted">
-            {formatWeekRangeLabel(weekStart, weekEnd)} · {stats.playCount}{" "}
+            {formatWeekRangeLabel(weekStart, weekEnd)} · through yesterday ·{" "}
+            {stats.playCount}{" "}
             {stats.playCount === 1 ? "play" : "plays"}
             {stats.openCount > 0 ? ` · ${stats.openCount} still open` : ""}
           </p>
@@ -163,7 +164,7 @@ export default async function WeekInReviewPage({
           {(
             [
               { key: "rolling", label: "Rolling 7" },
-              { key: "week", label: "Mon – Sun" },
+              { key: "week", label: "Last week" },
             ] as const
           ).map((option) => (
             <Link
