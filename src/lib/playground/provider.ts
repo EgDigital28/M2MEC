@@ -46,6 +46,12 @@ export function isImageModelId(value: unknown): value is ImageModelId {
   return IMAGE_MODELS.some((model) => model.id === value);
 }
 
+/** Friendly, version-bearing name. Falls back to the raw id for models the
+ * catalog does not know, such as one set through XAI_IMAGE_MODEL. */
+export function imageModelLabel(id: string) {
+  return IMAGE_MODELS.find((model) => model.id === id)?.label ?? id;
+}
+
 export type GenerateImagesInput = {
   prompt: string;
   count: number;

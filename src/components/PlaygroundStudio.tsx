@@ -9,6 +9,7 @@ import {
   MAX_PROMPT_LENGTH,
   RESOLUTIONS,
   formatUsd,
+  imageModelLabel,
   usdFromTicks,
   type AspectRatio,
   type ImageModelId,
@@ -395,8 +396,11 @@ export function PlaygroundStudio({
                         : ""}
                     </p>
                     <span className="flex items-center gap-2">
-                      <span className="rounded-full border border-border px-3 py-1 text-xs text-muted">
-                        {generation.model}
+                      <span
+                        title={generation.model}
+                        className="rounded-full border border-border px-3 py-1 text-xs text-muted"
+                      >
+                        {imageModelLabel(generation.model)}
                       </span>
                       <span className="rounded-full border border-emerald-400/30 px-3 py-1 text-xs tabular-nums text-emerald-300">
                         {formatUsd(usdFromTicks(generation.cost_in_usd_ticks))}
