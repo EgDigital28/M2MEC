@@ -186,15 +186,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   }).format(new Date());
 
   const data: IndividualPdfData = {
-    name,
-    subtitle: [
-      person.report_alias,
-      person.email,
-      person.tier,
-      person.excluded_from_betting ? "outside the betting pool" : null,
-    ]
-      .filter(Boolean)
-      .join(" · "),
+    // Name and report id only — the email and tier add nothing to a financial
+    // statement and cost a line.
+    name: person.report_alias ? `${name} (${person.report_alias})` : name,
+    subtitle: person.excluded_from_betting ? "Outside the betting pool" : "",
     generatedOn,
     headline: {
       label: "Net position",

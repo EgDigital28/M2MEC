@@ -54,70 +54,70 @@ function toneColor(tone: Tone = "neutral") {
 }
 
 const styles = StyleSheet.create({
-  page: { padding: 36, fontSize: 9, color: COLOR.text, fontFamily: "Helvetica" },
+  page: { padding: 26, fontSize: 7.5, color: COLOR.text, fontFamily: "Helvetica" },
   eyebrow: {
-    fontSize: 7,
+    fontSize: 6,
     letterSpacing: 1.2,
     color: COLOR.accent,
     textTransform: "uppercase",
     fontFamily: "Helvetica-Bold",
   },
-  name: { fontSize: 20, marginTop: 6, fontFamily: "Helvetica-Bold" },
-  subtitle: { fontSize: 9, color: COLOR.muted, marginTop: 4 },
+  name: { fontSize: 15, marginTop: 4, fontFamily: "Helvetica-Bold" },
+  subtitle: { fontSize: 7.5, color: COLOR.muted, marginTop: 3 },
   headlineBox: {
-    marginTop: 16,
+    marginTop: 10,
     borderWidth: 1,
     borderColor: COLOR.border,
-    borderRadius: 6,
-    padding: 12,
+    borderRadius: 5,
+    padding: 9,
   },
   headlineLabel: {
-    fontSize: 7,
+    fontSize: 6,
     letterSpacing: 1.2,
     color: COLOR.muted,
     textTransform: "uppercase",
     fontFamily: "Helvetica-Bold",
   },
-  headlineValue: { fontSize: 26, marginTop: 4, fontFamily: "Helvetica-Bold" },
-  note: { fontSize: 8, color: COLOR.muted, marginTop: 8, lineHeight: 1.4 },
-  section: { marginTop: 16 },
-  sectionTitle: { fontSize: 12, fontFamily: "Helvetica-Bold", marginBottom: 6 },
-  statRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  headlineValue: { fontSize: 19, marginTop: 3, fontFamily: "Helvetica-Bold" },
+  note: { fontSize: 6.3, color: COLOR.muted, marginTop: 5, lineHeight: 1.35 },
+  section: { marginTop: 10 },
+  sectionTitle: { fontSize: 9.5, fontFamily: "Helvetica-Bold", marginBottom: 4 },
+  statRow: { flexDirection: "row", flexWrap: "wrap", gap: 4 },
   stat: {
     borderWidth: 1,
     borderColor: COLOR.border,
-    borderRadius: 4,
-    padding: 8,
-    minWidth: 104,
+    borderRadius: 3,
+    padding: 5,
+    minWidth: 82,
     flexGrow: 1,
   },
   statLabel: {
-    fontSize: 6.5,
+    fontSize: 5.4,
     letterSpacing: 1,
     color: COLOR.muted,
     textTransform: "uppercase",
   },
-  statValue: { fontSize: 12, marginTop: 3, fontFamily: "Helvetica-Bold" },
+  statValue: { fontSize: 9.5, marginTop: 2, fontFamily: "Helvetica-Bold" },
   tableHeader: {
     flexDirection: "row",
     borderBottomWidth: 1,
     borderBottomColor: COLOR.border,
-    paddingBottom: 4,
+    paddingBottom: 3,
   },
   tableRow: {
     flexDirection: "row",
     borderBottomWidth: 0.5,
     borderBottomColor: COLOR.border,
-    paddingVertical: 4,
+    paddingVertical: 2.5,
   },
-  cellHead: { fontSize: 7, color: COLOR.muted, textTransform: "uppercase" },
-  cell: { fontSize: 8.5 },
+  cellHead: { fontSize: 5.8, color: COLOR.muted, textTransform: "uppercase" },
+  cell: { fontSize: 7 },
   footer: {
     position: "absolute",
-    bottom: 20,
-    left: 36,
-    right: 36,
-    fontSize: 7,
+    bottom: 14,
+    left: 26,
+    right: 26,
+    fontSize: 6,
     color: COLOR.muted,
     flexDirection: "row",
     justifyContent: "space-between",
@@ -148,7 +148,9 @@ export function IndividualPdf({ data }: { data: IndividualPdfData }) {
       <Page size="LETTER" style={styles.page}>
         <Text style={styles.eyebrow}>Individual summary</Text>
         <Text style={styles.name}>{data.name}</Text>
-        <Text style={styles.subtitle}>{data.subtitle}</Text>
+        {data.subtitle ? (
+          <Text style={styles.subtitle}>{data.subtitle}</Text>
+        ) : null}
 
         <View style={styles.headlineBox}>
           <Text style={styles.headlineLabel}>{data.headline.label}</Text>
@@ -157,7 +159,7 @@ export function IndividualPdf({ data }: { data: IndividualPdfData }) {
           >
             {data.headline.value}
           </Text>
-          <View style={{ marginTop: 10 }}>
+          <View style={{ marginTop: 7 }}>
             <Stats stats={data.headlineStats} />
           </View>
           {data.headlineNotes.map((note) => (
