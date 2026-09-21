@@ -204,10 +204,11 @@ export default async function FinSummaryPage() {
     (sum, investor) => sum + investor.amountDue,
     0,
   );
-  const totalCapital = members.reduce(
-    (sum, member) => sum + member.initialDeposit,
+  const totalContributed = members.reduce(
+    (sum, member) => sum + member.contributed,
     0,
   );
+  const totalRoi = members.reduce((sum, member) => sum + member.roiAmount, 0);
   const nextYear = expenses.currentYear + 1;
 
   return (
@@ -290,15 +291,14 @@ export default async function FinSummaryPage() {
         subtitle={`Current value ${formatCurrencyWhole(currentValue)} — ledger balance ${formatCurrencyWhole(bankroll)} plus ${formatIncomeAmount(incomeRecognized)} net income recognised across ${expenses.currentYear} and ${expenses.currentYear + 1}.`}
       >
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-sm">
+          <table className="w-full min-w-[620px] text-sm">
             <thead>
               <tr className="border-b border-border">
                 <th className={th}>Individual</th>
-                <th className={thr}>Init Cap Deposit</th>
-                <th className={thr}>Init Ownership %</th>
-                <th className={thr}>Add Deposits</th>
-                <th className={thr}>Cur Ownership %</th>
+                <th className={thr}>Cap Deposit</th>
+                <th className={thr}>% Ownership</th>
                 <th className={thr}>Value</th>
+                <th className={thr}>ROI</th>
               </tr>
             </thead>
             <tbody>
@@ -306,34 +306,44 @@ export default async function FinSummaryPage() {
                 <tr key={member.key} className="border-b border-border/60">
                   <td className={`${td} font-medium`}>{member.label}</td>
                   <td className={tdr}>
-                    {formatCurrencyWhole(member.initialDeposit)}
-                  </td>
-                  <td className={tdr}>{formatPct(member.initialPct)}</td>
-                  <td className={tdr}>
-                    {formatCurrencyWhole(member.addedDeposits)}
+                    {formatCurrencyWhole(member.contributed)}
                   </td>
                   <td className={tdr}>{formatPct(member.currentPct)}</td>
                   <td className={tdr}>{formatCurrencyWhole(member.value)}</td>
+                  <td className={`${tdr} ${plClass(member.roiAmount)}`}>
+                    {member.roiAmount >= 0 ? "+" : ""}
+                    {formatCurrencyWhole(member.roiAmount)}
+                    <span className="ml-2 text-xs">
+                      {member.roiPct == null
+                        ? ""
+                        : `${member.roiPct >= 0 ? "+" : ""}${formatPct(member.roiPct, 1)}`}
+                    </span>
+                  </td>
                 </tr>
               ))}
               <tr className="font-semibold">
                 <td className={td}>Total</td>
-                <td className={tdr}>{formatCurrencyWhole(totalCapital)}</td>
-                <td className={tdr} />
-                <td className={tdr} />
+                <td className={tdr}>{formatCurrencyWhole(totalContributed)}</td>
                 <td className={tdr} />
                 <td className={tdr}>
-                  {formatCurrencyWhole(
-                    members.reduce((sum, m) => sum + m.value, 0),
-                  )}
+                  {formatCurrencyWhole(members.reduce((s, m) => s + m.value, 0))}
+                </td>
+                <td className={`${tdr} ${plClass(totalRoi)}`}>
+                  {totalRoi >= 0 ? "+" : ""}
+                  {formatCurrencyWhole(totalRoi)}
+                  <span className="ml-2 text-xs">
+                    {totalContributed > 0
+                      ? `${totalRoi >= 0 ? "+" : ""}${formatPct(totalRoi / totalContributed, 1)}`
+                      : ""}
+                  </span>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
         <p className="text-xs text-muted">
-          Current ownership equals the initial split until capital-lock deposit
-          events exist, so added deposits read as zero here.
+          Ownership is the current split. It equals the initial deposit split
+          until capital-lock deposit events exist.
         </p>
       </Card>
 

@@ -29,7 +29,12 @@ export type PoolMember = {
   addedDeposits: number;
   initialPct: number;
   currentPct: number;
+  /** Initial plus any later deposits — the capital actually put in. */
+  contributed: number;
   value: number;
+  /** Gain over capital contributed, in dollars and as a share of it. */
+  roiAmount: number;
+  roiPct: number | null;
   ytdContribution: number;
   ytdPl: number;
   remainingSpend: number;
@@ -179,6 +184,7 @@ export function computePoolMembers(
 
   return withPct.map(({ member, initialPct, currentPct }) => {
     const value = currentPct * currentValue;
+    const contributed = member.initialDeposit + (member.addedDeposits ?? 0);
     const ytdContribution = expenses.ytd * initialPct;
     const ytdPl = value - ytdContribution;
     const remainingSpend = expenses.remainingThisYear * currentPct;
@@ -192,7 +198,10 @@ export function computePoolMembers(
       addedDeposits: member.addedDeposits ?? 0,
       initialPct,
       currentPct,
+      contributed,
       value,
+      roiAmount: value - contributed,
+      roiPct: contributed > 0 ? (value - contributed) / contributed : null,
       ytdContribution,
       ytdPl,
       remainingSpend,

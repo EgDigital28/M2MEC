@@ -59,10 +59,10 @@ export function TeamShell({ profile, children, creatorFeedAccess = false }: Team
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="hidden text-right sm:block">
-              <p className="text-sm font-medium">{getProfileDisplayName(profile)}</p>
-              <p className="text-xs text-muted">{TIER_LABELS[profile.tier]}</p>
-            </div>
+            <p className="hidden whitespace-nowrap text-sm font-medium sm:block">
+              {getProfileDisplayName(profile)}{" "}
+              <span className="text-muted">({TIER_LABELS[profile.tier]})</span>
+            </p>
             <span className="rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent sm:hidden">
               {TIER_LABELS[profile.tier]}
             </span>
