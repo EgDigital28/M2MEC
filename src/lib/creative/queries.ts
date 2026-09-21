@@ -59,9 +59,12 @@ export async function loadTemplates(client: SupabaseClient) {
 
 export type StudioKit = BrandKitWithVersion & { logoUrl: string | null };
 
+/** A template plus the last thing it produced, used as its thumbnail. */
+export type StudioTemplate = CreativeTemplate & { previewUrl: string | null };
+
 export type CreativeBootstrap = {
   kits: StudioKit[];
-  templates: CreativeTemplate[];
+  templates: StudioTemplate[];
   renders: (CreativeRender & { url: string | null })[];
 };
 
@@ -70,7 +73,7 @@ export async function loadCreativeBootstrap(
   client: SupabaseClient,
   limit = 12,
 ): Promise<CreativeBootstrap> {
-  const [kits, templates, renders] = await Promise.all([
+  const [kits, templates, renders, recent] = await Promise.all([
     loadKitsWithVersions(client),
     loadTemplates(client),
     client
@@ -78,6 +81,13 @@ export async function loadCreativeBootstrap(
       .select("id, template_id, kit_version_id, backdrop_id, slot_values, storage_path, created_at")
       .order("created_at", { ascending: false })
       .limit(limit),
+    // Two thin columns over a wider window than the gallery, so a template
+    // that has not been used lately still shows what it looks like.
+    client
+      .from("creative_renders")
+      .select("template_id, storage_path")
+      .order("created_at", { ascending: false })
+      .limit(200),
   ]);
 
   if (renders.error) {
@@ -91,9 +101,21 @@ export async function loadCreativeBootstrap(
     })),
   );
 
+  const newest = new Map<string, string>();
+  for (const row of (recent.data ?? []) as { template_id: string; storage_path: string }[]) {
+    if (!newest.has(row.template_id)) newest.set(row.template_id, row.storage_path);
+  }
+
+  const templatesWithPreviews = await Promise.all(
+    templates.map(async (template) => ({
+      ...template,
+      previewUrl: await signedUrl(client, newest.get(template.id) ?? null),
+    })),
+  );
+
   const kitsWithLogos = await Promise.all(
     kits.map(async (kit) => ({ ...kit, logoUrl: await signedUrl(client, kit.version.logo_path) })),
   );
 
-  return { kits: kitsWithLogos, templates, renders: withUrls };
+  return { kits: kitsWithLogos, templates: templatesWithPreviews, renders: withUrls };
 }
