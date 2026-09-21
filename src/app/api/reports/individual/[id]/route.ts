@@ -6,6 +6,7 @@ import { DEPOSIT_KIND_LABELS, formatDepositDate } from "@/lib/financials/deposit
 import { formatPct } from "@/lib/financials/fin-summary";
 import { formatReconciliationDate } from "@/lib/financials/reconciliations";
 import { reportFileName } from "@/lib/reports/file-name";
+import { formatScheduleDate } from "@/lib/reports/payment-schedule";
 import { IndividualPdf, type IndividualPdfData, type IndividualPdfSection, type Tone } from "@/lib/reports/individual-pdf";
 import { loadIndividualReport } from "@/lib/reports/individual-report";
 
@@ -37,6 +38,29 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   const { fin, person, name, investor, member, depletion } = report;
   const sections: IndividualPdfSection[] = [];
+
+  // First, since it is the action the reader has to take.
+  if (report.paymentSchedule.length > 0) {
+    sections.push({
+      kind: "table",
+      title: "Recommended payment schedule",
+      columns: [
+        { label: "#" },
+        { label: "Date" },
+        { label: "Payment", align: "right" },
+        { label: "Remaining", align: "right" },
+      ],
+      rows: report.paymentSchedule.map((payment) => ({
+        cells: [
+          String(payment.number),
+          formatScheduleDate(payment.date),
+          formatCurrencyWhole(payment.amount),
+          formatCurrencyWhole(payment.remaining),
+        ],
+      })),
+      note: `Weekly instalments that clear the ${formatCurrencyWhole(-report.netPosition)} balance by 31 December ${fin.expenses.currentYear}.`,
+    });
+  }
 
   if (investor) {
     sections.push({

@@ -9,6 +9,7 @@ import {
 } from "@/lib/financials/deposits";
 import { formatReconciliationDate } from "@/lib/financials/reconciliations";
 import { loadIndividualReport } from "@/lib/reports/individual-report";
+import { formatScheduleDate } from "@/lib/reports/payment-schedule";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +83,7 @@ export default async function IndividualSummaryPage({
     capitalDeposited,
     forecastPl,
     netPosition,
+    paymentSchedule,
   } = report;
 
   return (
@@ -174,6 +176,39 @@ export default async function IndividualSummaryPage({
           </p>
         ) : null}
       </section>
+
+      {paymentSchedule.length > 0 ? (
+        <Card title="Recommended payment schedule">
+          <p className="text-sm text-muted">
+            Weekly instalments that clear the {formatCurrencyWhole(-netPosition)}{" "}
+            balance by 31 December {fin.expenses.currentYear}.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[420px] text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className={th}>#</th>
+                  <th className={th}>Date</th>
+                  <th className={thr}>Payment</th>
+                  <th className={thr}>Remaining</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paymentSchedule.map((payment) => (
+                  <tr key={payment.number} className="border-b border-border/60">
+                    <td className={`${td} text-muted`}>{payment.number}</td>
+                    <td className={td}>{formatScheduleDate(payment.date)}</td>
+                    <td className={tdr}>{formatCurrencyWhole(payment.amount)}</td>
+                    <td className={`${tdr} text-muted`}>
+                      {formatCurrencyWhole(payment.remaining)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      ) : null}
 
       {investor ? (
         <Card title="Equity">
