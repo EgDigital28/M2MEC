@@ -170,6 +170,18 @@ export default async function IndividualSummaryPage({
           />
         </div>
 
+        <p className="mt-3 text-sm text-muted">
+          Capital deposited, less this person&apos;s share of the{" "}
+          {fin.nextYear} forecast shortfall, plus anything deposited outside
+          either pool. The test is whether {fin.expenses.currentYear} closes
+          with enough funded to cover {fin.nextYear} spend.
+          {member
+            ? ""
+            : person.excluded_from_betting
+              ? ` Outside the betting pool by design, so no share of the shortfall is carried here — it falls on pool members instead.`
+              : ` No stake in the betting pool, so no share of the shortfall is carried here.`}
+        </p>
+
         {netPosition < 0 ? (
           <p className="mt-3 rounded-lg border border-amber-400/30 p-3 text-sm text-amber-200">
             <span className="font-semibold tabular-nums">

@@ -395,7 +395,7 @@ export default async function FinSummaryPage() {
 
       <Card
         title="M2MEC capital depletion"
-        subtitle="Depletion draws on cash deposited, not allocation value. Cash is only drawn on once a period's forecast P/L turns negative, and investors outside the betting pool never deplete."
+        subtitle={`Depletion draws on cash deposited, not allocation value, and only once a period's forecast P/L turns negative. Investors outside the betting pool carry no share of the ${nextYear} shortfall, so it falls entirely on pool members.`}
       >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
