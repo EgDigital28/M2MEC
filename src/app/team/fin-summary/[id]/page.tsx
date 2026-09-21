@@ -356,11 +356,9 @@ export default async function IndividualSummaryPage({
         )}
       </Card>
 
-      <Card title="Betting reconciliation">
-        {reconciliations.length === 0 ? (
-          <p className="text-sm text-muted">No reconciliation entries.</p>
-        ) : (
-          <>
+      {/* Omitted when empty: an empty card is noise on screen and worse in print. */}
+      {reconciliations.length > 0 ? (
+        <Card title="Betting reconciliation">
             <p className={`text-sm tabular-nums ${plClass(reconciliationNet)}`}>
               Net {reconciliationNet > 0 ? "+" : ""}
               {formatCurrencyWhole(reconciliationNet)}
@@ -390,9 +388,8 @@ export default async function IndividualSummaryPage({
                 </tbody>
               </table>
             </div>
-          </>
-        )}
-      </Card>
+        </Card>
+      ) : null}
     </div>
   );
 }
