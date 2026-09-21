@@ -2,6 +2,7 @@ export const BET_EMAIL_TYPES = [
   "upcoming_plays",
   "yesterdays_results",
   "weekly_summary",
+  "week_in_review",
 ] as const;
 
 export type BetEmailType = (typeof BET_EMAIL_TYPES)[number];
@@ -37,6 +38,7 @@ export const BET_EMAIL_TYPE_LABELS: Record<BetEmailType, string> = {
   upcoming_plays: "Upcoming plays",
   yesterdays_results: "Yesterday's results",
   weekly_summary: "Weekly summary",
+  week_in_review: "Week in review",
 };
 
 export function isBetEmailType(value: string): value is BetEmailType {
