@@ -11,6 +11,7 @@ export type CapitalDeposit = {
   id: string;
   profile_id: string;
   kind: DepositKind;
+  group_id: string | null;
   deposited_on: string;
   amount: number;
   description: string | null;
@@ -24,7 +25,7 @@ export type CapitalDeposit = {
 };
 
 export const DEPOSIT_COLUMNS =
-  "id, profile_id, kind, deposited_on, amount, description, created_at, profiles(id, email, display_name, report_alias)";
+  "id, profile_id, kind, group_id, deposited_on, amount, description, created_at, profiles(id, email, display_name, report_alias)";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -32,6 +33,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export type DepositPayload = {
   profile_id?: unknown;
   kind?: unknown;
+  group_id?: unknown;
   deposited_on?: unknown;
   amount?: unknown;
   description?: unknown;
@@ -62,6 +64,14 @@ export function validateDeposit(body: DepositPayload) {
     return { error: "Choose what the deposit is into." as const };
   }
 
+  // A betting deposit belongs to exactly one wagering group; a company
+  // deposit has none, so ownership can never be applied to the wrong pool.
+  const groupId = typeof body.group_id === "string" ? body.group_id : "";
+
+  if (body.kind === "betting" && !UUID.test(groupId)) {
+    return { error: "Choose a wagering group." as const };
+  }
+
   if (!ISO_DATE.test(depositedOn) || Number.isNaN(Date.parse(depositedOn))) {
     return { error: "Enter a valid date." as const };
   }
@@ -76,6 +86,7 @@ export function validateDeposit(body: DepositPayload) {
     values: {
       profile_id: profileId,
       kind: body.kind,
+      group_id: body.kind === "betting" ? groupId : null,
       deposited_on: depositedOn,
       amount,
       description,
