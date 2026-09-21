@@ -64,7 +64,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   if (member) {
     sections.push({
       kind: "stats",
-      title: "Betting pool",
+      title: "Betting Pool",
       stats: [
         { label: "Capital deposited", value: formatCurrencyWhole(member.contributed) },
         { label: "Ownership", value: formatPct(member.currentPct) },
@@ -79,7 +79,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
     sections.push({
       kind: "stats",
-      title: "Expense share and forecast",
+      title: "Expense Share and Forecast",
       stats: [
         {
           label: `${fin.expenses.currentYear} contribution`,
@@ -99,7 +99,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   if (depletion) {
     sections.push({
       kind: "stats",
-      title: "Capital depletion",
+      title: "Capital Depletion",
       stats: [
         { label: "Deposits", value: formatCurrencyWhole(depletion.deposits) },
         {
@@ -131,7 +131,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         { label: "Date" },
         { label: "Method" },
         { label: "Amount", align: "right" },
-        { label: "Description" },
       ],
       rows: report.deposits.map((row) => ({
         cells: [
@@ -139,7 +138,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
           formatDepositDate(row.deposited_on),
           depositMethodLabel(row.method),
           formatCurrencyWhole(Number(row.amount)),
-          row.description ?? "—",
         ],
       })),
     });
@@ -149,7 +147,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   if (report.reconciliations.length > 0) {
     sections.push({
       kind: "table",
-      title: "Betting reconciliation",
+      title: "Betting Reconciliation",
       columns: [
         { label: "Date" },
         { label: "Amount", align: "right" },
