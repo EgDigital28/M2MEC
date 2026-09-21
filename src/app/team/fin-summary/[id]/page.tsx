@@ -1,17 +1,14 @@
 import { notFound, redirect } from "next/navigation";
-import { PrintReportButton } from "@/components/PrintReportButton";
-import { reportFileName } from "@/lib/reports/file-name";
 import { getCurrentProfile } from "@/lib/auth/profile";
 import { formatCurrencyWhole } from "@/lib/bets/calculations";
 import { formatPct } from "@/lib/financials/fin-summary";
-import { loadFinSummary } from "@/lib/financials/fin-summary-data";
 import {
   DEPOSIT_KIND_LABELS,
   formatDepositDate,
   type DepositKind,
 } from "@/lib/financials/deposits";
 import { formatReconciliationDate } from "@/lib/financials/reconciliations";
-import { createClient } from "@/lib/supabase/server";
+import { loadIndividualReport } from "@/lib/reports/individual-report";
 
 export const dynamic = "force-dynamic";
 
@@ -64,74 +61,28 @@ export default async function IndividualSummaryPage({
   }
 
   const { id } = await params;
-  const supabase = await createClient();
+  const report = await loadIndividualReport(id);
 
-  const [fin, personResult, depositResult, reconciliationResult] = await Promise.all([
-    loadFinSummary(),
-    supabase
-      .from("profiles")
-      .select("id, email, display_name, report_alias, tier, excluded_from_betting")
-      .eq("id", id)
-      .maybeSingle(),
-    supabase
-      .from("capital_deposits")
-      .select("id, kind, deposited_on, amount, description")
-      .eq("profile_id", id)
-      .order("deposited_on", { ascending: false }),
-    supabase
-      .from("betting_reconciliations")
-      .select("id, paid_on, amount, description")
-      .eq("profile_id", id)
-      .order("paid_on", { ascending: false }),
-  ]);
-
-  const person = personResult.data as {
-    id: string;
-    email: string | null;
-    display_name: string | null;
-    report_alias: string | null;
-    tier: string;
-    excluded_from_betting: boolean | null;
-  } | null;
-
-  if (!person) {
+  if (!report) {
     notFound();
   }
 
-  const name = person.display_name ?? person.report_alias ?? person.email ?? "Unknown";
-  const investor = fin.investors.find((row) => row.profileId === id);
-  const member = fin.members.find((row) => row.profileId === id);
-  const depletion = fin.depletion.find((row) => row.profileId === id);
-
-  const deposits = (depositResult.data ?? []) as {
-    id: string;
-    kind: DepositKind;
-    deposited_on: string;
-    amount: number;
-    description: string | null;
-  }[];
-
-  const reconciliations = (reconciliationResult.data ?? []) as {
-    id: string;
-    paid_on: string;
-    amount: number;
-    description: string;
-  }[];
-
-  const reconciliationNet = reconciliations.reduce((sum, row) => sum + Number(row.amount), 0);
-  const depositTotal = (kind: DepositKind) =>
-    deposits
-      .filter((row) => row.kind === kind)
-      .reduce((sum, row) => sum + Number(row.amount), 0);
-
-  // The headline figure: capital actually paid in, less what the betting
-  // forecast is expected to consume, plus anything deposited outside either
-  // pool. Someone who has funded their allocation in full can finish net
-  // positive even while the pool forecasts a loss.
-  const ancillaryTotal = depositTotal("ancillary");
-  const capitalDeposited = investor?.deposit ?? 0;
-  const forecastPl = investor ? (fin.shortfallByInvestor.get(investor.key) ?? 0) : 0;
-  const netPosition = capitalDeposited + forecastPl + ancillaryTotal;
+  const {
+    fin,
+    person,
+    name,
+    investor,
+    member,
+    depletion,
+    deposits,
+    reconciliations,
+    reconciliationNet,
+    depositTotal,
+    ancillaryTotal,
+    capitalDeposited,
+    forecastPl,
+    netPosition,
+  } = report;
 
   return (
     <div className="space-y-6">
@@ -155,7 +106,12 @@ export default async function IndividualSummaryPage({
             }).format(new Date())}
           </p>
         </div>
-        <PrintReportButton fileName={reportFileName(name)} />
+        <a
+          href={`/api/reports/individual/${person.id}`}
+          className="h-11 rounded-full border border-border px-5 text-sm font-medium leading-[2.75rem] transition-colors hover:border-accent/40 print:hidden"
+        >
+          Download PDF
+        </a>
       </section>
 
       <section className="rounded-2xl border border-border bg-surface p-5">
@@ -356,11 +312,9 @@ export default async function IndividualSummaryPage({
         )}
       </Card>
 
-      <Card title="Betting reconciliation">
-        {reconciliations.length === 0 ? (
-          <p className="text-sm text-muted">No reconciliation entries.</p>
-        ) : (
-          <>
+      {/* Omitted when empty: an empty card is noise on screen and worse in print. */}
+      {reconciliations.length > 0 ? (
+        <Card title="Betting reconciliation">
             <p className={`text-sm tabular-nums ${plClass(reconciliationNet)}`}>
               Net {reconciliationNet > 0 ? "+" : ""}
               {formatCurrencyWhole(reconciliationNet)}
@@ -390,9 +344,8 @@ export default async function IndividualSummaryPage({
                 </tbody>
               </table>
             </div>
-          </>
-        )}
-      </Card>
+        </Card>
+      ) : null}
     </div>
   );
 }
