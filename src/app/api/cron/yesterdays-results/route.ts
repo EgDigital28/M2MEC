@@ -24,8 +24,12 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 // Hardcoded while the schedule is being proven out; widen to configured
-// recipients once the timing and grading behaviour are trusted.
-const RECIPIENTS = ["eli.goshert@gmail.com"];
+// recipients once the timing and grading behaviour are trusted. Each address
+// receives its own email, so recipients never see one another.
+const RECIPIENTS = ["eli.goshert@gmail.com", "samueltbennettsr@gmail.com"];
+
+// The skipped-digest notice is operational, so it stays internal.
+const ALERT_RECIPIENTS = ["eli.goshert@gmail.com"];
 
 /**
  * Attempt hours in Eastern time. Vercel schedules in UTC, so the cron fires
@@ -72,21 +76,27 @@ export async function GET(request: Request) {
   const resultsDate = getYesterdayDateString();
   const db = createAdminClient();
 
-  // One send per results date, whoever sent it. A manual send earlier in the
-  // day stands down the job rather than producing a duplicate.
-  const alreadySent = await db
+  // One send per recipient per results date, whoever sent it. A manual send
+  // earlier in the day stands the job down for that address, and a recipient
+  // whose delivery failed is retried on the next attempt without re-mailing
+  // the ones that already went out.
+  const history = await db
     .from("bet_email_sends")
-    .select("id")
+    .select("recipient_email")
     .eq("email_type", "yesterdays_results")
-    .eq("context_date", resultsDate)
-    .limit(1);
+    .eq("context_date", resultsDate);
 
-  if (alreadySent.error) {
-    console.error("cron.yesterdays-results.history_failed", alreadySent.error.message);
+  if (history.error) {
+    console.error("cron.yesterdays-results.history_failed", history.error.message);
     return NextResponse.json({ error: "Could not check send history." }, { status: 503 });
   }
 
-  if (alreadySent.data.length > 0) {
+  const delivered = new Set(
+    history.data.map((row) => String(row.recipient_email).toLowerCase()),
+  );
+  const pending = RECIPIENTS.filter((recipient) => !delivered.has(recipient.toLowerCase()));
+
+  if (pending.length === 0) {
     return NextResponse.json({ skipped: "Already sent", resultsDate, attempt });
   }
 
@@ -139,7 +149,7 @@ export async function GET(request: Request) {
 
     const { error: alertError } = await resend.emails.send({
       from: getResendFromEmail(),
-      to: RECIPIENTS,
+      to: ALERT_RECIPIENTS,
       subject: ungradedAlertSubject(alertParams),
       html: ungradedAlertHtml(alertParams),
       text: ungradedAlertText(alertParams),
@@ -161,41 +171,59 @@ export async function GET(request: Request) {
   }
 
   const emailParams = { entries, resultsDate };
+  const subject = yesterdaysResultsSubject(emailParams);
+  const html = yesterdaysResultsHtml(emailParams);
+  const text = yesterdaysResultsText(emailParams);
 
-  const { error: emailError } = await resend.emails.send({
-    from: getResendFromEmail(),
-    to: RECIPIENTS,
-    subject: yesterdaysResultsSubject(emailParams),
-    html: yesterdaysResultsHtml(emailParams),
-    text: yesterdaysResultsText(emailParams),
-  });
+  const sent: string[] = [];
+  const failed: string[] = [];
 
-  if (emailError) {
-    console.error("cron.yesterdays-results.send_failed", emailError);
-    return NextResponse.json({ error: "Could not send email." }, { status: 502 });
+  // One email per recipient, each logged as its own batch so the send history
+  // shows them as the separate messages they are.
+  for (const recipient of pending) {
+    const { error: emailError } = await resend.emails.send({
+      from: getResendFromEmail(),
+      to: [recipient],
+      subject,
+      html,
+      text,
+    });
+
+    if (emailError) {
+      console.error("cron.yesterdays-results.send_failed", recipient, emailError);
+      failed.push(recipient);
+      continue;
+    }
+
+    sent.push(recipient);
+
+    try {
+      await logBetEmailSends({
+        emailType: "yesterdays_results",
+        recipients: [recipient],
+        sentById: null,
+        playCount: entries.length,
+        contextDate: resultsDate,
+        isAutomated: true,
+        client: db,
+      });
+    } catch (logError) {
+      // The mail is already out; a logging failure must not look like a send
+      // failure. It does mean a later attempt could re-mail this recipient.
+      console.error("cron.yesterdays-results.log_failed", recipient, logError);
+    }
   }
 
-  try {
-    await logBetEmailSends({
-      emailType: "yesterdays_results",
-      recipients: RECIPIENTS,
-      sentById: null,
-      playCount: entries.length,
-      contextDate: resultsDate,
-      isAutomated: true,
-      client: db,
-    });
-  } catch (logError) {
-    // The mail is already out; a logging failure must not look like a send
-    // failure. It does mean a later attempt could duplicate this send.
-    console.error("cron.yesterdays-results.log_failed", logError);
+  if (sent.length === 0) {
+    return NextResponse.json({ error: "Could not send email.", failed }, { status: 502 });
   }
 
   return NextResponse.json({
     sent: true,
     resultsDate,
     attempt,
-    recipientCount: RECIPIENTS.length,
+    recipientCount: sent.length,
+    failedCount: failed.length,
     playCount: entries.length,
   });
 }
