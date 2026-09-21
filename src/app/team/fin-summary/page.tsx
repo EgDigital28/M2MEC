@@ -289,7 +289,7 @@ export default async function FinSummaryPage() {
 
       <Card
         title="Betting value less expense"
-        subtitle={`Year to date is every ${expenses.currentYear} quarter through Q${expenses.currentQuarter}; the remainder of the year is forecast.`}
+        subtitle={`Operating expense while the pool funds it, shared by pool ownership. Year to date is every ${expenses.currentYear} quarter through Q${expenses.currentQuarter}; the remainder of the year is forecast. ${nextYear} spend beyond the pool is a company obligation and appears under capital depletion.`}
       >
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           <div className="rounded-xl border border-border p-4">
@@ -327,8 +327,6 @@ export default async function FinSummaryPage() {
                 <th className={thr}>YTD P/L</th>
                 <th className={thr}>Rest of year spend</th>
                 <th className={thr}>Rest of year P/L</th>
-                <th className={thr}>{nextYear} spend</th>
-                <th className={thr}>{nextYear} P/L</th>
               </tr>
             </thead>
             <tbody>
@@ -346,12 +344,6 @@ export default async function FinSummaryPage() {
                   </td>
                   <td className={`${tdr} ${plClass(member.remainingPl)}`}>
                     {formatCurrencyWhole(member.remainingPl)}
-                  </td>
-                  <td className={tdr}>
-                    {formatCurrencyWhole(member.nextYearSpend)}
-                  </td>
-                  <td className={`${tdr} ${plClass(member.nextYearPl)}`}>
-                    {formatCurrencyWhole(member.nextYearPl)}
                   </td>
                 </tr>
               ))}
@@ -377,16 +369,6 @@ export default async function FinSummaryPage() {
                     members.reduce((s, m) => s + m.remainingPl, 0),
                   )}
                 </td>
-                <td className={tdr}>
-                  {formatCurrencyWhole(
-                    members.reduce((s, m) => s + m.nextYearSpend, 0),
-                  )}
-                </td>
-                <td className={tdr}>
-                  {formatCurrencyWhole(
-                    members.reduce((s, m) => s + m.nextYearPl, 0),
-                  )}
-                </td>
               </tr>
             </tbody>
           </table>
@@ -395,7 +377,7 @@ export default async function FinSummaryPage() {
 
       <Card
         title="M2MEC capital depletion"
-        subtitle="Depletion draws on cash deposited, not allocation value. Cash is only drawn on once a period's forecast P/L turns negative, and investors outside the betting pool never deplete."
+        subtitle={`Depletion draws on cash deposited, not allocation value. ${nextYear} spend beyond what the pool can fund is a company obligation, shared by equity allocation, so an investor outside the betting pool still carries their share.`}
       >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">

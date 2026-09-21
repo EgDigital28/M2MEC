@@ -128,7 +128,7 @@ export default async function IndividualSummaryPage({
   // positive even while the pool forecasts a loss.
   const ancillaryTotal = depositTotal("ancillary");
   const capitalDeposited = investor?.deposit ?? 0;
-  const forecastPl = member?.nextYearPl ?? 0;
+  const forecastPl = investor ? (fin.shortfallByInvestor.get(investor.key) ?? 0) : 0;
   const netPosition = capitalDeposited + forecastPl + ancillaryTotal;
 
   return (
@@ -169,6 +169,16 @@ export default async function IndividualSummaryPage({
             value={formatCurrencyWhole(ancillaryTotal)}
           />
         </div>
+
+        <p className="mt-3 text-sm text-muted">
+          Capital deposited, less this person&apos;s share of the{" "}
+          {fin.nextYear} forecast shortfall, plus anything deposited outside
+          either pool. The test is whether {fin.expenses.currentYear} closes
+          with enough funded to cover {fin.nextYear} spend.
+          {member
+            ? ""
+            : ` Outside the betting pool, but the shortfall is a company obligation shared by equity, so a share is still carried here.`}
+        </p>
 
         {netPosition < 0 ? (
           <p className="mt-3 rounded-lg border border-amber-400/30 p-3 text-sm text-amber-200">
@@ -240,7 +250,7 @@ export default async function IndividualSummaryPage({
 
       {member ? (
         <Card title="Expense share and forecast">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <Stat
               label={`${fin.expenses.currentYear} contribution`}
               value={formatCurrencyWhole(member.ytdContribution)}
@@ -258,15 +268,6 @@ export default async function IndividualSummaryPage({
               label="Rest of year P/L"
               value={formatCurrencyWhole(member.remainingPl)}
               className={plClass(member.remainingPl)}
-            />
-            <Stat
-              label={`${fin.nextYear} spend`}
-              value={formatCurrencyWhole(member.nextYearSpend)}
-            />
-            <Stat
-              label={`${fin.nextYear} P/L`}
-              value={formatCurrencyWhole(member.nextYearPl)}
-              className={plClass(member.nextYearPl)}
             />
           </div>
         </Card>
