@@ -48,7 +48,7 @@ export async function POST(request: Request) {
   const [templateResult, versionResult] = await Promise.all([
     supabase
       .from("creative_templates")
-      .select("id, name, description, width, height, backdrop_prompt, slots, is_active")
+      .select("id, name, description, width, height, backdrop_prompt, slots, decorations, logo, is_active")
       .eq("id", body.templateId ?? "")
       .maybeSingle(),
     supabase
@@ -66,9 +66,12 @@ export async function POST(request: Request) {
   }
 
   const db = createAdminClient();
+  const prompt = [template.backdrop_prompt, version.style_prompt].filter(Boolean).join(" ");
 
   // Reuse the cached backdrop unless asked for a new one. This is the only
-  // step that costs money, so it must not be the default.
+  // step that costs money, so it must not be the default. The prompt is part
+  // of the key: editing a template's backdrop prompt should not keep serving
+  // the image the old prompt produced.
   let backdrop = body.regenerateBackdrop
     ? null
     : (
@@ -77,6 +80,7 @@ export async function POST(request: Request) {
           .select("id, storage_path")
           .eq("kit_version_id", version.id)
           .eq("template_id", template.id)
+          .eq("prompt", prompt)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle()
@@ -89,8 +93,6 @@ export async function POST(request: Request) {
         { status: 503 },
       );
     }
-
-    const prompt = [template.backdrop_prompt, version.style_prompt].filter(Boolean).join(" ");
 
     let generated;
 

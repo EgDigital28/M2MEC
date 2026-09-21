@@ -9,6 +9,13 @@ const nextConfig: NextConfig = {
     "/api/reports/individual/[id]": [
       "./node_modules/pdfkit/js/standard-fonts/**",
     ],
+    // Read from disk at runtime, so the tracer cannot see them in the bundle.
+    // Without these the composer falls back to next/og's single regular face
+    // and every bold weight in a template renders thin.
+    "/api/creative/render": [
+      "./node_modules/@fontsource/inter/files/inter-latin-{400,700,900}-normal.woff",
+      "./node_modules/@fontsource/anton/files/anton-latin-400-normal.woff",
+    ],
   },
 };
 

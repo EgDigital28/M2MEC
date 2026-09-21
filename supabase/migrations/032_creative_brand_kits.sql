@@ -35,8 +35,13 @@ create table if not exists public.creative_templates (
   height integer not null default 1350,
   backdrop_prompt text not null,
   -- Slots are fractional so one template renders at any size, and reference a
-  -- colour role rather than a hex so they are not tied to one brand.
+  -- colour role rather than a hex so they are not tied to one brand. The same
+  -- holds for decorations (rules, chips, the barcode) and the logo rect, so a
+  -- whole layout can be retuned as data. 034 adds these two to a database
+  -- that already ran this file.
   slots jsonb not null,
+  decorations jsonb not null default '[]'::jsonb,
+  logo jsonb,
   is_active boolean not null default true,
   created_at timestamptz not null default now()
 );
