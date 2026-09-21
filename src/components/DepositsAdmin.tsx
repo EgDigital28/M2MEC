@@ -30,7 +30,7 @@ function personLabel(user: Pick<ManagedUser, "display_name" | "email">) {
 }
 
 const field =
-  "w-full rounded-lg border border-border bg-background p-2.5 text-sm outline-none focus:border-accent";
+  "h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent";
 const labelClass = "text-[10px] font-semibold uppercase tracking-widest text-muted";
 
 type OutstandingRow = { key: string; label: string; due: number };
@@ -496,6 +496,13 @@ export function DepositsAdmin() {
         kind="betting"
         blurb="Capital paid into the betting pool. A deposit after inception locks existing holders at their value that day."
         rows={deposits.filter((row) => row.kind === "betting")}
+        {...shared}
+      />
+
+      <DepositSection
+        kind="ancillary"
+        blurb="Money in that belongs to neither pool. Tracked here but it does not affect ownership or equity."
+        rows={deposits.filter((row) => row.kind === "ancillary")}
         {...shared}
       />
 

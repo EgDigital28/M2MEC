@@ -29,14 +29,19 @@ export async function GET() {
   if (error) {
     console.error("Deposits fetch failed:", error.message);
 
-    if (error.message.includes("capital_deposits")) {
+    // Match on the error code, not the table name: any failure mentioning the
+    // table used to masquerade as a missing migration.
+    if (error.code === "42P01" || error.code === "PGRST205") {
       return NextResponse.json(
         { error: "Deposits are not set up. Run 027_capital_deposits.sql." },
         { status: 503 },
       );
     }
 
-    return NextResponse.json({ error: "Could not load deposits." }, { status: 500 });
+    return NextResponse.json(
+      { error: `Could not load deposits: ${error.message}` },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({ deposits: data as unknown as CapitalDeposit[] });

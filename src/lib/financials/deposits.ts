@@ -1,10 +1,11 @@
-export const DEPOSIT_KINDS = ["company", "betting"] as const;
+export const DEPOSIT_KINDS = ["betting", "company", "ancillary"] as const;
 
 export type DepositKind = (typeof DEPOSIT_KINDS)[number];
 
 export const DEPOSIT_KIND_LABELS: Record<DepositKind, string> = {
-  company: "Capital equity",
   betting: "Betting",
+  company: "Capital equity",
+  ancillary: "Ancillary",
 };
 
 export type CapitalDeposit = {
@@ -25,7 +26,7 @@ export type CapitalDeposit = {
 };
 
 export const DEPOSIT_COLUMNS =
-  "id, profile_id, kind, group_id, deposited_on, amount, description, created_at, profiles(id, email, display_name, report_alias)";
+  "id, profile_id, kind, group_id, deposited_on, amount, description, created_at, profiles!capital_deposits_profile_id_fkey(id, email, display_name, report_alias)";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
