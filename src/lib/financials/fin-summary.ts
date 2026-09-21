@@ -59,6 +59,7 @@ export type InvestorRow = {
 export type DepletionRow = {
   key: string;
   label: string;
+  profileId: string | null;
   excludedFromBetting: boolean;
   /** Allocation at the company valuation — what the stake is worth. */
   cashValue: number;
@@ -250,6 +251,7 @@ export function computeDepletion(
     return {
       key: investor.key,
       label: investor.label,
+      profileId: investor.profileId,
       excludedFromBetting: Boolean(investor.excludedFromBetting),
       cashValue: investor.cashValue,
       deposits: investor.deposit,
