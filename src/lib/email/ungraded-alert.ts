@@ -1,3 +1,4 @@
+import { CONFIDENTIALITY_NOTICE } from "@/lib/reports/confidentiality";
 import {
   formatCurrency,
   formatEventDate,
@@ -89,5 +90,7 @@ ${summarySentence(params)}
 ${lines.join("\n")}
 
 — M2MEC
+
+${CONFIDENTIALITY_NOTICE}
   `.trim();
 }

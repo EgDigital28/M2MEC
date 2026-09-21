@@ -1,3 +1,4 @@
+import { CONFIDENTIALITY_NOTICE } from "@/lib/reports/confidentiality";
 import {
   renderEmailButton,
   renderEmailDisclaimer,
@@ -142,5 +143,7 @@ If you weren't expecting this invite, you can ignore this email.
 ${copy.disclaimer}
 
 — M2MEC
+
+${CONFIDENTIALITY_NOTICE}
   `.trim();
 }

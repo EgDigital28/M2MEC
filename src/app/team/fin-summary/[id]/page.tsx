@@ -9,6 +9,7 @@ import {
   type DepositKind,
 } from "@/lib/financials/deposits";
 import { formatReconciliationDate } from "@/lib/financials/reconciliations";
+import { CONFIDENTIALITY_NOTICE } from "@/lib/reports/confidentiality";
 import { loadIndividualReport } from "@/lib/reports/individual-report";
 import { describePaymentSchedule } from "@/lib/reports/payment-schedule";
 
@@ -42,6 +43,9 @@ function Stat({
     <div className="rounded-xl border border-border p-4">
       <p className="text-[10px] font-semibold uppercase tracking-widest text-muted">{label}</p>
       <p className={`mt-2 text-xl font-semibold tabular-nums ${className}`}>{value}</p>
+      <p className="border-t border-border pt-4 text-xs text-muted">
+        {CONFIDENTIALITY_NOTICE}
+      </p>
     </div>
   );
 }
