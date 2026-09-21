@@ -83,3 +83,46 @@ export function formatScheduleDate(value: string) {
     timeZone: "UTC",
   }).format(new Date(Date.UTC(year, month - 1, day)));
 }
+
+const WEEKDAY = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
+function money(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+/**
+ * One sentence rather than a table — the plan is simple enough to read inline,
+ * and a fourteen-row table earned none of the space it took.
+ */
+export function describePaymentSchedule(schedule: ScheduledPayment[]) {
+  if (schedule.length === 0) {
+    return "";
+  }
+
+  const first = schedule[0];
+  const last = schedule[schedule.length - 1];
+
+  if (schedule.length === 1) {
+    return `Suggested: a single payment of ${money(first.amount)} on ${formatScheduleDate(first.date)}.`;
+  }
+
+  const day = WEEKDAY[new Date(`${first.date}T00:00:00Z`).getUTCDay()];
+  const tail =
+    last.amount === first.amount
+      ? ""
+      : `, with a final payment of ${money(last.amount)}`;
+
+  return `Suggested: ${schedule.length} weekly payments of ${money(first.amount)} each ${day}, from ${formatScheduleDate(first.date)} to ${formatScheduleDate(last.date)}${tail}.`;
+}
