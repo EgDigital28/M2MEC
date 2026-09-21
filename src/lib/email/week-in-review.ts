@@ -1,3 +1,4 @@
+import { CONFIDENTIALITY_NOTICE } from "@/lib/reports/confidentiality";
 import {
   computeDayResultsStats,
   computeSportBetStats,
@@ -223,5 +224,7 @@ By sport
 ${bySport}
 
 — M2MEC
+
+${CONFIDENTIALITY_NOTICE}
   `.trim();
 }

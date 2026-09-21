@@ -1,5 +1,6 @@
 import { getWinPctTier } from "@/lib/bets/calculations";
 import { escapeHtml } from "@/lib/email/utils";
+import { CONFIDENTIALITY_NOTICE } from "@/lib/reports/confidentiality";
 
 export const EMAIL_COLORS = {
   background: "#06080f",
@@ -88,6 +89,9 @@ export function renderEmailShell(content: string) {
           </table>
           <p style="margin:16px 0 0;font-size:11px;color:${EMAIL_COLORS.muted};text-align:center;">
             Sent from M2MEC · noreply@m2mec.com
+          </p>
+          <p style="margin:8px auto 0;max-width:520px;font-size:10px;line-height:1.5;color:${EMAIL_COLORS.muted};text-align:center;">
+            ${escapeHtml(CONFIDENTIALITY_NOTICE)}
           </p>
         </td>
       </tr>

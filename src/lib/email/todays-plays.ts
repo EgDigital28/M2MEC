@@ -1,3 +1,4 @@
+import { CONFIDENTIALITY_NOTICE } from "@/lib/reports/confidentiality";
 import {
   formatCurrency,
   formatEventDate,
@@ -98,5 +99,7 @@ Open positions for ${formatSentOnDate(sentOnDate)}.
 ${body}
 
 — M2MEC
+
+${CONFIDENTIALITY_NOTICE}
   `.trim();
 }

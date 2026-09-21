@@ -1,3 +1,4 @@
+import { CONFIDENTIALITY_NOTICE } from "@/lib/reports/confidentiality";
 import {
   Document,
   Page,
@@ -120,9 +121,21 @@ const styles = StyleSheet.create({
   },
   cellHead: { fontSize: 5.8, color: COLOR.muted, textTransform: "uppercase" },
   cell: { fontSize: 7 },
+  confidential: {
+    position: "absolute",
+    bottom: 26,
+    left: 26,
+    right: 26,
+    fontSize: 5.6,
+    lineHeight: 1.35,
+    color: COLOR.muted,
+    borderTopWidth: 0.5,
+    borderTopColor: COLOR.border,
+    paddingTop: 5,
+  },
   footer: {
     position: "absolute",
-    bottom: 14,
+    bottom: 12,
     left: 26,
     right: 26,
     fontSize: 6,
@@ -232,6 +245,10 @@ export function IndividualPdf({ data }: { data: IndividualPdfData }) {
             {section.note ? <Text style={styles.note}>{section.note}</Text> : null}
           </View>
         ))}
+
+        <Text style={styles.confidential} fixed>
+          {CONFIDENTIALITY_NOTICE}
+        </Text>
 
         <View style={styles.footer} fixed>
           <Text>M2MEC · generated {data.generatedOn}</Text>

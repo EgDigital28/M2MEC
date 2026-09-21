@@ -1,3 +1,4 @@
+import { CONFIDENTIALITY_NOTICE } from "@/lib/reports/confidentiality";
 import {
   computeDayResultsStats,
   formatCurrency,
@@ -141,5 +142,7 @@ Results for ${formatResultsDate(resultsDate)}.
 ${body}
 
 — M2MEC
+
+${CONFIDENTIALITY_NOTICE}
   `.trim();
 }
