@@ -70,6 +70,9 @@ Note `20260919183700_normalize_ledger_ufc_card_mapping.sql`: it patches `project
 
 - **Bets** — `bet_entries` joined to `sports`; derived P/L in `src/lib/bets/calculations.ts` (never persisted). Ledger-projected rows coexist with manually entered ones and are distinguished by `ledger_entity_id`.
 - **Email** — Resend, templates in `src/lib/email/`. Sends (today's plays, yesterday's results, weekly summary) are logged to `bet_email_sends` for history and duplicate warnings.
+  - Two sends are scheduled in `vercel.json`: yesterday's results (`/api/cron/yesterdays-results`) and today's plays (`/api/cron/todays-plays`). Vercel runs in UTC, so each cron fires across a wider UTC window and the route gates on the Eastern hour.
+  - Each has an on/off switch in `email_automation_settings`, set from `/team/email-automation` (admin menu under the name in the header). Recipients live in `src/lib/email/automation.ts`.
+  - Today's plays decides what is "new" per recipient by play arrival time (`bet_entries.created_at`) against that person's last `upcoming_plays` send, not by counting. The send is logged with the time the plays were read, not the time the email finished. Logic in `src/lib/bets/todays-plays-split.ts`, tested by `npm run test:emails`.
 - **Financials/Expenses** — admin-only: cost centers, components, entries with auto-derived quarter; equity and wagering stakes feeding investor cost-coverage and P/L views.
 
 ### Migrations

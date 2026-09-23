@@ -7,6 +7,7 @@ import { getProfileDisplayName } from "@/lib/auth/display-name";
 import { getTeamNavItems } from "@/lib/team-nav";
 import { TIER_LABELS } from "@/lib/tiers";
 import { TeamSignOut } from "@/components/TeamSignOut";
+import { AdminMenu } from "@/components/AdminMenu";
 
 type TeamShellProps = {
   profile: Profile;
@@ -59,13 +60,19 @@ export function TeamShell({ profile, children, creatorFeedAccess = false }: Team
           </div>
 
           <div className="flex items-center gap-4">
-            <p className="hidden whitespace-nowrap text-sm font-medium sm:block">
-              {getProfileDisplayName(profile)}{" "}
-              <span className="text-muted">({TIER_LABELS[profile.tier]})</span>
-            </p>
-            <span className="rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent sm:hidden">
-              {TIER_LABELS[profile.tier]}
-            </span>
+            {profile.tier === "admin" ? (
+              <AdminMenu name={getProfileDisplayName(profile)} tierLabel={TIER_LABELS[profile.tier]} />
+            ) : (
+              <>
+                <p className="hidden whitespace-nowrap text-sm font-medium sm:block">
+                  {getProfileDisplayName(profile)}{" "}
+                  <span className="text-muted">({TIER_LABELS[profile.tier]})</span>
+                </p>
+                <span className="rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent sm:hidden">
+                  {TIER_LABELS[profile.tier]}
+                </span>
+              </>
+            )}
             <TeamSignOut />
           </div>
         </div>

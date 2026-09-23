@@ -27,6 +27,12 @@ type LogBetEmailSendsInput = {
   isAutomated?: boolean;
   /** Supplied by callers without a session, such as the cron job. */
   client?: SupabaseClient;
+  /**
+   * When the email's contents were read. Defaults to the moment of logging,
+   * which is after the send. Today's plays passes the earlier time so a play
+   * that lands while the email is going out is not recorded as already sent.
+   */
+  sentAt?: string;
 };
 
 export async function logBetEmailSends({
@@ -39,6 +45,7 @@ export async function logBetEmailSends({
   sentOnDate = getTodayDateString(),
   isAutomated = false,
   client,
+  sentAt,
 }: LogBetEmailSendsInput) {
   const supabase = client ?? (await createClient());
   const batchId = crypto.randomUUID();
@@ -52,6 +59,7 @@ export async function logBetEmailSends({
     play_count: playCount,
     context_date: contextDate,
     context_week_end: contextWeekEnd,
+    ...(sentAt ? { sent_at: sentAt } : {}),
   }));
 
   const { error } = await supabase

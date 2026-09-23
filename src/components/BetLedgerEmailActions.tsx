@@ -183,7 +183,7 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
 
   function sendUpcomingPlays() {
     return sendEmail("upcoming", "/api/bets/email/todays-plays", (data) =>
-      `Sent today's plays (${data.playCount ?? openPlays.length} open) to ${data.recipientCount ?? 0} recipient(s).`,
+      `Sent today's plays (${data.playCount ?? openPlays.length} plays) to ${data.recipientCount ?? 0} recipient(s).`,
     );
   }
 

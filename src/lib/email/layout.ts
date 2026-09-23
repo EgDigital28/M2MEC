@@ -59,6 +59,14 @@ type EmailTableRow = {
   cellColors?: (string | undefined)[];
 };
 
+type EmailTableOptions = {
+  /** Tints the rows and draws an accent edge, to mark them as new. */
+  highlight?: boolean;
+};
+
+/** Blue tint over the surface colour, for rows that need to stand out. */
+const HIGHLIGHT_ROW = "#12233d";
+
 export function wrapEmailDocument(body: string) {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -152,7 +160,11 @@ function cellStyle(column: EmailTableColumn, color?: string) {
   return `padding:8px;font-size:12px;line-height:1.4;text-align:${align};font-family:${fontFamily};color:${color ?? EMAIL_COLORS.foreground};vertical-align:top;`;
 }
 
-export function renderEmailTable(columns: EmailTableColumn[], rows: EmailTableRow[]) {
+export function renderEmailTable(
+  columns: EmailTableColumn[],
+  rows: EmailTableRow[],
+  options: EmailTableOptions = {},
+) {
   const headerCells = columns
     .map(
       (column) => `
@@ -165,15 +177,25 @@ export function renderEmailTable(columns: EmailTableColumn[], rows: EmailTableRo
 
   const bodyRows = rows
     .map((row, index) => {
-      const rowBackground = index % 2 === 0 ? EMAIL_COLORS.surface : EMAIL_COLORS.surfaceAlt;
+      const rowBackground = options.highlight
+        ? HIGHLIGHT_ROW
+        : index % 2 === 0
+          ? EMAIL_COLORS.surface
+          : EMAIL_COLORS.surfaceAlt;
 
       const cells = row.cells
         .map((value, cellIndex) => {
           const column = columns[cellIndex];
           const color = row.cellColors?.[cellIndex];
+          // A left edge on the first cell rather than on the row: Outlook
+          // ignores borders on <tr>.
+          const edge =
+            options.highlight && cellIndex === 0
+              ? `border-left:3px solid ${EMAIL_COLORS.accent};`
+              : "";
 
           return `
-            <td style="${cellStyle(column, color)}border-top:1px solid ${EMAIL_COLORS.border};background:${rowBackground};">
+            <td style="${cellStyle(column, color)}border-top:1px solid ${EMAIL_COLORS.border};background:${rowBackground};${edge}">
               ${value}
             </td>
           `;
@@ -200,6 +222,15 @@ export function renderEmailEmptyState(message: string) {
   return `
     <p style="margin:20px 0 0;padding:16px;border:1px solid ${EMAIL_COLORS.border};border-radius:12px;background:${EMAIL_COLORS.surfaceElevated};font-size:13px;color:${EMAIL_COLORS.muted};text-align:center;">
       ${escapeHtml(message)}
+    </p>
+  `;
+}
+
+/** A small uppercase label that heads a table within one email. */
+export function renderEmailSubheading(text: string, color: string = EMAIL_COLORS.muted) {
+  return `
+    <p style="margin:28px 0 0;font-size:11px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:${color};">
+      ${escapeHtml(text)}
     </p>
   `;
 }
