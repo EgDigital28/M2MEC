@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:creator": "node --test src/lib/creator/*.test.ts",
+    "test:emails": "node --test src/lib/bets/*.test.ts",
     "test:release": "node --test scripts/*.test.mjs",
     "validate:release": "node scripts/validate-release.mjs",
     "release:production": "node scripts/publish-production.mjs"

@@ -1,4 +1,3 @@
-import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import {
   getYesterdayDateString,
@@ -16,20 +15,21 @@ import {
   ungradedAlertSubject,
   ungradedAlertText,
 } from "@/lib/email/ungraded-alert";
+import {
+  AUTOMATED_RECIPIENTS,
+  AUTOMATION_ALERT_RECIPIENTS,
+  isAutomationEnabled,
+} from "@/lib/email/automation";
 import { getResendClient, getResendFromEmail } from "@/lib/email/utils";
+import { easternHour, isAuthorizedCron } from "@/lib/cron";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-// Hardcoded while the schedule is being proven out; widen to configured
-// recipients once the timing and grading behaviour are trusted. Each address
-// receives its own email, so recipients never see one another.
-const RECIPIENTS = ["eli.goshert@gmail.com", "samueltbennettsr@gmail.com"];
-
-// The skipped-digest notice is operational, so it stays internal.
-const ALERT_RECIPIENTS = ["eli.goshert@gmail.com"];
+const RECIPIENTS = AUTOMATED_RECIPIENTS;
+const ALERT_RECIPIENTS = AUTOMATION_ALERT_RECIPIENTS;
 
 /**
  * Attempt hours in Eastern time. Vercel schedules in UTC, so the cron fires
@@ -38,30 +38,8 @@ const ALERT_RECIPIENTS = ["eli.goshert@gmail.com"];
  */
 const ATTEMPT_HOURS_ET = [1, 2, 3];
 
-function easternHour(now = new Date()) {
-  return Number(
-    new Intl.DateTimeFormat("en-US", {
-      timeZone: "America/New_York",
-      hour: "2-digit",
-      hourCycle: "h23",
-    }).format(now),
-  );
-}
-
-function authorized(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  const supplied = request.headers.get("authorization") ?? "";
-  const expected = `Bearer ${secret}`;
-
-  return (
-    Boolean(secret) &&
-    Buffer.byteLength(supplied) === Buffer.byteLength(expected) &&
-    timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))
-  );
-}
-
 export async function GET(request: Request) {
-  if (!authorized(request)) {
+  if (!isAuthorizedCron(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -75,6 +53,17 @@ export async function GET(request: Request) {
   const finalAttempt = attempt === ATTEMPT_HOURS_ET.length;
   const resultsDate = getYesterdayDateString();
   const db = createAdminClient();
+
+  // Switched off on the Email automation page. Checked before anything else,
+  // and a failed lookup stands the run down rather than guessing.
+  try {
+    if (!(await isAutomationEnabled(db, "yesterdays_results"))) {
+      return NextResponse.json({ skipped: "Switched off", resultsDate, attempt });
+    }
+  } catch (settingsError) {
+    console.error("cron.yesterdays-results.settings_failed", settingsError);
+    return NextResponse.json({ error: "Could not check the automation switch." }, { status: 503 });
+  }
 
   // One send per recipient per results date, whoever sent it. A manual send
   // earlier in the day stands the job down for that address, and a recipient

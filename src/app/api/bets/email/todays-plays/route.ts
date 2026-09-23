@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
-import {
-  getTodayDateString,
-  withComputedFields,
-  type BetEntryRow,
-} from "@/lib/bets/calculations";
+import { getTodayDateString } from "@/lib/bets/calculations";
+import { loadTodaysPlays } from "@/lib/bets/todays-plays-digest";
 import { requireMinimumTier } from "@/lib/auth/profile";
 import {
   todaysPlaysHtml,
@@ -62,22 +59,22 @@ export async function POST(request: Request) {
   }
 
   const today = getTodayDateString();
+  // Taken before the plays are read and recorded as the send time, so a play
+  // that lands mid-send is still new to the scheduled check afterwards.
+  const checkedAt = new Date().toISOString();
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("bet_entries")
-    .select("*, sports(abbreviation, full_name)")
-    .eq("status", "Open")
-    .eq("event_date", today)
-    .order("event_date", { ascending: true })
-    .order("created_at", { ascending: true });
+  let entries;
 
-  if (error) {
-    console.error("Open plays fetch failed:", error);
-    return NextResponse.json({ error: "Could not load open plays." }, { status: 500 });
+  try {
+    // Every play dated today, graded or not: the same full list the first
+    // scheduled email of the day carries.
+    entries = await loadTodaysPlays(supabase, today);
+  } catch (error) {
+    console.error("Today's plays fetch failed:", error);
+    return NextResponse.json({ error: "Could not load today's plays." }, { status: 500 });
   }
 
-  const entries = (data as BetEntryRow[]).map((row) => withComputedFields(row));
-  const emailParams = { entries, sentOnDate: today };
+  const emailParams = { sentOnDate: today, isFirst: true, newPlays: entries, earlierPlays: [] };
 
   const { error: emailError } = await resend.emails.send({
     from: getResendFromEmail(),
@@ -100,6 +97,7 @@ export async function POST(request: Request) {
       sentById: auth.profile.id,
       playCount: entries.length,
       contextDate: today,
+      sentAt: checkedAt,
     });
   } catch (logError) {
     console.error("Today's plays email log failed:", logError);
