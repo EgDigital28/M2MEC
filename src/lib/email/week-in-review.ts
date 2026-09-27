@@ -73,6 +73,72 @@ export function weekInReviewSubject({
   return `M2MEC — Week in Review (${formatWeekRangeLabel(weekStart, weekEnd)})`;
 }
 
+/** Height of each half of the daily chart, above and below the zero line. */
+const CHART_HALF_PX = 72;
+
+function barHeight(value: number, peak: number) {
+  if (peak <= 0 || value === 0) return 0;
+  // A thin sliver for small days, so a day with plays never looks empty.
+  return Math.max(3, Math.round((Math.abs(value) / peak) * CHART_HALF_PX));
+}
+
+/** One fixed-height table row: a bar segment when coloured, a spacer if not. */
+function chartRow(height: number, color?: string) {
+  if (height <= 0) return "";
+  const fill = color
+    ? `<table role="presentation" align="center" cellspacing="0" cellpadding="0" style="width:62%;border-collapse:collapse;"><tr><td style="height:${height}px;background:${color};font-size:0;line-height:0;">&nbsp;</td></tr></table>`
+    : "&nbsp;";
+  return `<tr><td style="height:${height}px;font-size:0;line-height:0;padding:0;">${fill}</td></tr>`;
+}
+
+/**
+ * The daily P/L as columns either side of a zero line, matching the Weekly
+ * page. Built from fixed-height table rows rather than styled divs, because
+ * Outlook ignores heights on divs and would collapse every bar.
+ */
+function renderDailyChart(series: DayPlPoint[], peak: number) {
+  const width = `${(100 / Math.max(series.length, 1)).toFixed(2)}%`;
+
+  const columns = series
+    .map((point) => {
+      const height = barHeight(point.profitLoss, peak);
+      const up = point.profitLoss > 0 ? height : 0;
+      const down = point.profitLoss < 0 ? height : 0;
+      const amount =
+        point.playCount === 0
+          ? `<span style="color:${EMAIL_COLORS.muted};">—</span>`
+          : // On a phone a column is ~38px wide, too narrow for "-$170.0K" on
+            // one line, so it may break after the dollar sign instead of
+            // running into the next day. On a desktop screen it never wraps.
+            renderEmailHtmlCell(compactMoney(point.profitLoss)).replace("$", "$<wbr>");
+
+      return `
+        <td valign="top" style="width:${width};padding:0 1px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+            ${chartRow(CHART_HALF_PX - up)}
+            ${chartRow(up, EMAIL_COLORS.profit)}
+            <tr><td style="height:1px;background:${EMAIL_COLORS.border};font-size:0;line-height:0;padding:0;">&nbsp;</td></tr>
+            ${chartRow(down, EMAIL_COLORS.loss)}
+            ${chartRow(CHART_HALF_PX - down)}
+            <tr><td align="center" style="padding:10px 0 0;font-size:12px;line-height:1.3;color:${EMAIL_COLORS.muted};">${renderEmailHtmlCell(dayLabel(point.date))}</td></tr>
+            <tr><td align="center" style="padding:2px 0 0;font-size:11px;line-height:1.3;font-weight:600;color:${emailProfitLossColor(point.profitLoss)};">${amount}</td></tr>
+          </table>
+        </td>
+      `;
+    })
+    .join("");
+
+  return `
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:12px;border:1px solid ${EMAIL_COLORS.border};border-radius:12px;border-collapse:separate;background:${EMAIL_COLORS.surfaceElevated};">
+      <tr><td style="padding:20px 12px 16px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;table-layout:fixed;">
+          <tr>${columns}</tr>
+        </table>
+      </td></tr>
+    </table>
+  `;
+}
+
 export function weekInReviewHtml(params: WeekInReviewEmailParams) {
   const { entries, sports, weekStart, weekEnd, series, viewLabel } = params;
   const stats = computeDayResultsStats(entries);
@@ -111,24 +177,7 @@ export function weekInReviewHtml(params: WeekInReviewEmailParams) {
     3,
   );
 
-  const dailyTable = renderEmailTable(
-    [
-      { key: "day", label: "Day" },
-      { key: "pl", label: "P/L", align: "right", mono: true },
-      { key: "bar", label: "" },
-    ],
-    series.map((point) => ({
-      cells: [
-        renderEmailHtmlCell(dayLabel(point.date)),
-        point.playCount === 0 ? "—" : renderEmailHtmlCell(compactMoney(point.profitLoss)),
-        renderBar(
-          barPercent(point.profitLoss, dayPeak),
-          point.profitLoss >= 0 ? EMAIL_COLORS.profit : EMAIL_COLORS.loss,
-        ),
-      ],
-      cellColors: [undefined, emailProfitLossColor(point.profitLoss), undefined],
-    })),
-  );
+  const dailyChart = renderDailyChart(series, dayPeak);
 
   const sportTable = sportRows.length
     ? renderEmailTable(
@@ -177,7 +226,7 @@ export function weekInReviewHtml(params: WeekInReviewEmailParams) {
     })}
     ${summary}
     <p style="margin:24px 0 0;font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:${EMAIL_COLORS.muted};">Daily P/L</p>
-    ${dailyTable}
+    ${dailyChart}
     <p style="margin:24px 0 0;font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:${EMAIL_COLORS.muted};">By sport</p>
     ${sportTable}
   `);

@@ -568,7 +568,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
 
             <div className="md:col-span-6 xl:col-span-4">
               <label htmlFor="event_name" className="mb-1.5 block text-sm font-medium">
-                Event
+                Bet
               </label>
               <input
                 id="event_name"
