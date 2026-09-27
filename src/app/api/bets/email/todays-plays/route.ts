@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getTodayDateString } from "@/lib/bets/calculations";
 import { loadTodaysPlays } from "@/lib/bets/todays-plays-digest";
+import { splitTodaysPlays } from "@/lib/bets/todays-plays-split";
 import { requireMinimumTier } from "@/lib/auth/profile";
 import {
   todaysPlaysHtml,
@@ -74,7 +75,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Could not load today's plays." }, { status: 500 });
   }
 
-  const emailParams = { sentOnDate: today, isFirst: true, newPlays: entries, earlierPlays: [] };
+  // Through the same split as the scheduled email, with no previous send, so
+  // the manual one is ordered the same way: open plays by game time first,
+  // graded plays at the bottom.
+  const emailParams = { sentOnDate: today, ...splitTodaysPlays(entries, null) };
 
   const { error: emailError } = await resend.emails.send({
     from: getResendFromEmail(),

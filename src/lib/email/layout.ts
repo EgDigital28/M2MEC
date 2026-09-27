@@ -62,6 +62,8 @@ type EmailTableRow = {
 type EmailTableOptions = {
   /** Tints the rows and draws an accent edge, to mark them as new. */
   highlight?: boolean;
+  /** Narrower gaps between columns, for tables whose rows must not wrap. */
+  compact?: boolean;
 };
 
 /** Blue tint over the surface colour, for rows that need to stand out. */
@@ -151,13 +153,13 @@ export function renderEmailButton(href: string, label: string) {
   `;
 }
 
-function cellStyle(column: EmailTableColumn, color?: string) {
+function cellStyle(column: EmailTableColumn, color?: string, compact = false) {
   const align = column.align ?? "left";
   const fontFamily = column.mono
     ? "ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace"
     : "inherit";
 
-  return `padding:8px;font-size:12px;line-height:1.4;text-align:${align};font-family:${fontFamily};color:${color ?? EMAIL_COLORS.foreground};vertical-align:top;`;
+  return `padding:${compact ? "8px 5px" : "8px"};font-size:12px;line-height:1.4;text-align:${align};font-family:${fontFamily};color:${color ?? EMAIL_COLORS.foreground};vertical-align:top;`;
 }
 
 export function renderEmailTable(
@@ -168,7 +170,7 @@ export function renderEmailTable(
   const headerCells = columns
     .map(
       (column) => `
-        <th style="${cellStyle({ ...column, mono: false }, EMAIL_COLORS.muted)}font-weight:500;border-bottom:1px solid ${EMAIL_COLORS.border};background:${EMAIL_COLORS.surfaceElevated};">
+        <th style="${cellStyle({ ...column, mono: false }, EMAIL_COLORS.muted, options.compact)}font-weight:500;border-bottom:1px solid ${EMAIL_COLORS.border};background:${EMAIL_COLORS.surfaceElevated};">
           ${escapeHtml(column.label)}
         </th>
       `,
@@ -195,7 +197,7 @@ export function renderEmailTable(
               : "";
 
           return `
-            <td style="${cellStyle(column, color)}border-top:1px solid ${EMAIL_COLORS.border};background:${rowBackground};${edge}">
+            <td style="${cellStyle(column, color, options.compact)}border-top:1px solid ${EMAIL_COLORS.border};background:${rowBackground};${edge}">
               ${value}
             </td>
           `;

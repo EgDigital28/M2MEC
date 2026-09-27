@@ -116,24 +116,32 @@ function roiHighlightClassName(value: number | null) {
 }
 
 /**
+ * Where a play came from. Only the Prediction Ledger today; a new source gets
+ * its own badge here. Hand-entered plays have no source badge.
+ */
+function SourceBadge({ entry }: { entry: BetEntryComputed }) {
+  if (!entry.ledger_entity_id) return null;
+
+  return (
+    <span
+      className="whitespace-nowrap rounded border border-cyan-400/40 px-1 text-xs text-cyan-300"
+      title="Created from Prediction Ledger"
+    >
+      PL
+    </span>
+  );
+}
+
+/**
  * The bet, then the game or games it is on. Hand-entered plays have no event
  * data, so they show the bet alone, as before.
  */
 function BetCell({ entry }: { entry: BetEntryComputed }) {
   const events = parseLedgerEvents(entry.ledger_events);
-  const badge = entry.ledger_entity_id ? (
-    <span
-      className="mr-2 whitespace-nowrap rounded border border-cyan-400/40 px-1 text-xs text-cyan-300"
-      title="Created from Prediction Ledger"
-    >
-      PL
-    </span>
-  ) : null;
 
   if (events.length === 0) {
     return (
       <span className="block whitespace-normal break-words leading-snug">
-        {badge}
         {entry.event_name}
       </span>
     );
@@ -142,7 +150,6 @@ function BetCell({ entry }: { entry: BetEntryComputed }) {
   return (
     <span className="block space-y-0.5 whitespace-normal break-words leading-snug">
       <span className="block">
-        {badge}
         <span className="text-muted">Bet: </span>
         {entry.event_name}
       </span>
@@ -701,6 +708,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
         <div className="overflow-x-auto">
           <table className="min-w-[920px] w-full table-fixed text-xs">
             <colgroup>
+              <col className="w-[44px]" />
               <col className="w-[74px]" />
               <col className="w-[88px]" />
               {/* No fixed width: in a fixed-layout table the one unsized column
@@ -716,6 +724,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
             </colgroup>
             <thead className="border-b border-border bg-surface-elevated text-left">
               <tr>
+                <th className="px-2 py-2 font-medium text-muted" title="Where the play came from">Src</th>
                 <th className="px-2 py-2 font-medium text-muted">Date</th>
                 <th className="px-2 py-2 font-medium text-muted">Sport</th>
                 <th className="px-2 py-2 font-medium text-muted">Bet</th>
@@ -734,13 +743,13 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={showActions ? 9 : 8} className="px-2 py-8 text-center text-muted">
+                  <td colSpan={showActions ? 10 : 9} className="px-2 py-8 text-center text-muted">
                     Loading entries...
                   </td>
                 </tr>
               ) : paginatedEntries.length === 0 ? (
                 <tr>
-                  <td colSpan={showActions ? 9 : 8} className="px-2 py-8 text-center text-muted">
+                  <td colSpan={showActions ? 10 : 9} className="px-2 py-8 text-center text-muted">
                     No entries yet.
                   </td>
                 </tr>
@@ -751,6 +760,9 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
 
                   return (
                     <tr key={entry.id} className={`border-t border-border ${rowBg}`}>
+                      <td className="px-2 py-2">
+                        <SourceBadge entry={entry} />
+                      </td>
                       <td className="px-2 py-2">
                         {isEditing ? (
                           <input
