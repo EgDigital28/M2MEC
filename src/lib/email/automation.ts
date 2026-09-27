@@ -28,6 +28,12 @@ export const AUTOMATED_EMAILS = {
     rule: "Sends only when new plays have arrived since that person's last email. Updates highlight the new plays above the ones sent earlier.",
     defaultEnabled: false,
   },
+  week_in_review: {
+    label: "Week in review",
+    schedule: "Sundays at 1am Eastern (2am and 3am if needed)",
+    rule: "Covers the week that just ended, Sunday to Saturday. Waits for Saturday's late games to be graded; at 3am it sends regardless, with any still-open plays counted as open.",
+    defaultEnabled: true,
+  },
 } as const;
 
 export type AutomatedEmailType = keyof typeof AUTOMATED_EMAILS;
