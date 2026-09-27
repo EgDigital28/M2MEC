@@ -1,30 +1,26 @@
 import type { BetEntryComputed } from "@/lib/bets/calculations";
+import { compareWithinDay } from "./ledger-events.ts";
 
 /**
  * How one person's today's plays email is laid out.
  *
- * Kept free of runtime imports so it can be tested directly with node:test.
+ * Runs directly under node:test, so its imports use explicit .ts paths.
  */
 export type TodaysPlaysSplit = {
   /** No today's plays email has reached this person yet today. */
   isFirst: boolean;
-  /** Plays that arrived after the last email to this person: open first. */
+  /** Plays that arrived after the last email to this person: open first, by game time. */
   newPlays: BetEntryComputed[];
-  /** Plays already emailed today: still-open ones first, graded ones last. */
+  /** Plays already emailed today: open first, graded last, each by game time. */
   earlierPlays: BetEntryComputed[];
 };
 
-function byArrival(a: BetEntryComputed, b: BetEntryComputed) {
-  return Date.parse(a.created_at) - Date.parse(b.created_at);
-}
-
-/** Still-open plays first, graded ones at the bottom, each in arrival order. */
+/**
+ * Open plays first by game time, graded plays at the bottom by game time —
+ * the same order as the ledger page. A parlay sorts by its latest game.
+ */
 function openFirst(entries: BetEntryComputed[]) {
-  const sorted = [...entries].sort(byArrival);
-  return [
-    ...sorted.filter((entry) => entry.status === "Open"),
-    ...sorted.filter((entry) => entry.status !== "Open"),
-  ];
+  return [...entries].sort(compareWithinDay);
 }
 
 /**

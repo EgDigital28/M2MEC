@@ -87,3 +87,35 @@ test("totals separate what is still riding from what has settled", () => {
   assert.equal(totals.settledNet, 9090.91);
   assert.equal(totals.settledCount, 2);
 });
+
+const withGames = (entry: BetEntryComputed, ...startsEt: string[]) =>
+  ({ ...entry, ledger_events: startsEt.map((et) => ({ eventName: `game ${et}`, startsAt: at(et) })) }) as BetEntryComputed;
+
+test("plays are ordered by game time, not by when they arrived", () => {
+  const entries = [
+    withGames(play("4pm game", "09:00", "Open", 100, 90), "16:00"),
+    withGames(play("1pm game", "10:00", "Open", 100, 90), "13:00"),
+    withGames(play("8pm game", "08:00", "Open", 100, 90), "20:00"),
+  ];
+
+  assert.deepEqual(splitTodaysPlays(entries, null).newPlays.map((p) => p.id), ["1pm game", "4pm game", "8pm game"]);
+});
+
+test("a finished game drops below the open ones, which keep game-time order", () => {
+  const entries = [
+    withGames(play("1pm game", "09:00", "Win", 100, 90, 90), "13:00"),
+    withGames(play("4pm game", "09:30", "Open", 100, 90), "16:00"),
+    withGames(play("noon game", "08:00", "Loss", 100, 90, -100), "12:00"),
+  ];
+
+  assert.deepEqual(splitTodaysPlays(entries, at("10:00")).earlierPlays.map((p) => p.id), ["4pm game", "noon game", "1pm game"]);
+});
+
+test("a parlay sorts by its latest game, whatever order its legs are listed in", () => {
+  const entries = [
+    withGames(play("parlay 1pm + 8pm", "09:00", "Open", 100, 90), "20:00", "13:00"),
+    withGames(play("4pm single", "09:30", "Open", 100, 90), "16:00"),
+  ];
+
+  assert.deepEqual(splitTodaysPlays(entries, null).newPlays.map((p) => p.id), ["4pm single", "parlay 1pm + 8pm"]);
+});

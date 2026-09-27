@@ -1,3 +1,4 @@
+import { compareWithinDay } from "@/lib/bets/ledger-events";
 export const BET_STATUSES = ["Open", "Win", "Loss", "Void"] as const;
 
 export const LEDGER_STARTING_BALANCE = 2_845_000;
@@ -170,16 +171,20 @@ export function isBetStatus(value: string): value is BetStatus {
   return (BET_STATUSES as readonly string[]).includes(value);
 }
 
-export function sortBetEntries<T extends { event_date: string; created_at: string }>(
-  entries: T[],
-): T[] {
+/**
+ * Newest day first. Within a day, open plays come first and graded plays sink
+ * to the bottom, each group by game time (see compareWithinDay).
+ */
+export function sortBetEntries<
+  T extends { event_date: string; created_at: string; status: string; ledger_events?: unknown },
+>(entries: T[]): T[] {
   return [...entries].sort((a, b) => {
     const dateCompare = b.event_date.localeCompare(a.event_date);
     if (dateCompare !== 0) {
       return dateCompare;
     }
 
-    return b.created_at.localeCompare(a.created_at);
+    return compareWithinDay(a, b);
   });
 }
 

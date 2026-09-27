@@ -5,7 +5,13 @@ import {
   formatOdds,
   type BetEntryComputed,
 } from "@/lib/bets/calculations";
+import {
+  describeLedgerEvent,
+  ledgerEventLabel,
+  parseLedgerEvents,
+} from "@/lib/bets/ledger-events";
 import { todaysPlaysTotals } from "@/lib/bets/todays-plays-split";
+import { escapeHtml } from "@/lib/email/utils";
 import {
   EMAIL_COLORS,
   emailProfitLossColor,
@@ -69,18 +75,50 @@ function resultLabel(entry: BetEntryComputed) {
     : entry.status;
 }
 
+/** "Win +$9,090.91" on one line: rows do not wrap in this email. */
+function resultCell(entry: BetEntryComputed) {
+  return `<span style="white-space:nowrap;">${escapeHtml(resultLabel(entry))}</span>`;
+}
+
 function resultColor(entry: BetEntryComputed) {
   return entry.status === "Win" || entry.status === "Loss"
     ? emailProfitLossColor(entry.profit_loss)
     : EMAIL_COLORS.muted;
 }
 
-function playsTable(entries: BetEntryComputed[], highlight = false) {
+/**
+ * "Event: …", or "Event 1: …", "Event 2: …" for a parlay. None for
+ * hand-entered plays. The whole email is about one day, so a game on that day
+ * shows only its time; a game on another day keeps its date.
+ */
+function eventLines(entry: BetEntryComputed, day: string) {
+  const events = parseLedgerEvents(entry.ledger_events);
+  return events.map(
+    (event, index) => `${ledgerEventLabel(index, events.length)}: ${describeLedgerEvent(event, day)}`,
+  );
+}
+
+/**
+ * The bet, with its game or games beneath it in smaller text. Every line is
+ * held to one line: rows do not wrap in this email.
+ */
+function betCell(entry: BetEntryComputed, day: string) {
+  const lines = eventLines(entry, day)
+    .map(
+      (line) =>
+        `<br /><span style="font-size:10px;line-height:1.5;color:${EMAIL_COLORS.muted};white-space:nowrap;">${escapeHtml(line)}</span>`,
+    )
+    .join("");
+  return `<span style="white-space:nowrap;">${escapeHtml(entry.event_name)}</span>${lines}`;
+}
+
+function playsTable(entries: BetEntryComputed[], day: string, highlight = false) {
+  // No date column: every play in this email is today's, and the heading says
+  // which day. The room goes to the bet and its game lines.
   return renderEmailTable(
     [
-      { key: "date", label: "Date" },
       { key: "sport", label: "Sport" },
-      { key: "event", label: "Event" },
+      { key: "bet", label: "Bet" },
       { key: "line", label: "Line", align: "right", mono: true },
       { key: "risk", label: "Risk", align: "right", mono: true },
       { key: "toWin", label: "To Win", align: "right", mono: true },
@@ -88,19 +126,17 @@ function playsTable(entries: BetEntryComputed[], highlight = false) {
     ],
     entries.map((entry) => ({
       cells: [
-        renderEmailHtmlCell(formatEventDate(entry.event_date)),
         renderEmailHtmlCell(entry.sport),
-        renderEmailHtmlCell(entry.event_name),
+        betCell(entry, day),
         renderEmailHtmlCell(formatOdds(entry.line)),
         renderEmailHtmlCell(formatCurrency(entry.risk)),
         renderEmailHtmlCell(formatCurrency(entry.to_win)),
-        // A non-breaking space keeps "Win +$9,090.91" on one line in a
-        // narrow column instead of splitting the outcome from its money.
-        renderEmailHtmlCell(resultLabel(entry)).replace(" ", "&nbsp;"),
+        resultCell(entry),
       ],
-      cellColors: [undefined, undefined, undefined, undefined, undefined, undefined, resultColor(entry)],
+      cellColors: [undefined, undefined, undefined, undefined, undefined, resultColor(entry)],
     })),
-    { highlight },
+    // Rows never wrap here, so the columns sit closer together to fit.
+    { highlight, compact: true },
   );
 }
 
@@ -175,7 +211,7 @@ export function todaysPlaysHtml({ sentOnDate, isFirst, newPlays, earlierPlays }:
         title: "Today's Plays",
         subtitle: `Plays for ${date}.`,
       })}
-      ${newPlays.length ? playsTable(newPlays) : renderEmailEmptyState("No plays scheduled for today.")}
+      ${newPlays.length ? playsTable(newPlays, sentOnDate) : renderEmailEmptyState("No plays scheduled for today.")}
       ${totalsBlock(all)}
     `);
   }
@@ -187,14 +223,15 @@ export function todaysPlaysHtml({ sentOnDate, isFirst, newPlays, earlierPlays }:
       subtitle: `${plural(newPlays.length, "new play")} since the last email · ${date}.`,
     })}
     ${renderEmailSubheading("New since last email", EMAIL_COLORS.accent)}
-    ${playsTable(newPlays, true)}
-    ${earlierPlays.length ? `${renderEmailSubheading("Sent earlier today")}${playsTable(earlierPlays)}` : ""}
+    ${playsTable(newPlays, sentOnDate, true)}
+    ${earlierPlays.length ? `${renderEmailSubheading("Sent earlier today")}${playsTable(earlierPlays, sentOnDate)}` : ""}
     ${totalsBlock(all)}
   `);
 }
 
-function textLine(entry: BetEntryComputed) {
-  return `${formatEventDate(entry.event_date)} | ${entry.sport} | ${entry.event_name} | ${formatOdds(entry.line)} | Risk ${formatCurrency(entry.risk)} | To Win ${formatCurrency(entry.to_win)} | ${resultLabel(entry)}`;
+function textLine(entry: BetEntryComputed, day: string) {
+  const line = `${formatEventDate(entry.event_date)} | ${entry.sport} | ${entry.event_name} | ${formatOdds(entry.line)} | Risk ${formatCurrency(entry.risk)} | To Win ${formatCurrency(entry.to_win)} | ${resultLabel(entry)}`;
+  return [line, ...eventLines(entry, day).map((event) => `  ${event}`)].join("\n");
 }
 
 function textTotals(entries: BetEntryComputed[]) {
@@ -222,11 +259,11 @@ export function todaysPlaysText({ sentOnDate, isFirst, newPlays, earlierPlays }:
   const totals = textTotals(all);
 
   const body = isFirst
-    ? `Plays for ${date}.\n\n${newPlays.length ? newPlays.map(textLine).join("\n") : "No plays scheduled for today."}`
+    ? `Plays for ${date}.\n\n${newPlays.length ? newPlays.map((entry) => textLine(entry, sentOnDate)).join("\n") : "No plays scheduled for today."}`
     : [
         `${plural(newPlays.length, "new play")} since the last email · ${date}.`,
-        `NEW SINCE LAST EMAIL\n${newPlays.map(textLine).join("\n")}`,
-        earlierPlays.length ? `SENT EARLIER TODAY\n${earlierPlays.map(textLine).join("\n")}` : "",
+        `NEW SINCE LAST EMAIL\n${newPlays.map((entry) => textLine(entry, sentOnDate)).join("\n")}`,
+        earlierPlays.length ? `SENT EARLIER TODAY\n${earlierPlays.map((entry) => textLine(entry, sentOnDate)).join("\n")}` : "",
       ]
         .filter(Boolean)
         .join("\n\n");
