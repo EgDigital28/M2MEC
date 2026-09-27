@@ -16,15 +16,15 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * Sunday attempt hours in Eastern time. vercel.json fires across the UTC hours
+ * Monday attempt hours in Eastern time. vercel.json fires across the UTC hours
  * that cover both EST and EDT; this gate keeps exactly these three.
  */
 const ATTEMPT_HOURS_ET = [1, 2, 3];
 
 /**
- * Sends the week just ended (Sunday to Saturday) to each recipient, once.
+ * Sends the week just ended (Monday to Sunday) to each recipient, once.
  *
- * Saturday's late games may not be graded by 1am, so while any play in the
+ * Sunday night's game may not be graded by 1am, so while any play in the
  * week is still open it waits for the next attempt. The last attempt sends
  * regardless: a weekly summary with an open play counted as open is more
  * useful than no summary at all.
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
   const hour = easternHour();
   const attempt = ATTEMPT_HOURS_ET.indexOf(hour) + 1;
 
-  if (easternWeekday() !== 0 || attempt === 0) {
+  if (easternWeekday() !== 1 || attempt === 0) {
     return NextResponse.json({ skipped: "Outside the attempt window", hour });
   }
 
@@ -56,7 +56,8 @@ export async function GET(request: Request) {
   let params;
 
   try {
-    params = await loadWeekInReview(db, { rolling: true });
+    // On a Monday this is the Monday–Sunday week that ended last night.
+    params = await loadWeekInReview(db, { rolling: false });
   } catch (loadError) {
     console.error("cron.week-in-review.load_failed", loadError);
     return NextResponse.json({ error: "Could not load the week." }, { status: 503 });
