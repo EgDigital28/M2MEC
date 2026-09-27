@@ -13,6 +13,7 @@ test('Ledger Bet projection maps before insertion, applies grades once, and reje
  grant usage on schema public,auth to authenticated,service_role;grant select on profiles,sports to authenticated,service_role;`);
  await db.exec(sql('003_bet_entries.sql'));await db.exec(sql('20260912213839_add_creator_partner_feed.sql'));await db.exec(sql('20260914201913_accept_creator_partner_bets.sql'));await db.exec(sql('20260919133744_ledger_bet_projection.sql'));
  await db.exec(sql('20260919183700_normalize_ledger_ufc_card_mapping.sql'));
+ await db.exec(sql('038_ledger_touchdown_headline.sql'));
  await db.exec('grant select,insert,update,delete on bet_entries to authenticated,service_role');
  const headlines=[
   [{selection:'Ryan Gandra',marketType:'fighter_method',mmaFinishMethod:'ko_tko',mmaRounds:null,period:'full_event'},'Ryan Gandra by KO/TKO'],
@@ -20,6 +21,8 @@ test('Ledger Bet projection maps before insertion, applies grades once, and reje
   [{selection:'under',eventName:'Phoenix Mercury vs Dallas Wings',marketType:'game_total',direction:'under',line:176.5,period:'full_event'},'Phoenix Mercury vs Dallas Wings under 176.5'],
   [{selection:'San Diego State Aztecs',marketType:'moneyline',period:'full_event'},'San Diego State Aztecs ML'],
   [{selection:'Jannik Sinner',marketType:'game_spread',line:-2.5,period:'full_event'},'Jannik Sinner -2.5'],
+  [{selection:'Pat Freiermuth',eventName:'Cincinnati Bengals vs Pittsburgh Steelers',marketType:'touchdown_scorer',marketStatType:'anytime',marketOutcome:'yes',line:null,period:'full_event'},'Pat Freiermuth Anytime Touchdown'],
+  [{selection:'Pat Freiermuth',marketType:'touchdown_scorer',marketStatType:'first',marketOutcome:'no',period:'full_event'},'Pat Freiermuth No First Touchdown'],
  ] as const;
  for(const [leg,expected] of headlines)assert.equal((await db.query<{label:string}>('select ledger_bet_headline($1) label',[leg])).rows[0].label,expected);
  const record={id:id(3),creator:{id:id(1)},visibility:'private',recordKind:'bet',grade:'open',publicationStatus:'published',oddsAmerican:-110,bet:{id:id(3),currency:'USD',cashStake:'110',bonusStake:'0',placedAt:'2026-09-19T12:00:00Z',settledNet:null as string|null},legs:[{sport:'wnba',league:'WNBA',eventName:'Phoenix Mercury vs Dallas Wings',selection:'under',marketType:'game_total',line:176.5 as number|null,period:'full_event',mmaFinishMethod:null as string|null}]};
