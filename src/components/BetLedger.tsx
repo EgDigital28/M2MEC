@@ -652,7 +652,10 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
             <colgroup>
               <col className="w-[74px]" />
               <col className="w-[88px]" />
-              <col className="w-[128px]" />
+              {/* No fixed width: in a fixed-layout table the one unsized column
+                  takes all the leftover space, so the bet gets the room instead
+                  of it being spread across the number columns. */}
+              <col />
               <col className="w-[52px]" />
               <col className="w-[108px]" />
               <col className="w-[108px]" />
@@ -664,7 +667,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
               <tr>
                 <th className="px-2 py-2 font-medium text-muted">Date</th>
                 <th className="px-2 py-2 font-medium text-muted">Sport</th>
-                <th className="px-2 py-2 font-medium text-muted">Event</th>
+                <th className="px-2 py-2 font-medium text-muted">Bet</th>
                 <th className="px-2 py-2 font-medium text-muted">Line</th>
                 <th className="px-2 py-2 font-medium text-muted text-right">Risk</th>
                 <th className="px-2 py-2 font-medium text-muted text-right">To Win</th>
@@ -749,8 +752,8 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                             className={tableFieldClassName}
                           />
                         ) : (
-                          <span className="block truncate" title={entry.event_name}>
-                            {entry.ledger_entity_id && <span className="mr-2 rounded border border-cyan-400/40 px-1 text-xs text-cyan-300" title="Created from Prediction Ledger">PL</span>}{entry.event_name}
+                          <span className="block whitespace-normal break-words leading-snug">
+                            {entry.ledger_entity_id && <span className="mr-2 whitespace-nowrap rounded border border-cyan-400/40 px-1 text-xs text-cyan-300" title="Created from Prediction Ledger">PL</span>}{entry.event_name}
                           </span>
                         )}
                       </td>
