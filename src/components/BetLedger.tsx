@@ -20,6 +20,11 @@ import {
   type BetEntryComputed,
   type BetStatus,
 } from "@/lib/bets/calculations";
+import {
+  describeLedgerEvent,
+  ledgerEventLabel,
+  parseLedgerEvents,
+} from "@/lib/bets/ledger-events";
 import type { Sport } from "@/lib/sports/types";
 import { BetLedgerEmailActions } from "@/components/BetLedgerEmailActions";
 import {
@@ -108,6 +113,46 @@ function roiHighlightClassName(value: number | null) {
   }
 
   return "";
+}
+
+/**
+ * The bet, then the game or games it is on. Hand-entered plays have no event
+ * data, so they show the bet alone, as before.
+ */
+function BetCell({ entry }: { entry: BetEntryComputed }) {
+  const events = parseLedgerEvents(entry.ledger_events);
+  const badge = entry.ledger_entity_id ? (
+    <span
+      className="mr-2 whitespace-nowrap rounded border border-cyan-400/40 px-1 text-xs text-cyan-300"
+      title="Created from Prediction Ledger"
+    >
+      PL
+    </span>
+  ) : null;
+
+  if (events.length === 0) {
+    return (
+      <span className="block whitespace-normal break-words leading-snug">
+        {badge}
+        {entry.event_name}
+      </span>
+    );
+  }
+
+  return (
+    <span className="block space-y-0.5 whitespace-normal break-words leading-snug">
+      <span className="block">
+        {badge}
+        <span className="text-muted">Bet: </span>
+        {entry.event_name}
+      </span>
+      {events.map((event, index) => (
+        <span key={index} className="block text-muted">
+          {ledgerEventLabel(index, events.length)}: {describeLedgerEvent(event)}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 export function BetLedger({ isAdmin }: BetLedgerProps) {
@@ -758,9 +803,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                             className={tableFieldClassName}
                           />
                         ) : (
-                          <span className="block whitespace-normal break-words leading-snug">
-                            {entry.ledger_entity_id && <span className="mr-2 whitespace-nowrap rounded border border-cyan-400/40 px-1 text-xs text-cyan-300" title="Created from Prediction Ledger">PL</span>}{entry.event_name}
-                          </span>
+                          <BetCell entry={entry} />
                         )}
                       </td>
                       <td className={`px-2 py-2 font-mono whitespace-nowrap ${isEditing ? "" : ""}`}>

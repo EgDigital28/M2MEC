@@ -11,6 +11,8 @@ export type BetEntryRow = {
   ledger_version?: number | null;
   ledger_profit_loss?: number | null;
   ledger_to_win?: number | null;
+  /** The games behind a Ledger bet; see src/lib/bets/ledger-events.ts. */
+  ledger_events?: unknown;
   event_date: string;
   sport_id: string;
   event_name: string;
@@ -38,6 +40,7 @@ export function normalizeBetEntry(row: BetEntryRow): BetEntry {
     ledger_version: row.ledger_version,
     ledger_profit_loss: row.ledger_profit_loss,
     ledger_to_win: row.ledger_to_win,
+    ledger_events: row.ledger_events,
     created_by: row.created_by,
     event_date: row.event_date,
     sport_id: row.sport_id,
