@@ -14,7 +14,7 @@
     },
     {
       "path": "/api/cron/week-in-review",
-      "schedule": "0 5-8 * * 0"
+      "schedule": "0 5-8 * * 1"
     }
   ]
 }

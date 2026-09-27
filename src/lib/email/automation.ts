@@ -30,8 +30,8 @@ export const AUTOMATED_EMAILS = {
   },
   week_in_review: {
     label: "Week in review",
-    schedule: "Sundays at 1am Eastern (2am and 3am if needed)",
-    rule: "Covers the week that just ended, Sunday to Saturday. Waits for Saturday's late games to be graded; at 3am it sends regardless, with any still-open plays counted as open.",
+    schedule: "Mondays at 1am Eastern (2am and 3am if needed)",
+    rule: "Covers the week that just ended, Monday to Sunday. Waits for Sunday night's games to be graded; at 3am it sends regardless, with any still-open plays counted as open.",
     defaultEnabled: true,
   },
 } as const;
