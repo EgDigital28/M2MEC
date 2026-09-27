@@ -140,6 +140,12 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
     return sortedEntries.slice(start, start + PAGE_SIZE);
   }, [sortedEntries, page]);
 
+  // Ledger plays are read-only, so on a page made up only of them the Actions
+  // column says nothing. It stays for pages holding older hand-entered plays,
+  // which are still edited and deleted here.
+  const showActions =
+    isAdmin && paginatedEntries.some((entry) => !entry.ledger_entity_id);
+
   const pageStart = sortedEntries.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const pageEnd = Math.min(page * PAGE_SIZE, sortedEntries.length);
 
@@ -659,9 +665,9 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
               <col className="w-[52px]" />
               <col className="w-[108px]" />
               <col className="w-[108px]" />
-              <col className="w-[64px]" />
+              <col className="w-[48px]" />
               <col className="w-[108px]" />
-              {isAdmin && <col className="w-[68px]" />}
+              {showActions && <col className="w-[68px]" />}
             </colgroup>
             <thead className="border-b border-border bg-surface-elevated text-left">
               <tr>
@@ -673,7 +679,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                 <th className="px-2 py-2 font-medium text-muted text-right">To Win</th>
                 <th className="px-2 py-2 font-medium text-muted">W/L</th>
                 <th className="px-2 py-2 font-medium text-muted text-right">P/L</th>
-                {isAdmin && (
+                {showActions && (
                   <th className="sticky right-0 z-10 bg-surface-elevated px-2 py-2 font-medium text-muted text-right shadow-[-8px_0_12px_-8px_rgba(0,0,0,0.6)]">
                     Actions
                   </th>
@@ -683,13 +689,13 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={isAdmin ? 9 : 8} className="px-2 py-8 text-center text-muted">
+                  <td colSpan={showActions ? 9 : 8} className="px-2 py-8 text-center text-muted">
                     Loading entries...
                   </td>
                 </tr>
               ) : paginatedEntries.length === 0 ? (
                 <tr>
-                  <td colSpan={isAdmin ? 9 : 8} className="px-2 py-8 text-center text-muted">
+                  <td colSpan={showActions ? 9 : 8} className="px-2 py-8 text-center text-muted">
                     No entries yet.
                   </td>
                 </tr>
@@ -817,7 +823,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                       <td className={`${moneyCellClassName} ${profitLossClassName(entry.profit_loss)}`}>
                         {formatCurrency(entry.profit_loss)}
                       </td>
-                      {isAdmin && (
+                      {showActions && (
                         <td
                           className={`sticky right-0 z-10 px-1 py-2 text-right shadow-[-8px_0_12px_-8px_rgba(0,0,0,0.6)] ${rowBg}`}
                         >
