@@ -5,11 +5,7 @@ import {
   formatOdds,
   type BetEntryComputed,
 } from "@/lib/bets/calculations";
-import {
-  describeLedgerEvent,
-  ledgerEventLabel,
-  parseLedgerEvents,
-} from "@/lib/bets/ledger-events";
+import { describeLedgerEvent, parseLedgerEvents } from "@/lib/bets/ledger-events";
 import { todaysPlaysTotals } from "@/lib/bets/todays-plays-split";
 import { escapeHtml } from "@/lib/email/utils";
 import {
@@ -87,15 +83,13 @@ function resultColor(entry: BetEntryComputed) {
 }
 
 /**
- * "Event: …", or "Event 1: …", "Event 2: …" for a parlay. None for
+ * One line per game, unlabelled: sitting under the bet they need no "Event"
+ * prefix, and the email keeps them short so rows do not wrap. None for
  * hand-entered plays. The whole email is about one day, so a game on that day
  * shows only its time; a game on another day keeps its date.
  */
 function eventLines(entry: BetEntryComputed, day: string) {
-  const events = parseLedgerEvents(entry.ledger_events);
-  return events.map(
-    (event, index) => `${ledgerEventLabel(index, events.length)}: ${describeLedgerEvent(event, day)}`,
-  );
+  return parseLedgerEvents(entry.ledger_events).map((event) => describeLedgerEvent(event, day));
 }
 
 /**
