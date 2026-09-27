@@ -14,6 +14,7 @@ test('Ledger Bet projection maps before insertion, applies grades once, and reje
  await db.exec(sql('003_bet_entries.sql'));await db.exec(sql('20260912213839_add_creator_partner_feed.sql'));await db.exec(sql('20260914201913_accept_creator_partner_bets.sql'));await db.exec(sql('20260919133744_ledger_bet_projection.sql'));
  await db.exec(sql('20260919183700_normalize_ledger_ufc_card_mapping.sql'));
  await db.exec(sql('038_ledger_touchdown_headline.sql'));
+ await db.exec(sql('039_ledger_bet_events.sql'));
  await db.exec('grant select,insert,update,delete on bet_entries to authenticated,service_role');
  const headlines=[
   [{selection:'Ryan Gandra',marketType:'fighter_method',mmaFinishMethod:'ko_tko',mmaRounds:null,period:'full_event'},'Ryan Gandra by KO/TKO'],
@@ -51,6 +52,7 @@ test('Ledger Bet projection maps before insertion, applies grades once, and reje
  record.legs=[{sport:'mma',league:'UFC 331: Van vs. Pantoja 2',eventName:'Ozzy Diaz vs Ryan Gandra',selection:'Ryan Gandra',marketType:'fighter_method',line:null,period:'full_event',mmaFinishMethod:'ko_tko'}];
  await accept(4);
  let mma=(await db.query<{sport_id:string;event_name:string;status:string;ledger_to_win:number;ledger_profit_loss:number}>("select * from bet_entries where ledger_entity_id=$1",[id(5)])).rows[0];
+ assert.deepEqual((await db.query<{ledger_events:unknown}>('select ledger_events from bet_entries where ledger_entity_id=$1',[id(5)])).rows[0].ledger_events,[{eventName:'Ozzy Diaz vs Ryan Gandra',startsAt:null}]);
  assert.equal(mma.sport_id,id(4));assert.equal(mma.event_name,'Ryan Gandra by KO/TKO');assert.equal(mma.status,'Open');assert.equal(Number(mma.ledger_to_win).toFixed(2),'13157.89');
  await db.query('select project_ledger_bet($1)',[id(5)]);
  assert.equal((await db.query('select * from bet_entries where ledger_entity_id=$1',[id(5)])).rows.length,1);
@@ -68,6 +70,14 @@ test('Ledger Bet projection maps before insertion, applies grades once, and reje
  await db.query('insert into ledger_sport_mappings values($1,$2,$3)',['mma','ufc 331: van vs. pantoja 2',id(2)]);
  record.id=id(7);record.bet.id=id(7);await accept(7);
  assert.equal((await db.query<{sport_id:string}>('select sport_id from bet_entries where ledger_entity_id=$1',[id(7)])).rows[0].sport_id,id(2));
+ // A parlay lists each game once, in leg order, even with two legs from one game.
+ record.id=id(9);record.bet.id=id(9);record.legs=[
+  {sport:'mma',league:'UFC 331: Van vs. Pantoja 2',eventId:id(31),eventName:'Ozzy Diaz vs Ryan Gandra',startsAt:'2026-09-19T23:00:00Z',selection:'Ryan Gandra',marketType:'moneyline',line:null,period:'full_event',mmaFinishMethod:null},
+  {sport:'mma',league:'UFC 331: Van vs. Pantoja 2',eventId:id(32),eventName:'Van vs Pantoja',startsAt:'2026-09-20T03:00:00Z',selection:'Pantoja',marketType:'moneyline',line:null,period:'full_event',mmaFinishMethod:null},
+  {sport:'mma',league:'UFC 331: Van vs. Pantoja 2',eventId:id(31),eventName:'Ozzy Diaz vs Ryan Gandra',startsAt:'2026-09-19T23:00:00Z',selection:'Ryan Gandra',marketType:'fighter_method',line:null,period:'full_event',mmaFinishMethod:'ko_tko'}] as unknown as typeof record.legs;
+ await accept(12);
+ assert.deepEqual((await db.query<{ledger_events:unknown}>('select ledger_events from bet_entries where ledger_entity_id=$1',[id(9)])).rows[0].ledger_events,[{eventName:'Ozzy Diaz vs Ryan Gandra',startsAt:'2026-09-19T23:00:00Z'},{eventName:'Van vs Pantoja',startsAt:'2026-09-20T03:00:00Z'}]);
+ record.legs=[record.legs[0]];
  // Unknown MMA promotions must not silently become UFC.
  record.id=id(6);record.bet.id=id(6);record.legs[0].league='PFL 2026';await accept(6);
  assert.equal((await db.query('select * from bet_entries where ledger_entity_id=$1',[id(6)])).rows.length,0);
