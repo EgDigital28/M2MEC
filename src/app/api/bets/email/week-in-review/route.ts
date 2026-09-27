@@ -1,13 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireMinimumTier } from "@/lib/auth/profile";
-import {
-  computeDailyPlSeries,
-  getPreviousWeekRange,
-  getRollingWeekRange,
-  withComputedFields,
-  type BetEntryRow,
-} from "@/lib/bets/calculations";
 import { logBetEmailSends } from "@/lib/bets/email-sends";
+import { loadWeekInReview } from "@/lib/bets/week-in-review-data";
 import {
   weekInReviewHtml,
   weekInReviewSubject,
@@ -15,7 +9,6 @@ import {
 } from "@/lib/email/week-in-review";
 import { getResendClient, getResendFromEmail, parseEmailRecipients } from "@/lib/email/utils";
 import { createClient } from "@/lib/supabase/server";
-import type { Sport } from "@/lib/sports/types";
 
 type WeekInReviewPayload = {
   to?: string;
@@ -62,38 +55,16 @@ export async function POST(request: Request) {
 
   // Mirror whichever range the page is showing.
   const rolling = body.view !== "week";
-  const { weekStart, weekEnd } = rolling
-    ? getRollingWeekRange()
-    : getPreviousWeekRange();
+  let emailParams;
 
-  const supabase = await createClient();
-  const [entriesResult, sportsResult] = await Promise.all([
-    supabase
-      .from("bet_entries")
-      .select("*, sports(abbreviation, full_name)")
-      .gte("event_date", weekStart)
-      .lte("event_date", weekEnd)
-      .order("event_date", { ascending: true }),
-    supabase.from("sports").select("*").order("sort_order"),
-  ]);
-
-  if (entriesResult.error || sportsResult.error) {
-    console.error(
-      "Week in review fetch failed:",
-      entriesResult.error?.message ?? sportsResult.error?.message,
-    );
+  try {
+    emailParams = await loadWeekInReview(await createClient(), { rolling });
+  } catch (error) {
+    console.error("Week in review fetch failed:", error instanceof Error ? error.message : error);
     return NextResponse.json({ error: "Could not load the week." }, { status: 500 });
   }
 
-  const entries = (entriesResult.data as BetEntryRow[]).map(withComputedFields);
-  const emailParams = {
-    entries,
-    sports: (sportsResult.data ?? []) as Sport[],
-    weekStart,
-    weekEnd,
-    series: computeDailyPlSeries(entries, weekStart, weekEnd),
-    viewLabel: rolling ? "Rolling 7 days to yesterday" : "Last Monday – Sunday",
-  };
+  const { entries, weekStart, weekEnd } = emailParams;
 
   const { error: emailError } = await resend.emails.send({
     from: getResendFromEmail(),

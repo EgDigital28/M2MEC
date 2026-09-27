@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/todays-plays",
       "schedule": "0 0,1,2,15,16,18,19,20,21,23 * * *"
+    },
+    {
+      "path": "/api/cron/week-in-review",
+      "schedule": "0 5-8 * * 0"
     }
   ]
 }

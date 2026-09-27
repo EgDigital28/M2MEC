@@ -27,3 +27,9 @@ export function easternHour(now = new Date()) {
     }).format(now),
   );
 }
+
+/** Day of the week in Eastern time: 0 is Sunday. */
+export function easternWeekday(now = new Date()) {
+  const day = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short" }).format(now);
+  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(day);
+}
