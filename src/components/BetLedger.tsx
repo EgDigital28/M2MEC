@@ -494,7 +494,8 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                 {formatPercent(stats.winPct)}
               </p>
               <p className="mt-1 text-xs text-muted">
-                {stats.winCount} wins / {stats.gradedCount} graded
+                {stats.winCount} wins / {stats.winCount + stats.lossCount} decided
+                {stats.voidCount > 0 ? ` · ${stats.voidCount} void` : ""}
               </p>
             </div>
           </div>

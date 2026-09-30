@@ -9,6 +9,7 @@ import {
   type BetEntryComputed,
 } from "@/lib/bets/calculations";
 import {
+  EMAIL_COLORS,
   emailProfitLossColor,
   emailWinPctColor,
   renderEmailEmptyState,
@@ -16,13 +17,66 @@ import {
   renderEmailSection,
   renderEmailShell,
   renderEmailStatGridRows,
+  renderEmailSubheading,
+  renderEmailSummaryLine,
   renderEmailTable,
 } from "@/lib/email/layout";
 
 type YesterdaysResultsEmailParams = {
   entries: BetEntryComputed[];
   resultsDate: string;
+  /**
+   * Plays from earlier days this person was sent as Open, graded since. Only
+   * the scheduled email carries these; each person's set is their own.
+   */
+  carriedOver?: BetEntryComputed[];
 };
+
+function plural(count: number, word: string) {
+  return `${count} ${word}${count === 1 ? "" : "s"}`;
+}
+
+function signedCurrency(value: number) {
+  return `${value > 0 ? "+" : value < 0 ? "−" : ""}${formatCurrency(Math.abs(value))}`;
+}
+
+/** Open plays go out as Open and are owed to the reader until graded. */
+function pendingNote(openCount: number) {
+  return openCount > 0
+    ? `${plural(openCount, "play")} still open. Once graded, ${openCount === 1 ? "it" : "they"} will appear in a later results email.`
+    : null;
+}
+
+function carriedTable(carried: BetEntryComputed[]) {
+  return renderEmailTable(
+    [
+      { key: "date", label: "Date" },
+      { key: "sport", label: "Sport" },
+      { key: "bet", label: "Bet" },
+      { key: "line", label: "Line", align: "right", mono: true },
+      { key: "risk", label: "Risk", align: "right", mono: true },
+      { key: "result", label: "Result" },
+      { key: "pl", label: "P/L", align: "right", mono: true },
+    ],
+    carried.map((entry) => ({
+      cells: [
+        renderEmailHtmlCell(formatEventDate(entry.event_date)),
+        renderEmailHtmlCell(entry.sport),
+        renderEmailHtmlCell(entry.event_name),
+        renderEmailHtmlCell(formatOdds(entry.line)),
+        renderEmailHtmlCell(formatCurrency(entry.risk)),
+        renderEmailHtmlCell(entry.status),
+        renderEmailHtmlCell(formatCurrency(entry.profit_loss)),
+      ],
+      cellColors: [undefined, undefined, undefined, undefined, undefined, undefined, emailProfitLossColor(entry.profit_loss)],
+    })),
+  );
+}
+
+function carriedSummary(carried: BetEntryComputed[]) {
+  const net = carried.reduce((sum, entry) => sum + entry.profit_loss, 0);
+  return `${plural(carried.length, "play")} from earlier days · Net ${signedCurrency(net)}`;
+}
 
 function formatResultsDate(date: string) {
   const [year, month, day] = date.split("-").map(Number);
@@ -39,7 +93,7 @@ export function yesterdaysResultsSubject({
   return `M2MEC — Yesterday's Results (${formatResultsDate(resultsDate)})`;
 }
 
-export function yesterdaysResultsHtml({ entries, resultsDate }: YesterdaysResultsEmailParams) {
+export function yesterdaysResultsHtml({ entries, resultsDate, carriedOver = [] }: YesterdaysResultsEmailParams) {
   const stats = computeDayResultsStats(entries);
 
   const summary = renderEmailStatGridRows(
@@ -72,7 +126,7 @@ export function yesterdaysResultsHtml({ entries, resultsDate }: YesterdaysResult
         [
           { key: "date", label: "Date" },
           { key: "sport", label: "Sport" },
-          { key: "event", label: "Event" },
+          { key: "bet", label: "Bet" },
           { key: "line", label: "Line", align: "right", mono: true },
           { key: "risk", label: "Risk", align: "right", mono: true },
           { key: "result", label: "Result" },
@@ -101,18 +155,32 @@ export function yesterdaysResultsHtml({ entries, resultsDate }: YesterdaysResult
       )
     : renderEmailEmptyState("No plays recorded for this date.");
 
+  const pending = pendingNote(stats.openCount);
+  const net = carriedOver.reduce((sum, entry) => sum + entry.profit_loss, 0);
+
   return renderEmailShell(`
     ${renderEmailSection({
       eyebrow: "Sportsbook Hub",
       title: "Yesterday's Results",
       subtitle: `Results for ${formatResultsDate(resultsDate)}.`,
     })}
-    ${summary}
+    ${entries.length ? summary : ""}
     ${resultsTable}
+    ${pending ? renderEmailSummaryLine([pending]) : ""}
+    ${
+      carriedOver.length
+        ? `${renderEmailSubheading("Graded since last email", EMAIL_COLORS.accent)}
+    ${carriedTable(carriedOver)}
+    ${renderEmailSummaryLine([
+      `${plural(carriedOver.length, "play")} from earlier days`,
+      `Net <strong style="color:${emailProfitLossColor(net)};font-family:ui-monospace,monospace;">${renderEmailHtmlCell(signedCurrency(net))}</strong>`,
+    ])}`
+        : ""
+    }
   `);
 }
 
-export function yesterdaysResultsText({ entries, resultsDate }: YesterdaysResultsEmailParams) {
+export function yesterdaysResultsText({ entries, resultsDate, carriedOver = [] }: YesterdaysResultsEmailParams) {
   const stats = computeDayResultsStats(entries);
 
   const summary = `
@@ -130,9 +198,18 @@ ROI: ${formatPercent(stats.roi)}
       `${formatEventDate(entry.event_date)} | ${entry.sport} | ${entry.event_name} | ${formatOdds(entry.line)} | Risk ${formatCurrency(entry.risk)} | ${entry.status} | P/L ${formatCurrency(entry.profit_loss)}`,
   );
 
-  const body = entries.length
-    ? `${summary}\n\n${lines.join("\n")}`
-    : `${summary}\n\nNo plays recorded for this date.`;
+  const pending = pendingNote(stats.openCount);
+  const carried = carriedOver.length
+    ? `\n\nGRADED SINCE LAST EMAIL\n${carriedOver
+        .map(
+          (entry) =>
+            `${formatEventDate(entry.event_date)} | ${entry.sport} | ${entry.event_name} | ${formatOdds(entry.line)} | Risk ${formatCurrency(entry.risk)} | ${entry.status} | P/L ${formatCurrency(entry.profit_loss)}`,
+        )
+        .join("\n")}\n${carriedSummary(carriedOver)}`
+    : "";
+  const body = `${
+    entries.length ? `${summary}\n\n${lines.join("\n")}` : "No plays recorded for this date."
+  }${pending ? `\n\n${pending}` : ""}${carried}`;
 
   return `
 Yesterday's Results

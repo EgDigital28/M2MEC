@@ -7,9 +7,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  */
 export const AUTOMATED_RECIPIENTS = ["eli.goshert@gmail.com", "samueltbennettsr@gmail.com"];
 
-/** Operational notices, such as a skipped results email, stay internal. */
-export const AUTOMATION_ALERT_RECIPIENTS = ["eli.goshert@gmail.com"];
-
 /**
  * Every scheduled email, described for the Email automation page. The key is
  * the type recorded in the send history.
@@ -18,7 +15,7 @@ export const AUTOMATED_EMAILS = {
   yesterdays_results: {
     label: "Yesterday's results",
     schedule: "1am, 2am and 3am Eastern",
-    rule: "Waits until all of yesterday's plays are graded. If any are still open after 3am, you get an alert instead.",
+    rule: "Waits for yesterday's plays to be graded, up to 3am; then sends regardless, with ungraded plays shown as open. Once graded, they appear in that person's next results email as graded since last email.",
     /** It was already sending before the switch existed. */
     defaultEnabled: true,
   },
