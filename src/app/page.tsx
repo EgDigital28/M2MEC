@@ -7,7 +7,6 @@ import { Footer } from "@/components/Footer";
 import { getCurrentProfile } from "@/lib/auth/profile";
 import { redirect } from "next/navigation";
 import {
-  navLinks,
   platformSection,
   capabilities,
   approachSteps,
@@ -26,7 +25,7 @@ export default async function Home() {
 
   return (
     <>
-      <Header navLinks={navLinks} user={profile} />
+      <Header navLinks={[]} showCta={false} user={profile} />
       <main>
         <Hero content={heroContent} />
         <Capabilities

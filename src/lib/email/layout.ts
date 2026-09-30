@@ -1,5 +1,6 @@
 import { getWinPctTier } from "@/lib/bets/calculations";
 import { escapeHtml } from "@/lib/email/utils";
+import { CONFIDENTIALITY_NOTICE } from "@/lib/reports/confidentiality";
 
 export const EMAIL_COLORS = {
   background: "#06080f",
@@ -58,6 +59,16 @@ type EmailTableRow = {
   cellColors?: (string | undefined)[];
 };
 
+type EmailTableOptions = {
+  /** Tints the rows and draws an accent edge, to mark them as new. */
+  highlight?: boolean;
+  /** Narrower gaps between columns, for tables whose rows must not wrap. */
+  compact?: boolean;
+};
+
+/** Blue tint over the surface colour, for rows that need to stand out. */
+const HIGHLIGHT_ROW = "#12233d";
+
 export function wrapEmailDocument(body: string) {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -88,6 +99,9 @@ export function renderEmailShell(content: string) {
           </table>
           <p style="margin:16px 0 0;font-size:11px;color:${EMAIL_COLORS.muted};text-align:center;">
             Sent from M2MEC · noreply@m2mec.com
+          </p>
+          <p style="margin:8px auto 0;max-width:520px;font-size:10px;line-height:1.5;color:${EMAIL_COLORS.muted};text-align:center;">
+            ${escapeHtml(CONFIDENTIALITY_NOTICE)}
           </p>
         </td>
       </tr>
@@ -139,20 +153,24 @@ export function renderEmailButton(href: string, label: string) {
   `;
 }
 
-function cellStyle(column: EmailTableColumn, color?: string) {
+function cellStyle(column: EmailTableColumn, color?: string, compact = false) {
   const align = column.align ?? "left";
   const fontFamily = column.mono
     ? "ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace"
     : "inherit";
 
-  return `padding:8px;font-size:12px;line-height:1.4;text-align:${align};font-family:${fontFamily};color:${color ?? EMAIL_COLORS.foreground};vertical-align:top;`;
+  return `padding:${compact ? "8px 5px" : "8px"};font-size:12px;line-height:1.4;text-align:${align};font-family:${fontFamily};color:${color ?? EMAIL_COLORS.foreground};vertical-align:top;`;
 }
 
-export function renderEmailTable(columns: EmailTableColumn[], rows: EmailTableRow[]) {
+export function renderEmailTable(
+  columns: EmailTableColumn[],
+  rows: EmailTableRow[],
+  options: EmailTableOptions = {},
+) {
   const headerCells = columns
     .map(
       (column) => `
-        <th style="${cellStyle({ ...column, mono: false }, EMAIL_COLORS.muted)}font-weight:500;border-bottom:1px solid ${EMAIL_COLORS.border};background:${EMAIL_COLORS.surfaceElevated};">
+        <th style="${cellStyle({ ...column, mono: false }, EMAIL_COLORS.muted, options.compact)}font-weight:500;border-bottom:1px solid ${EMAIL_COLORS.border};background:${EMAIL_COLORS.surfaceElevated};">
           ${escapeHtml(column.label)}
         </th>
       `,
@@ -161,15 +179,25 @@ export function renderEmailTable(columns: EmailTableColumn[], rows: EmailTableRo
 
   const bodyRows = rows
     .map((row, index) => {
-      const rowBackground = index % 2 === 0 ? EMAIL_COLORS.surface : EMAIL_COLORS.surfaceAlt;
+      const rowBackground = options.highlight
+        ? HIGHLIGHT_ROW
+        : index % 2 === 0
+          ? EMAIL_COLORS.surface
+          : EMAIL_COLORS.surfaceAlt;
 
       const cells = row.cells
         .map((value, cellIndex) => {
           const column = columns[cellIndex];
           const color = row.cellColors?.[cellIndex];
+          // A left edge on the first cell rather than on the row: Outlook
+          // ignores borders on <tr>.
+          const edge =
+            options.highlight && cellIndex === 0
+              ? `border-left:3px solid ${EMAIL_COLORS.accent};`
+              : "";
 
           return `
-            <td style="${cellStyle(column, color)}border-top:1px solid ${EMAIL_COLORS.border};background:${rowBackground};">
+            <td style="${cellStyle(column, color, options.compact)}border-top:1px solid ${EMAIL_COLORS.border};background:${rowBackground};${edge}">
               ${value}
             </td>
           `;
@@ -196,6 +224,15 @@ export function renderEmailEmptyState(message: string) {
   return `
     <p style="margin:20px 0 0;padding:16px;border:1px solid ${EMAIL_COLORS.border};border-radius:12px;background:${EMAIL_COLORS.surfaceElevated};font-size:13px;color:${EMAIL_COLORS.muted};text-align:center;">
       ${escapeHtml(message)}
+    </p>
+  `;
+}
+
+/** A small uppercase label that heads a table within one email. */
+export function renderEmailSubheading(text: string, color: string = EMAIL_COLORS.muted) {
+  return `
+    <p style="margin:28px 0 0;font-size:11px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:${color};">
+      ${escapeHtml(text)}
     </p>
   `;
 }

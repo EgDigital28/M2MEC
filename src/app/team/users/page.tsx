@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { BettingReconciliations } from "@/components/BettingReconciliations";
 import { UsersAdmin } from "@/components/UsersAdmin";
 import { getCurrentProfile } from "@/lib/auth/profile";
 
@@ -23,6 +24,8 @@ export default async function TeamUsersPage() {
       </section>
 
       <UsersAdmin currentUserId={profile.id} />
+
+      <BettingReconciliations />
     </div>
   );
 }

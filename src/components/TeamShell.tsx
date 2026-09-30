@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Profile } from "@/lib/auth/profile";
+import { getProfileDisplayName } from "@/lib/auth/display-name";
 import { getTeamNavItems } from "@/lib/team-nav";
 import { TIER_LABELS } from "@/lib/tiers";
 import { TeamSignOut } from "@/components/TeamSignOut";
+import { AdminMenu } from "@/components/AdminMenu";
 
 type TeamShellProps = {
   profile: Profile;
@@ -16,11 +18,11 @@ type TeamShellProps = {
 export function TeamShell({ profile, children, creatorFeedAccess = false }: TeamShellProps) {
   const pathname = usePathname();
   const navItems = getTeamNavItems(profile.tier);
-  if (creatorFeedAccess) navItems.splice(2, 0, { label: "Prediction Ledger", href: "/team/prediction-ledger" });
+  if (creatorFeedAccess) navItems.splice(2, 0, { label: "Predictions", href: "/team/prediction-ledger" });
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b border-border/60 bg-background/90 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-border/60 bg-background/90 backdrop-blur-xl print:hidden">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-6 px-6">
           <div className="flex items-center gap-8">
             <Link href="/team" className="flex items-center gap-2.5">
@@ -44,7 +46,7 @@ export function TeamShell({ profile, children, creatorFeedAccess = false }: Team
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`rounded-lg px-3 py-2 text-sm transition-colors ${
+                    className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors ${
                       isActive
                         ? "bg-surface-elevated text-foreground"
                         : "text-muted hover:text-foreground"
@@ -58,13 +60,19 @@ export function TeamShell({ profile, children, creatorFeedAccess = false }: Team
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="hidden text-right sm:block">
-              <p className="text-sm font-medium">{profile.email}</p>
-              <p className="text-xs text-muted">{TIER_LABELS[profile.tier]}</p>
-            </div>
-            <span className="rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent sm:hidden">
-              {TIER_LABELS[profile.tier]}
-            </span>
+            {profile.tier === "admin" ? (
+              <AdminMenu name={getProfileDisplayName(profile)} tierLabel={TIER_LABELS[profile.tier]} />
+            ) : (
+              <>
+                <p className="hidden whitespace-nowrap text-sm font-medium sm:block">
+                  {getProfileDisplayName(profile)}{" "}
+                  <span className="text-muted">({TIER_LABELS[profile.tier]})</span>
+                </p>
+                <span className="rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent sm:hidden">
+                  {TIER_LABELS[profile.tier]}
+                </span>
+              </>
+            )}
             <TeamSignOut />
           </div>
         </div>
@@ -87,6 +95,15 @@ export function TeamShell({ profile, children, creatorFeedAccess = false }: Team
       </header>
 
       <main className="mx-auto max-w-6xl px-6 py-10">{children}</main>
+
+      {/* Internal pages only. Documents that leave the building carry the
+          fuller confidentiality notice instead. */}
+      <footer className="mx-auto max-w-6xl px-6 pb-10 pt-4 print:hidden">
+        <p className="border-t border-border/60 pt-4 text-xs text-muted">
+          M2MEC · Internal use only · Confidential ·{" "}
+          {new Date().getFullYear()}
+        </p>
+      </footer>
     </div>
   );
 }

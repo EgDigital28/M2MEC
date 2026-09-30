@@ -11,10 +11,12 @@ export async function GET(request: Request) {
   const profile = await getCurrentProfile();
 
   if (!profile) {
-    return NextResponse.json({ destination: "/login" });
+    // Either signed out, or signed in with an address that is not permitted.
+    return NextResponse.json({ destination: "/login", permitted: false });
   }
 
   return NextResponse.json({
     destination: getDefaultDestination(profile.tier, safeNext),
+    permitted: true,
   });
 }

@@ -9,13 +9,12 @@ export type TeamNavItem = {
 export const teamNavItems: TeamNavItem[] = [
   { label: "Overview", href: "/team" },
   { label: "Ledger", href: "/team/bets" },
+  // "Predictions" is inserted here by TeamShell for allowlisted viewers.
+  { label: "Weekly", href: "/team/week-in-review" },
+  { label: "Fin", href: "/team/fin-summary", adminOnly: true },
+  { label: "Deposits", href: "/team/deposits", adminOnly: true },
   { label: "Reports", href: "/team/reports" },
-  { label: "Expenses", href: "/team/expenses", adminOnly: true },
-  { label: "Financials", href: "/team/financials", adminOnly: true },
-  { label: "Sports", href: "/team/sports", adminOnly: true },
-  { label: "Users", href: "/team/users", adminOnly: true },
-  { label: "Waitlist", href: "/team/waitlist", adminOnly: true },
-  { label: "Invites", href: "/team/invite" },
+  { label: "Playground", href: "/team/playground", adminOnly: true },
 ];
 
 export function getTeamNavItems(tier: UserTier) {

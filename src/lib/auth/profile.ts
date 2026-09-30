@@ -1,3 +1,4 @@
+import { isEmailAllowed } from "@/lib/auth/allowlist";
 import { createClient } from "@/lib/supabase/server";
 import {
   isMissingSuspensionColumn,
@@ -22,6 +23,13 @@ export async function getCurrentProfile(): Promise<Profile | null> {
   } = await supabase.auth.getUser();
 
   if (!user) {
+    return null;
+  }
+
+  // Single authoritative gate: every page guard and API route resolves the
+  // profile through here, so a disallowed address is denied everywhere at
+  // once rather than per-surface.
+  if (!isEmailAllowed(user.email)) {
     return null;
   }
 

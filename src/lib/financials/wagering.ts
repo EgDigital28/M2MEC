@@ -17,6 +17,8 @@ export type WageringStakeGroup = {
 };
 
 export type WageringStake = {
+  /** Locked ownership share, resolved server-side. */
+  ownership_pct?: number | null;
   id: string;
   profile_id: string | null;
   group_id: string;

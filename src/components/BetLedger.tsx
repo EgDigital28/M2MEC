@@ -20,6 +20,11 @@ import {
   type BetEntryComputed,
   type BetStatus,
 } from "@/lib/bets/calculations";
+import {
+  describeLedgerEvent,
+  ledgerEventLabel,
+  parseLedgerEvents,
+} from "@/lib/bets/ledger-events";
 import type { Sport } from "@/lib/sports/types";
 import { BetLedgerEmailActions } from "@/components/BetLedgerEmailActions";
 import {
@@ -110,6 +115,53 @@ function roiHighlightClassName(value: number | null) {
   return "";
 }
 
+/**
+ * Where a play came from. Only the Prediction Ledger today; a new source gets
+ * its own badge here. Hand-entered plays have no source badge.
+ */
+function SourceBadge({ entry }: { entry: BetEntryComputed }) {
+  if (!entry.ledger_entity_id) return null;
+
+  return (
+    <span
+      className="whitespace-nowrap rounded border border-cyan-400/40 px-1 text-xs text-cyan-300"
+      title="Created from Prediction Ledger"
+    >
+      PL
+    </span>
+  );
+}
+
+/**
+ * The bet, then the game or games it is on. Hand-entered plays have no event
+ * data, so they show the bet alone, as before.
+ */
+function BetCell({ entry }: { entry: BetEntryComputed }) {
+  const events = parseLedgerEvents(entry.ledger_events);
+
+  if (events.length === 0) {
+    return (
+      <span className="block whitespace-normal break-words leading-snug">
+        {entry.event_name}
+      </span>
+    );
+  }
+
+  return (
+    <span className="block space-y-0.5 whitespace-normal break-words leading-snug">
+      <span className="block">
+        <span className="text-muted">Bet: </span>
+        {entry.event_name}
+      </span>
+      {events.map((event, index) => (
+        <span key={index} className="block text-muted">
+          {ledgerEventLabel(index, events.length)}: {describeLedgerEvent(event)}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 export function BetLedger({ isAdmin }: BetLedgerProps) {
   const [entries, setEntries] = useState<BetEntryComputed[]>([]);
   const [sports, setSports] = useState<Sport[]>([]);
@@ -139,6 +191,12 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
     const start = (page - 1) * PAGE_SIZE;
     return sortedEntries.slice(start, start + PAGE_SIZE);
   }, [sortedEntries, page]);
+
+  // Ledger plays are read-only, so on a page made up only of them the Actions
+  // column says nothing. It stays for pages holding older hand-entered plays,
+  // which are still edited and deleted here.
+  const showActions =
+    isAdmin && paginatedEntries.some((entry) => !entry.ledger_entity_id);
 
   const pageStart = sortedEntries.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const pageEnd = Math.min(page * PAGE_SIZE, sortedEntries.length);
@@ -436,7 +494,8 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                 {formatPercent(stats.winPct)}
               </p>
               <p className="mt-1 text-xs text-muted">
-                {stats.winCount} wins / {stats.gradedCount} graded
+                {stats.winCount} wins / {stats.winCount + stats.lossCount} decided
+                {stats.voidCount > 0 ? ` · ${stats.voidCount} void` : ""}
               </p>
             </div>
           </div>
@@ -562,7 +621,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
 
             <div className="md:col-span-6 xl:col-span-4">
               <label htmlFor="event_name" className="mb-1.5 block text-sm font-medium">
-                Event
+                Bet
               </label>
               <input
                 id="event_name"
@@ -650,27 +709,32 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
         <div className="overflow-x-auto">
           <table className="min-w-[920px] w-full table-fixed text-xs">
             <colgroup>
+              <col className="w-[44px]" />
               <col className="w-[74px]" />
               <col className="w-[88px]" />
-              <col className="w-[128px]" />
+              {/* No fixed width: in a fixed-layout table the one unsized column
+                  takes all the leftover space, so the bet gets the room instead
+                  of it being spread across the number columns. */}
+              <col />
               <col className="w-[52px]" />
               <col className="w-[108px]" />
               <col className="w-[108px]" />
-              <col className="w-[64px]" />
+              <col className="w-[48px]" />
               <col className="w-[108px]" />
-              {isAdmin && <col className="w-[68px]" />}
+              {showActions && <col className="w-[68px]" />}
             </colgroup>
             <thead className="border-b border-border bg-surface-elevated text-left">
               <tr>
+                <th className="px-2 py-2 font-medium text-muted" title="Where the play came from">Src</th>
                 <th className="px-2 py-2 font-medium text-muted">Date</th>
                 <th className="px-2 py-2 font-medium text-muted">Sport</th>
-                <th className="px-2 py-2 font-medium text-muted">Event</th>
+                <th className="px-2 py-2 font-medium text-muted">Bet</th>
                 <th className="px-2 py-2 font-medium text-muted">Line</th>
                 <th className="px-2 py-2 font-medium text-muted text-right">Risk</th>
                 <th className="px-2 py-2 font-medium text-muted text-right">To Win</th>
                 <th className="px-2 py-2 font-medium text-muted">W/L</th>
                 <th className="px-2 py-2 font-medium text-muted text-right">P/L</th>
-                {isAdmin && (
+                {showActions && (
                   <th className="sticky right-0 z-10 bg-surface-elevated px-2 py-2 font-medium text-muted text-right shadow-[-8px_0_12px_-8px_rgba(0,0,0,0.6)]">
                     Actions
                   </th>
@@ -680,13 +744,13 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={isAdmin ? 9 : 8} className="px-2 py-8 text-center text-muted">
+                  <td colSpan={showActions ? 10 : 9} className="px-2 py-8 text-center text-muted">
                     Loading entries...
                   </td>
                 </tr>
               ) : paginatedEntries.length === 0 ? (
                 <tr>
-                  <td colSpan={isAdmin ? 9 : 8} className="px-2 py-8 text-center text-muted">
+                  <td colSpan={showActions ? 10 : 9} className="px-2 py-8 text-center text-muted">
                     No entries yet.
                   </td>
                 </tr>
@@ -697,6 +761,9 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
 
                   return (
                     <tr key={entry.id} className={`border-t border-border ${rowBg}`}>
+                      <td className="px-2 py-2">
+                        <SourceBadge entry={entry} />
+                      </td>
                       <td className="px-2 py-2">
                         {isEditing ? (
                           <input
@@ -749,9 +816,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                             className={tableFieldClassName}
                           />
                         ) : (
-                          <span className="block truncate" title={entry.event_name}>
-                            {entry.ledger_entity_id && <span className="mr-2 rounded border border-cyan-400/40 px-1 text-xs text-cyan-300" title="Created from Prediction Ledger">PL</span>}{entry.event_name}
-                          </span>
+                          <BetCell entry={entry} />
                         )}
                       </td>
                       <td className={`px-2 py-2 font-mono whitespace-nowrap ${isEditing ? "" : ""}`}>
@@ -814,7 +879,7 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
                       <td className={`${moneyCellClassName} ${profitLossClassName(entry.profit_loss)}`}>
                         {formatCurrency(entry.profit_loss)}
                       </td>
-                      {isAdmin && (
+                      {showActions && (
                         <td
                           className={`sticky right-0 z-10 px-1 py-2 text-right shadow-[-8px_0_12px_-8px_rgba(0,0,0,0.6)] ${rowBg}`}
                         >

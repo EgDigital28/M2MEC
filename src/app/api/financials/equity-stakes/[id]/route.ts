@@ -107,7 +107,6 @@ export async function PATCH(
     if (deposit === null || deposit === undefined) {
       return NextResponse.json({ error: "Invalid deposit." }, { status: 400 });
     }
-    updates.deposit = deposit;
   }
 
   if (Object.keys(updates).length === 0) {

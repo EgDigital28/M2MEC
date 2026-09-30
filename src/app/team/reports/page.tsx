@@ -59,7 +59,7 @@ export default async function ReportsPage() {
             </table>
           </div>
         )}
-        <p className="text-xs text-muted">Graded = wins + losses + voids. Risked includes all picks. ROI = P/L ÷ risked. Win % = wins ÷ graded.</p>
+        <p className="text-xs text-muted">Graded = wins + losses + voids. Risked includes all picks. ROI = P/L ÷ risked on wins and losses. Win % = wins ÷ (wins + losses). Voids and open picks count in neither.</p>
       </section>
     </div>
   );

@@ -1,3 +1,4 @@
+import { CONFIDENTIALITY_NOTICE } from "@/lib/reports/confidentiality";
 import {
   computeDayResultsStats,
   formatCurrency,
@@ -138,5 +139,7 @@ All plays from ${rangeLabel} (Mon–Sun).
 ${body}
 
 — M2MEC
+
+${CONFIDENTIALITY_NOTICE}
   `.trim();
 }

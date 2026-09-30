@@ -1,3 +1,4 @@
+import { compareWithinDay } from "./ledger-events.ts";
 export const BET_STATUSES = ["Open", "Win", "Loss", "Void"] as const;
 
 export const LEDGER_STARTING_BALANCE = 2_845_000;
@@ -11,6 +12,8 @@ export type BetEntryRow = {
   ledger_version?: number | null;
   ledger_profit_loss?: number | null;
   ledger_to_win?: number | null;
+  /** The games behind a Ledger bet; see src/lib/bets/ledger-events.ts. */
+  ledger_events?: unknown;
   event_date: string;
   sport_id: string;
   event_name: string;
@@ -38,6 +41,7 @@ export function normalizeBetEntry(row: BetEntryRow): BetEntry {
     ledger_version: row.ledger_version,
     ledger_profit_loss: row.ledger_profit_loss,
     ledger_to_win: row.ledger_to_win,
+    ledger_events: row.ledger_events,
     created_by: row.created_by,
     event_date: row.event_date,
     sport_id: row.sport_id,
@@ -167,16 +171,20 @@ export function isBetStatus(value: string): value is BetStatus {
   return (BET_STATUSES as readonly string[]).includes(value);
 }
 
-export function sortBetEntries<T extends { event_date: string; created_at: string }>(
-  entries: T[],
-): T[] {
+/**
+ * Newest day first. Within a day, open plays come first and graded plays sink
+ * to the bottom, each group by game time (see compareWithinDay).
+ */
+export function sortBetEntries<
+  T extends { event_date: string; created_at: string; status: string; ledger_events?: unknown },
+>(entries: T[]): T[] {
   return [...entries].sort((a, b) => {
     const dateCompare = b.event_date.localeCompare(a.event_date);
     if (dateCompare !== 0) {
       return dateCompare;
     }
 
-    return b.created_at.localeCompare(a.created_at);
+    return compareWithinDay(a, b);
   });
 }
 
@@ -211,6 +219,26 @@ export type SportBetStats = {
   hasActivity: boolean;
 };
 
+/**
+ * Wins as a share of plays that were decided. A void is graded but not
+ * decided — the stake comes back and nobody won or lost — so it counts in
+ * neither the wins nor the total. 2 wins, 1 loss, 1 void is 66.67%, not 50%.
+ */
+export function winPercentage(winCount: number, lossCount: number) {
+  const decided = winCount + lossCount;
+  return decided > 0 ? winCount / decided : null;
+}
+
+/**
+ * Profit or loss as a share of the money risked on decided plays. A void's
+ * stake comes back and an open play has no result yet, so neither belongs in
+ * the base: Sep 29's +$26,779 on $127,500 decided is 21.0%, not the 18.79%
+ * it read with the $15,000 void included.
+ */
+export function returnOnRisk(profitLoss: number, decidedRisked: number) {
+  return decidedRisked > 0 ? profitLoss / decidedRisked : null;
+}
+
 function emptySportAccumulator() {
   return {
     winCount: 0,
@@ -218,6 +246,7 @@ function emptySportAccumulator() {
     voidCount: 0,
     openCount: 0,
     totalRisked: 0,
+    decidedRisked: 0,
     totalProfitLoss: 0,
   };
 }
@@ -241,8 +270,8 @@ function finalizeSportStats(
     gradedCount,
     totalRisked: raw.totalRisked,
     totalProfitLoss: raw.totalProfitLoss,
-    winPct: gradedCount > 0 ? raw.winCount / gradedCount : null,
-    roi: raw.totalRisked > 0 ? raw.totalProfitLoss / raw.totalRisked : null,
+    winPct: winPercentage(raw.winCount, raw.lossCount),
+    roi: returnOnRisk(raw.totalProfitLoss, raw.decidedRisked),
     hasActivity:
       raw.winCount + raw.lossCount + raw.voidCount + raw.openCount > 0,
   };
@@ -260,8 +289,10 @@ export function computeBetLedgerStats(entries: BetEntryComputed[]): BetLedgerSta
         stats.openRisk += entry.risk;
       } else if (entry.status === "Win") {
         stats.winCount += 1;
+        stats.decidedRisked += entry.risk;
       } else if (entry.status === "Loss") {
         stats.lossCount += 1;
+        stats.decidedRisked += entry.risk;
       } else if (entry.status === "Void") {
         stats.voidCount += 1;
       }
@@ -270,6 +301,7 @@ export function computeBetLedgerStats(entries: BetEntryComputed[]): BetLedgerSta
     },
     {
       totalEntries: 0,
+      decidedRisked: 0,
       totalProfitLoss: 0,
       totalRisked: 0,
       openCount: 0,
@@ -285,8 +317,8 @@ export function computeBetLedgerStats(entries: BetEntryComputed[]): BetLedgerSta
   return {
     ...raw,
     gradedCount,
-    winPct: gradedCount > 0 ? raw.winCount / gradedCount : null,
-    roi: raw.totalRisked > 0 ? raw.totalProfitLoss / raw.totalRisked : null,
+    winPct: winPercentage(raw.winCount, raw.lossCount),
+    roi: returnOnRisk(raw.totalProfitLoss, raw.decidedRisked),
     avgRiskPerPlay:
       raw.totalEntries > 0 ? raw.totalRisked / raw.totalEntries : null,
   };
@@ -308,8 +340,10 @@ export function computeSportBetStats(
       current.openCount += 1;
     } else if (entry.status === "Win") {
       current.winCount += 1;
+      current.decidedRisked += entry.risk;
     } else if (entry.status === "Loss") {
       current.lossCount += 1;
+      current.decidedRisked += entry.risk;
     } else if (entry.status === "Void") {
       current.voidCount += 1;
     }
@@ -450,6 +484,84 @@ export function getCurrentWeekRange(timeZone = DEFAULT_BET_TIMEZONE): WeekDateRa
   };
 }
 
+/**
+ * The seven days ending yesterday. A review covers a finished period, so
+ * today — which is still in play — is deliberately excluded.
+ */
+export function getRollingWeekRange(timeZone = DEFAULT_BET_TIMEZONE): WeekDateRange {
+  const end = parseDateString(getTodayDateString(timeZone));
+  end.setDate(end.getDate() - 1);
+  const start = new Date(end);
+  start.setDate(start.getDate() - 6);
+
+  return { weekStart: formatDateString(start), weekEnd: formatDateString(end) };
+}
+
+/**
+ * The last completed Monday–Sunday week. On a Monday the current week has
+ * barely started, so reviewing it would report almost nothing.
+ */
+export function getPreviousWeekRange(timeZone = DEFAULT_BET_TIMEZONE): WeekDateRange {
+  const current = getCurrentWeekRange(timeZone);
+  const start = parseDateString(current.weekStart);
+  const end = parseDateString(current.weekEnd);
+  start.setDate(start.getDate() - 7);
+  end.setDate(end.getDate() - 7);
+
+  return { weekStart: formatDateString(start), weekEnd: formatDateString(end) };
+}
+
+export type DayPlPoint = {
+  date: string;
+  profitLoss: number;
+  playCount: number;
+  openCount: number;
+};
+
+/**
+ * One point per calendar day across the range, including days with no plays,
+ * so the strip keeps a stable seven-column shape.
+ */
+export function computeDailyPlSeries(
+  entries: BetEntryComputed[],
+  weekStart: string,
+  weekEnd: string,
+): DayPlPoint[] {
+  const byDate = new Map<string, { profitLoss: number; playCount: number; openCount: number }>();
+
+  for (const entry of entries) {
+    const current = byDate.get(entry.event_date) ?? { profitLoss: 0, playCount: 0, openCount: 0 };
+    current.profitLoss += entry.profit_loss;
+    current.playCount += 1;
+
+    if (entry.status === "Open") {
+      current.openCount += 1;
+    }
+
+    byDate.set(entry.event_date, current);
+  }
+
+  const points: DayPlPoint[] = [];
+  const cursor = parseDateString(weekStart);
+  const last = parseDateString(weekEnd);
+
+  while (cursor <= last) {
+    const date = formatDateString(cursor);
+    const found = byDate.get(date);
+
+    points.push({
+      date,
+      profitLoss: found?.profitLoss ?? 0,
+      playCount: found?.playCount ?? 0,
+      openCount: found?.openCount ?? 0,
+    });
+
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return points;
+}
+
 export function formatWeekRangeLabel(weekStart: string, weekEnd: string) {
   const start = parseDateString(weekStart);
   const end = parseDateString(weekEnd);
@@ -489,7 +601,8 @@ export type DayResultsStats = {
   gradedCount: number;
   totalProfitLoss: number;
   totalRisked: number;
-  gradedRisked: number;
+  /** Stake on wins and losses only: the base for ROI. */
+  decidedRisked: number;
   winPct: number | null;
   roi: number | null;
 };
@@ -505,13 +618,12 @@ export function computeDayResultsStats(entries: BetEntryComputed[]): DayResultsS
         stats.openCount += 1;
       } else if (entry.status === "Win") {
         stats.winCount += 1;
-        stats.gradedRisked += entry.risk;
+        stats.decidedRisked += entry.risk;
       } else if (entry.status === "Loss") {
         stats.lossCount += 1;
-        stats.gradedRisked += entry.risk;
+        stats.decidedRisked += entry.risk;
       } else if (entry.status === "Void") {
         stats.voidCount += 1;
-        stats.gradedRisked += entry.risk;
       }
 
       return stats;
@@ -524,7 +636,7 @@ export function computeDayResultsStats(entries: BetEntryComputed[]): DayResultsS
       openCount: 0,
       totalProfitLoss: 0,
       totalRisked: 0,
-      gradedRisked: 0,
+      decidedRisked: 0,
     },
   );
 
@@ -533,8 +645,8 @@ export function computeDayResultsStats(entries: BetEntryComputed[]): DayResultsS
   return {
     ...raw,
     gradedCount,
-    winPct: gradedCount > 0 ? raw.winCount / gradedCount : null,
-    roi: raw.gradedRisked > 0 ? raw.totalProfitLoss / raw.gradedRisked : null,
+    winPct: winPercentage(raw.winCount, raw.lossCount),
+    roi: returnOnRisk(raw.totalProfitLoss, raw.decidedRisked),
   };
 }
 

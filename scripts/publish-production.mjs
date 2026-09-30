@@ -63,7 +63,7 @@ try {
   if (!process.argv.includes('--execute') || !process.argv.includes('--expected-sha') || !/^[0-9a-f]{40}$/.test(expected ?? '')) throw new Error('Coordinator execution requires --execute --expected-sha <full commit>');
   head = git('rev-parse', 'HEAD');
   const branch = git('branch', '--show-current');
-  if (head !== expected || !branch.startsWith('codex/') || git('status', '--porcelain')) throw new Error('Expected clean feature commit mismatch');
+  if (head !== expected || !/^(codex|claude)\//.test(branch) || git('status', '--porcelain')) throw new Error('Expected clean feature commit mismatch');
   const remote = git('remote', 'get-url', 'origin');
   if (!/^(https:\/\/github\.com\/|git@github\.com:)EgDigital28\/M2MEC(?:\.git)?$/.test(remote)) throw new Error('Unexpected publication repository');
   git('fetch', 'origin', '--prune');

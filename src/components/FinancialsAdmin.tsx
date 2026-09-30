@@ -43,7 +43,7 @@ const emptyStakeForm = (): StakeForm => ({
   profile_id: "",
   io_allocation: "",
   io_cash_value: "",
-  deposit: "",
+  deposit: "0",
 });
 
 function availableStakeholders(
@@ -349,7 +349,8 @@ export function FinancialsAdmin() {
           <div>
             <h2 className="text-lg font-semibold">Equity stake</h2>
             <p className="mt-1 text-sm text-muted">
-              Track IO allocation, cash value, deposits, and amount due for registered investors
+              Deposits are the sum of entries on the Deposits page and are not editable here.
+              Track IO allocation, cash value, and amount due for registered investors
               and admin users.
             </p>
           </div>
@@ -411,16 +412,12 @@ export function FinancialsAdmin() {
             </span>
             <input
               value={form.deposit}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  deposit: formatFinancialInput(event.target.value),
-                }))
-              }
+              readOnly
+              disabled
+              title="Deposits are recorded on the Deposits page"
               inputMode="numeric"
               placeholder="Deposit"
-              required
-              className={`${formFieldClassName} pl-7`}
+              className={`${formFieldClassName} pl-7 opacity-60`}
             />
           </div>
 
@@ -543,21 +540,7 @@ export function FinancialsAdmin() {
                         )}
                       </td>
                       <td className={`${moneyCellClassName} px-4 py-3`}>
-                        {isEditing ? (
-                          <input
-                            value={editForm.deposit}
-                            disabled={isBusy}
-                            onChange={(event) =>
-                              setEditForm((current) => ({
-                                ...current,
-                                deposit: formatFinancialInput(event.target.value),
-                              }))
-                            }
-                            className="w-32 rounded-lg border border-border bg-background px-2 py-1.5 text-right text-xs outline-none focus:border-accent"
-                          />
-                        ) : (
-                          formatFinancialAmount(stake.deposit)
-                        )}
+                        {formatFinancialAmount(stake.deposit)}
                       </td>
                       <td className={`${moneyCellClassName} px-4 py-3`}>
                         {isEditing

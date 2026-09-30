@@ -1,3 +1,4 @@
+import { CONFIDENTIALITY_NOTICE } from "@/lib/reports/confidentiality";
 type WaitlistWelcomeEmailParams = {
   name: string;
 };
@@ -30,6 +31,9 @@ export function waitlistWelcomeHtml({ name }: WaitlistWelcomeEmailParams) {
       <a href="mailto:hello@m2mec.com">hello@m2mec.com</a>.
     </p>
     <p>— The M2MEC team</p>
+    <p style="margin-top:24px;font-size:11px;line-height:1.5;color:#6b7280;">
+      ${escapeHtml(CONFIDENTIALITY_NOTICE)}
+    </p>
   `.trim();
 }
 
@@ -51,6 +55,8 @@ What happens next:
 Questions? Reply here or email hello@m2mec.com.
 
 — The M2MEC team
+
+${CONFIDENTIALITY_NOTICE}
   `.trim();
 }
 

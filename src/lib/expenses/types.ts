@@ -101,7 +101,9 @@ export function formatExpenseInput(value: string) {
 }
 
 export function parseExpenseAmount(value: string) {
-  return Number.parseFloat(value.replace(/,/g, "")) || Number.NaN;
+  // parseFloat already yields NaN for blank or non-numeric input. A `|| NaN`
+  // fallback here would also turn a legitimate 0 into NaN and fail validation.
+  return Number.parseFloat(value.replace(/,/g, ""));
 }
 
 export function sortCatalog<T extends { sort_order: number; name: string }>(items: T[]) {

@@ -135,7 +135,6 @@ export async function POST(request: Request) {
       profile_id: profileId,
       io_allocation: ioAllocation,
       io_cash_value: ioCashValue,
-      deposit,
     })
     .select(STAKE_SELECT)
     .single();

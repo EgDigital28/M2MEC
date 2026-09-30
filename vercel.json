@@ -1,1 +1,20 @@
-{"crons":[{"path":"/api/integrations/ledger-consumer","schedule":"* * * * *"}]}
+{
+  "crons": [
+    {
+      "path": "/api/integrations/ledger-consumer",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/yesterdays-results",
+      "schedule": "0 5-8 * * *"
+    },
+    {
+      "path": "/api/cron/todays-plays",
+      "schedule": "0 0,1,2,15,16,18,19,20,21,23 * * *"
+    },
+    {
+      "path": "/api/cron/week-in-review",
+      "schedule": "0 5-8 * * 1"
+    }
+  ]
+}

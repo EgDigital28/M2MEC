@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { FinancialsAdmin } from "@/components/FinancialsAdmin";
+import { IncomeAdmin } from "@/components/IncomeAdmin";
 import { getCurrentProfile } from "@/lib/auth/profile";
 
 export default async function TeamFinancialsPage() {
@@ -17,6 +18,8 @@ export default async function TeamFinancialsPage() {
         </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight">Financials</h1>
       </section>
+
+      <IncomeAdmin />
 
       <FinancialsAdmin />
     </div>

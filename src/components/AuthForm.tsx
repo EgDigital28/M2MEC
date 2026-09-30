@@ -74,9 +74,17 @@ export function AuthForm() {
     const destinationResponse = await fetch(
       `/api/auth/destination?next=${encodeURIComponent(safeNext)}`,
     );
-    const { destination } = (await destinationResponse.json()) as {
+    const { destination, permitted } = (await destinationResponse.json()) as {
       destination: string;
+      permitted?: boolean;
     };
+
+    if (permitted === false) {
+      await supabase.auth.signOut();
+      setError("This account is not permitted to sign in.");
+      setLoading(false);
+      return;
+    }
 
     window.location.assign(destination || safeNext);
   }
