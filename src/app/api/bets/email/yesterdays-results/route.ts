@@ -16,6 +16,7 @@ import {
   parseEmailRecipients,
 } from "@/lib/email/utils";
 import { logBetEmailSends } from "@/lib/bets/email-sends";
+import { recordResultReports } from "@/lib/bets/result-reports";
 import { createClient } from "@/lib/supabase/server";
 
 type YesterdaysResultsPayload = {
@@ -103,6 +104,14 @@ export async function POST(request: Request) {
     });
   } catch (logError) {
     console.error("Yesterday's results email log failed:", logError);
+  }
+
+  // What these recipients were told about each play, so any still Open is
+  // carried into their next scheduled results email once graded.
+  try {
+    await recordResultReports(supabase, recipients, resultsDate, entries);
+  } catch (reportError) {
+    console.error("Yesterday's results report record failed:", reportError);
   }
 
   return NextResponse.json({

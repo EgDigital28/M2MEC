@@ -2,26 +2,19 @@ import { NextResponse } from "next/server";
 import {
   getYesterdayDateString,
   withComputedFields,
+  type BetEntryComputed,
   type BetEntryRow,
 } from "@/lib/bets/calculations";
 import { logBetEmailSends } from "@/lib/bets/email-sends";
+import { loadCarryOvers, recordResultReports } from "@/lib/bets/result-reports";
+import { easternHour, isAuthorizedCron } from "@/lib/cron";
+import { AUTOMATED_RECIPIENTS, isAutomationEnabled } from "@/lib/email/automation";
+import { getResendClient, getResendFromEmail } from "@/lib/email/utils";
 import {
   yesterdaysResultsHtml,
   yesterdaysResultsSubject,
   yesterdaysResultsText,
 } from "@/lib/email/yesterdays-results";
-import {
-  ungradedAlertHtml,
-  ungradedAlertSubject,
-  ungradedAlertText,
-} from "@/lib/email/ungraded-alert";
-import {
-  AUTOMATED_RECIPIENTS,
-  AUTOMATION_ALERT_RECIPIENTS,
-  isAutomationEnabled,
-} from "@/lib/email/automation";
-import { getResendClient, getResendFromEmail } from "@/lib/email/utils";
-import { easternHour, isAuthorizedCron } from "@/lib/cron";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -29,15 +22,22 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const RECIPIENTS = AUTOMATED_RECIPIENTS;
-const ALERT_RECIPIENTS = AUTOMATION_ALERT_RECIPIENTS;
 
 /**
  * Attempt hours in Eastern time. Vercel schedules in UTC, so the cron fires
  * across a wider UTC window and this gate selects exactly three runs a day in
- * both EST and EDT. The last hour is the give-up attempt.
+ * both EST and EDT.
  */
 const ATTEMPT_HOURS_ET = [1, 2, 3];
 
+/**
+ * Sends yesterday's results to each recipient, once.
+ *
+ * While any of yesterday's plays is ungraded it waits for the next attempt.
+ * The last attempt sends regardless, with ungraded plays shown as Open. What
+ * each person was told is recorded, so a play they saw as Open comes back in
+ * their next results email, under "Graded since last email", once graded.
+ */
 export async function GET(request: Request) {
   if (!isAuthorizedCron(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -103,22 +103,30 @@ export async function GET(request: Request) {
   }
 
   const entries = (data as BetEntryRow[]).map((row) => withComputedFields(row));
+  const openCount = entries.filter((entry) => entry.status === "Open").length;
 
-  if (entries.length === 0) {
-    return NextResponse.json({ skipped: "No plays", resultsDate, attempt });
+  // Hold for grading until the final attempt; then send what there is.
+  if (openCount > 0 && !finalAttempt) {
+    return NextResponse.json({ skipped: "Ungraded plays", resultsDate, attempt, openCount });
   }
 
-  const ungraded = entries.filter((entry) => entry.status === "Open");
+  const carried = new Map<string, BetEntryComputed[]>();
 
-  // Hold for grading until the final attempt, then report instead of sending
-  // a half-graded digest.
-  if (ungraded.length > 0 && !finalAttempt) {
-    return NextResponse.json({
-      skipped: "Ungraded plays",
-      resultsDate,
-      attempt,
-      ungradedCount: ungraded.length,
-    });
+  try {
+    for (const recipient of pending) {
+      carried.set(recipient, await loadCarryOvers(db, recipient, resultsDate));
+    }
+  } catch (carryError) {
+    console.error("cron.yesterdays-results.carryover_failed", carryError);
+    return NextResponse.json({ error: "Could not load carried-over plays." }, { status: 503 });
+  }
+
+  // Nobody is sent an empty email: a recipient needs yesterday's plays or
+  // something carried over.
+  const due = pending.filter((recipient) => entries.length > 0 || (carried.get(recipient) ?? []).length > 0);
+
+  if (due.length === 0) {
+    return NextResponse.json({ skipped: "No plays", resultsDate, attempt });
   }
 
   const resend = getResendClient();
@@ -128,54 +136,21 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Email service is not configured." }, { status: 503 });
   }
 
-  if (ungraded.length > 0) {
-    const alertParams = {
-      ungraded,
-      playCount: entries.length,
-      resultsDate,
-      attempts: ATTEMPT_HOURS_ET.length,
-    };
-
-    const { error: alertError } = await resend.emails.send({
-      from: getResendFromEmail(),
-      to: ALERT_RECIPIENTS,
-      subject: ungradedAlertSubject(alertParams),
-      html: ungradedAlertHtml(alertParams),
-      text: ungradedAlertText(alertParams),
-    });
-
-    if (alertError) {
-      console.error("cron.yesterdays-results.alert_failed", alertError);
-      return NextResponse.json({ error: "Could not send alert." }, { status: 502 });
-    }
-
-    // Deliberately not logged to bet_email_sends: no digest was sent, and a
-    // row there would suppress a later manual send for this date.
-    return NextResponse.json({
-      alerted: true,
-      resultsDate,
-      attempt,
-      ungradedCount: ungraded.length,
-    });
-  }
-
-  const emailParams = { entries, resultsDate };
-  const subject = yesterdaysResultsSubject(emailParams);
-  const html = yesterdaysResultsHtml(emailParams);
-  const text = yesterdaysResultsText(emailParams);
-
   const sent: string[] = [];
   const failed: string[] = [];
 
   // One email per recipient, each logged as its own batch so the send history
   // shows them as the separate messages they are.
-  for (const recipient of pending) {
+  for (const recipient of due) {
+    const carriedOver = carried.get(recipient) ?? [];
+    const emailParams = { entries, resultsDate, carriedOver };
+
     const { error: emailError } = await resend.emails.send({
       from: getResendFromEmail(),
       to: [recipient],
-      subject,
-      html,
-      text,
+      subject: yesterdaysResultsSubject(emailParams),
+      html: yesterdaysResultsHtml(emailParams),
+      text: yesterdaysResultsText(emailParams),
     });
 
     if (emailError) {
@@ -201,6 +176,14 @@ export async function GET(request: Request) {
       // failure. It does mean a later attempt could re-mail this recipient.
       console.error("cron.yesterdays-results.log_failed", recipient, logError);
     }
+
+    try {
+      await recordResultReports(db, [recipient], resultsDate, [...entries, ...carriedOver]);
+    } catch (reportError) {
+      // Without this record an Open play would not be carried over later, and
+      // a carried one could be carried again.
+      console.error("cron.yesterdays-results.report_failed", recipient, reportError);
+    }
   }
 
   if (sent.length === 0) {
@@ -208,11 +191,11 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({
-    sent: true,
+    sent,
+    failed,
     resultsDate,
     attempt,
-    recipientCount: sent.length,
-    failedCount: failed.length,
+    openCount,
     playCount: entries.length,
   });
 }

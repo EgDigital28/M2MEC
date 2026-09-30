@@ -1,4 +1,4 @@
-import { compareWithinDay } from "@/lib/bets/ledger-events";
+import { compareWithinDay } from "./ledger-events.ts";
 export const BET_STATUSES = ["Open", "Win", "Loss", "Void"] as const;
 
 export const LEDGER_STARTING_BALANCE = 2_845_000;
@@ -219,6 +219,16 @@ export type SportBetStats = {
   hasActivity: boolean;
 };
 
+/**
+ * Wins as a share of plays that were decided. A void is graded but not
+ * decided — the stake comes back and nobody won or lost — so it counts in
+ * neither the wins nor the total. 2 wins, 1 loss, 1 void is 66.67%, not 50%.
+ */
+export function winPercentage(winCount: number, lossCount: number) {
+  const decided = winCount + lossCount;
+  return decided > 0 ? winCount / decided : null;
+}
+
 function emptySportAccumulator() {
   return {
     winCount: 0,
@@ -249,7 +259,7 @@ function finalizeSportStats(
     gradedCount,
     totalRisked: raw.totalRisked,
     totalProfitLoss: raw.totalProfitLoss,
-    winPct: gradedCount > 0 ? raw.winCount / gradedCount : null,
+    winPct: winPercentage(raw.winCount, raw.lossCount),
     roi: raw.totalRisked > 0 ? raw.totalProfitLoss / raw.totalRisked : null,
     hasActivity:
       raw.winCount + raw.lossCount + raw.voidCount + raw.openCount > 0,
@@ -293,7 +303,7 @@ export function computeBetLedgerStats(entries: BetEntryComputed[]): BetLedgerSta
   return {
     ...raw,
     gradedCount,
-    winPct: gradedCount > 0 ? raw.winCount / gradedCount : null,
+    winPct: winPercentage(raw.winCount, raw.lossCount),
     roi: raw.totalRisked > 0 ? raw.totalProfitLoss / raw.totalRisked : null,
     avgRiskPerPlay:
       raw.totalEntries > 0 ? raw.totalRisked / raw.totalEntries : null,
@@ -619,7 +629,7 @@ export function computeDayResultsStats(entries: BetEntryComputed[]): DayResultsS
   return {
     ...raw,
     gradedCount,
-    winPct: gradedCount > 0 ? raw.winCount / gradedCount : null,
+    winPct: winPercentage(raw.winCount, raw.lossCount),
     roi: raw.gradedRisked > 0 ? raw.totalProfitLoss / raw.gradedRisked : null,
   };
 }
