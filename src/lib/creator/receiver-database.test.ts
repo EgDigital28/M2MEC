@@ -27,6 +27,7 @@ async function setup() {
     insert into profiles values('${owner}','admin',null),('${other}','admin',null);`);
   await db.exec(migration);
   await db.exec(readFileSync(new URL("../../../supabase/migrations/20260914201913_accept_creator_partner_bets.sql", import.meta.url), "utf8"));
+  await db.exec(readFileSync(new URL("../../../supabase/migrations/20260930130000_accept_creator_products.sql", import.meta.url), "utf8"));
   return db;
 }
 async function accept(db: PGlite, value: unknown) {
@@ -163,5 +164,79 @@ test("Bet receipts retain their type and private visibility through duplicate an
     assert.throws(() => parsePartnerEvent(JSON.stringify({...first,entityType:"pick"})), /Invalid partner/);
     assert.throws(() => parsePartnerEvent(JSON.stringify({...first,record:{...first.record,bet:{...first.record.bet,notes:"private"}}})), /Invalid partner/);
     assert.throws(() => parsePartnerEvent(JSON.stringify({...first,record:{...first.record,bet:{...first.record.bet,cashStake:"NaN"}}})), /Invalid partner/);
+  } finally { await db.close(); }
+});
+
+test("Product receipts accept unlisted publication and preserve versioned membership", async () => {
+  const db = await setup();
+  try {
+    await db.exec("set role service_role");
+    const first = {
+      ...event(), entityType: "product", record: {
+        id: entity, creator: event().record.creator, visibility: "unlisted", headline: "Football Product",
+        analysis: null, publicationStatus: "published", accessType: "premium",
+        intendedPriceCents: 2500, currency: "USD", intendedBillingPeriod: "one_time",
+        monetizationStatus: "planned", createdAt: "2026-09-12T12:00:00.000Z",
+        updatedAt: "2026-09-12T12:00:00.000Z", purchaseOptions: [
+          { duration: "day_3", priceCents: 2500, currency: "USD", renewalAllowed: false },
+        ], playCount: 1, membershipSha256: "a".repeat(64), memberRevisionSha256: "b".repeat(64),
+      },
+    };
+    assert.equal((await accept(db, first)).outcome, "applied");
+    assert.equal((await accept(db, first)).duplicate, true);
+    const next = { ...first, eventId: "30000000-0000-4000-8000-000000000002", entityVersion: 2,
+      record: { ...first.record, playCount: 2, membershipSha256: "c".repeat(64) } };
+    assert.equal((await accept(db, next)).outcome, "applied");
+    assert.equal((await accept(db, first)).duplicate, true);
+    const stored = (await db.query<{ entity_type: string; entity_version: number; record: { playCount: number } }>(
+      "select entity_type,entity_version,record from creator_partner_entities"
+    )).rows[0]!;
+    assert.equal(stored.entity_type, "product");
+    assert.equal(stored.entity_version, 2);
+    assert.equal(stored.record.playCount, 2);
+    const withdrawn = { ...next, eventId: "30000000-0000-4000-8000-000000000003", entityVersion: 3,
+      record: { ...next.record, visibility: "private", headline: "Withdrawn Product", analysis: null,
+        publicationStatus: "retracted", intendedPriceCents: null, intendedBillingPeriod: null,
+        monetizationStatus: "disabled", purchaseOptions: [], playCount: 0,
+        membershipSha256: "d".repeat(64), memberRevisionSha256: "d".repeat(64) } };
+    assert.equal((await accept(db, withdrawn)).outcome, "applied");
+    const latest = (await db.query<{ record: { visibility: string; publicationStatus: string; analysis: string | null } }>(
+      "select record from creator_partner_entities where entity_type='product'"
+    )).rows[0]!.record;
+    assert.equal(latest.visibility, "private");
+    assert.equal(latest.publicationStatus, "retracted");
+    assert.equal(latest.analysis, null);
+    assert.throws(() => parsePartnerEvent(JSON.stringify({ ...first, record: { ...first.record, visibility: "private" } })), /Invalid partner/);
+    assert.throws(() => parsePartnerEvent(JSON.stringify({ ...first, record: { ...first.record, privateNotes: "secret" } })), /Invalid partner/);
+  } finally { await db.close(); }
+});
+
+test("Bet receipt retains new calculation provenance without calling it sportsbook confirmed", async () => {
+  const db = await setup();
+  try {
+    await db.exec("set role service_role");
+    const value = event();
+    const { analysis: _analysis, ...wagerRecord } = value.record;
+    void _analysis;
+    const bet = { ...value, entityType: "bet", record: {
+      ...wagerRecord, headline: "Single Bet", visibility: "private", recordKind: "bet", creatorPickId: other,
+      grade: "lost", legs: [{ ...value.record.legs[0], grade: "lost", ledgerPickEventId: other,
+        settlement: { status: "historical_unproven" } }],
+      bet: { id: entity, sourceMethod: "manual_test", verificationStatus: "unverified",
+        sportsbook: "Fanatics", sportsbookId: other, currency: "USD", cashStake: "50000.0000",
+        bonusStake: "0.0000", potentialReturn: "97619.0500", placedAt: value.occurredAt,
+        recordedAt: value.occurredAt, providerStatus: "self_reported",
+        ledgerCalculationStatus: "calculated", ledgerCalculatedReturn: "0.0000",
+        ledgerCalculatedNet: "-50000.0000" },
+    } };
+    assert.equal((await accept(db, bet)).outcome, "applied");
+    const stored = (await db.query<{ record: { bet: Record<string, unknown> } }>(
+      "select record from creator_partner_entities where entity_type='bet'"
+    )).rows[0]!.record.bet;
+    assert.equal(stored.ledgerCalculatedNet, "-50000.0000");
+    assert.equal(stored.sportsbookReportedReturn, undefined);
+    assert.equal(stored.sportsbookSettlementSource, undefined);
+    assert.throws(() => parsePartnerEvent(JSON.stringify({ ...bet, record: { ...bet.record,
+      bet: { ...bet.record.bet, sportsbookReportedReturn: "0.0000" } } })), /Invalid partner/);
   } finally { await db.close(); }
 });

@@ -6,7 +6,7 @@ export type PartnerEvent = {
   schemaVersion: typeof PARTNER_PROTOCOL;
   source: "thepredictionledger";
   eventId: string;
-  entityType: "pick" | "package" | "bet";
+  entityType: "pick" | "package" | "bet" | "product";
   entityId: string;
   entityVersion: number;
   occurredAt: string;
@@ -24,14 +24,17 @@ export function parsePartnerEvent(raw: string): PartnerEvent {
   const value: unknown = JSON.parse(raw);
   if (!object(value) || value.schemaVersion !== PARTNER_PROTOCOL || value.source !== "thepredictionledger"
     || ![value.eventId, value.entityId, value.creatorId, value.destinationId].every((id) => typeof id === "string" && uuid.test(id))
-    || !["pick", "package", "bet"].includes(String(value.entityType))
+    || !["pick", "package", "bet", "product"].includes(String(value.entityType))
     || !Number.isSafeInteger(value.entityVersion) || Number(value.entityVersion) < 1
     || !text(value.occurredAt, 40) || !Number.isFinite(Date.parse(String(value.occurredAt)))
     || !object(value.record)) throw new Error("Invalid partner event envelope");
   const record = value.record;
   if (!object(record.creator) || record.creator.id !== value.creatorId
     || !text(record.creator.displayName, 200) || !text(record.creator.profileUrl, 500)
-    || !(value.entityType === "bet" ? record.visibility === "private" : ["public", "premium"].includes(String(record.visibility)))
+    || !(value.entityType === "bet" ? record.visibility === "private"
+      : value.entityType === "product" ? ["public", "unlisted"].includes(String(record.visibility))
+        || (record.visibility === "private" && record.publicationStatus === "retracted")
+      : ["public", "premium"].includes(String(record.visibility)))
     || record.id !== value.entityId || !text(record.headline, 200)
     || (record.analysis !== null && record.analysis !== undefined && (typeof record.analysis !== "string" || record.analysis.length > 6000))) {
     throw new Error("Invalid partner entity identity or editorial content");
@@ -46,8 +49,45 @@ export function parsePartnerEvent(raw: string): PartnerEvent {
       || !onlyKeys(record, ["id", "creator", "ledgerPickId", "visibility", "headline", "publicationStatus", "pickType", "units", "oddsAmerican", "publishedAt", "grade", "gradedAt", "replacementCreatorPickId", "correctionOfCreatorPickId", "legs", "recordKind", "creatorPickId", "bet"])
       || !onlyKeys(record.creator, ["id", "handicapperId", "displayName", "profileUrl"])) throw new Error("Invalid partner Bet fields");
     if (Array.isArray(record.legs)) for (const leg of record.legs) {
-      if (!object(leg) || !onlyKeys(leg, ["position", "eventId", "eventName", "sport", "league", "startsAt", "selection", "marketType", "period", "line", "direction", "marketStatType", "marketOutcome", "selectedSportTeamId", "selectedSportPlayerId", "selectedFootballTeamId", "selectedFootballPlayerId", "selectedTennisParticipantId", "selectedMmaFighterId", "mmaMarketCategory", "mmaSelectionScope", "mmaFinishMethod", "mmaRound", "mmaRounds", "mmaDistanceDirection", "mmaTotalDirection", "mmaTotalRounds", "grade", "gradeComponents", "acceptedOddsAmerican", "isLive"])
+      if (!object(leg) || !onlyKeys(leg, ["position", "eventId", "eventName", "sport", "league", "startsAt", "selection", "marketType", "period", "line", "direction", "marketStatType", "marketOutcome", "selectedSportTeamId", "selectedSportPlayerId", "selectedFootballTeamId", "selectedFootballPlayerId", "selectedTennisParticipantId", "selectedMmaFighterId", "mmaMarketCategory", "mmaSelectionScope", "mmaFinishMethod", "mmaRound", "mmaRounds", "mmaDistanceDirection", "mmaTotalDirection", "mmaTotalRounds", "grade", "gradeComponents", "acceptedOddsAmerican", "isLive", "ledgerPickEventId", "settlement"])
         || (leg.gradeComponents != null && (!Array.isArray(leg.gradeComponents) || !leg.gradeComponents.every((component) => object(component) && onlyKeys(component, ["dimension", "status"]))))) throw new Error("Invalid partner Bet leg fields");
+      if (leg.settlement != null) {
+        const settlement = leg.settlement;
+        if (!object(settlement) || typeof leg.ledgerPickEventId !== "string" || !uuid.test(leg.ledgerPickEventId)
+          || !["pending", "historical_unproven", "original", "reconstructed"].includes(String(settlement.status))) throw new Error("Invalid Bet settlement status");
+        if (settlement.status === "pending" || settlement.status === "historical_unproven") {
+          if (!onlyKeys(settlement, ["status"])
+            || (settlement.status === "pending" && leg.grade != null && leg.grade !== "open")
+            || (settlement.status === "historical_unproven" && !["won", "lost", "push", "void"].includes(String(leg.grade)))) throw new Error("Invalid Bet settlement evidence state");
+        } else {
+          const observed = settlement.observed;
+          const source = settlement.source;
+          const wager = settlement.wager;
+          if (!onlyKeys(settlement, ["status", "factId", "version", "supersedesFactId", "eventId", "subjectId", "grade", "wager", "observed", "source", "observedAt", "observationClock", "sourceSha256", "graderVersion", "gradedAt"])
+            || ![settlement.factId, settlement.eventId].every((id) => typeof id === "string" && uuid.test(id))
+            || (settlement.subjectId != null && (typeof settlement.subjectId !== "string" || !uuid.test(settlement.subjectId)))
+            || (settlement.supersedesFactId != null && (typeof settlement.supersedesFactId !== "string" || !uuid.test(settlement.supersedesFactId)))
+            || !Number.isSafeInteger(settlement.version) || Number(settlement.version) < 1
+            || settlement.eventId !== leg.eventId || settlement.grade !== leg.grade
+            || !object(wager) || !onlyKeys(wager, ["selection", "marketType", "period", "line", "secondaryLine", "direction", "marketStatType", "marketOutcome", "mmaMarketCategory", "mmaSelectionScope", "mmaFinishMethod", "mmaRound", "mmaRounds", "mmaDistanceDirection", "mmaTotalDirection", "mmaTotalRounds"])
+            || !text(wager.selection, 500) || !text(wager.marketType, 100)
+            || ["period", "direction", "marketStatType", "marketOutcome", "mmaMarketCategory", "mmaSelectionScope", "mmaFinishMethod", "mmaDistanceDirection", "mmaTotalDirection"].some((key) => wager[key] != null && !text(wager[key], 120))
+            || ["line", "secondaryLine", "mmaRound", "mmaTotalRounds"].some((key) => wager[key] != null && (typeof wager[key] !== "number" || !Number.isFinite(wager[key])))
+            || (wager.mmaRounds != null && (!Array.isArray(wager.mmaRounds) || wager.mmaRounds.length > 12 || !wager.mmaRounds.every((round) => Number.isInteger(round) && round > 0)))
+            || !object(observed) || Object.keys(observed).length === 0
+            || !onlyKeys(observed, ["event_status", "away_score", "home_score", "away_period_scores", "home_period_scores", "winner_side", "settlement_condition_state", "stat_type", "stat_value", "unit", "rate_fraction", "no_appearance", "scorer_won", "first_goal_team_id", "first_goal_player_id", "last_goal_player_id", "player_appeared", "winner", "result_method", "result_round", "result_time_seconds", "fighter_stat_value", "opponent_stat_value", "value", "stat", "void_reason", "components"])
+            || (observed.components != null && (!Array.isArray(observed.components) || observed.components.length > 12 || !observed.components.every((part) => object(part) && onlyKeys(part, ["dimension", "selection", "outcome"]))))
+            || !object(source) || !onlyKeys(source, ["reader", "eventProvider", "providerEventId", "identityObservedAt", "participantOneLabel", "participantTwoLabel", "awayParticipantLabel", "homeParticipantLabel", "winnerLabel", "resultProvider", "statProvider", "officialSource"])
+            || !text(source.reader, 120) || !text(settlement.graderVersion, 120)
+            || ["participantOneLabel", "participantTwoLabel", "awayParticipantLabel", "homeParticipantLabel", "winnerLabel"].some((key) => source[key] != null && !text(source[key], 500))
+            || (source.identityObservedAt != null && (!text(source.identityObservedAt, 40) || !Number.isFinite(Date.parse(String(source.identityObservedAt)))))
+            || (source.reader === "ledger_static_grading_rows_v2" && (observed.away_score != null || observed.home_score != null)
+              && (!text(source.awayParticipantLabel, 500) || !text(source.homeParticipantLabel, 500)))
+            || ![settlement.observedAt, settlement.gradedAt].every((time) => text(time, 40) && Number.isFinite(Date.parse(String(time))))
+            || !["provider", "grader_read", "official_consumption", "event_update"].includes(String(settlement.observationClock))
+            || typeof settlement.sourceSha256 !== "string" || !/^[a-f0-9]{64}$/.test(settlement.sourceSha256)) throw new Error("Invalid Bet settlement fact");
+        }
+      }
     }
     const bet = record.bet;
     const amount = (v: unknown, signed = false) => typeof v === "string" && (signed ? /^-?\d{1,14}(\.\d{1,4})?$/ : /^\d{1,14}(\.\d{1,4})?$/).test(v);
@@ -60,9 +100,17 @@ export function parsePartnerEvent(raw: string): PartnerEvent {
       || (bet.sourceMethod === "manual_test" && bet.verificationStatus !== "unverified")
       || ![bet.placedAt, bet.recordedAt].every((v) => text(v, 40) && Number.isFinite(Date.parse(String(v))))
       || (bet.settledAt != null && (!text(bet.settledAt, 40) || !Number.isFinite(Date.parse(String(bet.settledAt)))))
-      || ["potentialReturn", "settledReturn"].some((key) => bet[key] != null && !amount(bet[key]))
-      || (bet.settledNet != null && !amount(bet.settledNet, true))
-      || !onlyKeys(bet, ["id", "sourceMethod", "verificationStatus", "sportsbook", "currency", "cashStake", "bonusStake", "potentialReturn", "settledReturn", "settledNet", "placedAt", "recordedAt", "settledAt", "providerStatus"])) throw new Error("Invalid partner Bet receipt");
+      || ["potentialReturn", "settledReturn", "ledgerCalculatedReturn", "sportsbookReportedReturn"].some((key) => bet[key] != null && !amount(bet[key]))
+      || ["settledNet", "ledgerCalculatedNet", "sportsbookReportedNet"].some((key) => bet[key] != null && !amount(bet[key], true))
+      || (bet.sportsbookId != null && (typeof bet.sportsbookId !== "string" || !uuid.test(bet.sportsbookId)))
+      || (bet.ledgerCalculationStatus != null && !["pending", "calculated", "historical_grade", "unsupported"].includes(String(bet.ledgerCalculationStatus)))
+      || (bet.ledgerCalculationReason != null && !text(bet.ledgerCalculationReason, 100))
+      || (bet.sportsbookSettlementSource != null && !["sportsbook_receipt", "verified_settlement"].includes(String(bet.sportsbookSettlementSource)))
+      || (bet.ledgerCalculationStatus != null && (["calculated", "historical_grade"].includes(String(bet.ledgerCalculationStatus))
+        ? bet.ledgerCalculatedReturn == null || bet.ledgerCalculatedNet == null
+        : bet.ledgerCalculatedReturn != null || bet.ledgerCalculatedNet != null))
+      || (bet.sportsbookSettlementSource == null && (bet.sportsbookReportedReturn != null || bet.sportsbookReportedNet != null))
+      || !onlyKeys(bet, ["id", "sourceMethod", "verificationStatus", "sportsbook", "sportsbookId", "currency", "cashStake", "bonusStake", "potentialReturn", "settledReturn", "settledNet", "ledgerCalculatedReturn", "ledgerCalculatedNet", "ledgerCalculationStatus", "ledgerCalculationReason", "sportsbookReportedReturn", "sportsbookReportedNet", "sportsbookSettlementSource", "placedAt", "recordedAt", "settledAt", "providerStatus"])) throw new Error("Invalid partner Bet receipt");
   }
   if (value.entityType === "pick" || value.entityType === "bet") {
     if (!uuid.test(String(record.ledgerPickId)) || !["published", "corrected", "retracted"].includes(String(record.publicationStatus))
@@ -90,6 +138,38 @@ export function parsePartnerEvent(raw: string): PartnerEvent {
       if (leg.mmaRounds != null && (!Array.isArray(leg.mmaRounds) || leg.mmaRounds.length > 12 || !leg.mmaRounds.every((round) => Number.isInteger(round) && Number(round) > 0))) throw new Error("Invalid partner round group");
     }
     if (new Set(record.legs.map((leg) => (leg as Record<string, unknown>).position)).size !== record.legs.length) throw new Error("Duplicate leg positions");
+  } else if (value.entityType === "product") {
+    const keys = ["id", "creator", "visibility", "headline", "analysis", "publicationStatus", "accessType",
+      "intendedPriceCents", "currency", "intendedBillingPeriod", "monetizationStatus", "createdAt", "updatedAt",
+      "purchaseOptions", "playCount", "membershipSha256", "memberRevisionSha256"];
+    if (Object.keys(record).some((key) => !keys.includes(key)) || Object.keys(record.creator).some((key) => !["id", "handicapperId", "displayName", "profileUrl"].includes(key))
+      || !["published", "retracted"].includes(String(record.publicationStatus))
+      || (record.publicationStatus === "retracted" && record.visibility !== "private")
+      || (record.publicationStatus === "retracted" && (record.headline !== "Withdrawn Product"
+        || record.analysis != null || record.intendedPriceCents != null || record.intendedBillingPeriod != null
+        || !Array.isArray(record.purchaseOptions) || record.purchaseOptions.length !== 0 || record.playCount !== 0))
+      || !["free", "premium"].includes(String(record.accessType))
+      || (record.intendedPriceCents != null && (!Number.isSafeInteger(record.intendedPriceCents) || Number(record.intendedPriceCents) < 0))
+      || !/^[A-Z]{3}$/.test(String(record.currency))
+      || (record.intendedBillingPeriod != null && !["one_time", "weekly", "monthly", "season"].includes(String(record.intendedBillingPeriod)))
+      || !["not_configured", "planned", "ready", "disabled"].includes(String(record.monetizationStatus))
+      || !Array.isArray(record.purchaseOptions) || record.purchaseOptions.length > 5
+      || record.purchaseOptions.some((option) => {
+        if (!option || typeof option !== "object" || Array.isArray(option)) return true;
+        const offer = option as Record<string, unknown>;
+        return Object.keys(offer).some((key) => !["duration", "priceCents", "currency", "renewalAllowed"].includes(key))
+          || !["day_1", "day_3", "day_7", "day_14", "month_1"].includes(String(offer.duration))
+          || !Number.isSafeInteger(offer.priceCents) || Number(offer.priceCents) <= 0
+          || offer.currency !== "USD" || typeof offer.renewalAllowed !== "boolean"
+          || (offer.renewalAllowed && ["day_1", "day_3"].includes(String(offer.duration)));
+      })
+      || new Set(record.purchaseOptions.map((option) => (option as Record<string, unknown>).duration)).size !== record.purchaseOptions.length
+      || !Number.isSafeInteger(record.playCount) || Number(record.playCount) < 0
+      || typeof record.membershipSha256 !== "string" || !/^[a-f0-9]{64}$/.test(record.membershipSha256)
+      || typeof record.memberRevisionSha256 !== "string" || !/^[a-f0-9]{64}$/.test(record.memberRevisionSha256)
+      || ![record.createdAt, record.updatedAt].every((time) => text(time, 40) && Number.isFinite(Date.parse(String(time))))) {
+      throw new Error("Invalid partner Product");
+    }
   } else if (!uuid.test(String(record.productId)) || !["published", "withdrawn"].includes(String(record.status))
     || !Array.isArray(record.pickIds) || record.pickIds.length < 1 || record.pickIds.length > 50
     || !record.pickIds.every((id) => typeof id === "string" && uuid.test(id))
