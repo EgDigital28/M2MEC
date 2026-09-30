@@ -229,6 +229,16 @@ export function winPercentage(winCount: number, lossCount: number) {
   return decided > 0 ? winCount / decided : null;
 }
 
+/**
+ * Profit or loss as a share of the money risked on decided plays. A void's
+ * stake comes back and an open play has no result yet, so neither belongs in
+ * the base: Sep 29's +$26,779 on $127,500 decided is 21.0%, not the 18.79%
+ * it read with the $15,000 void included.
+ */
+export function returnOnRisk(profitLoss: number, decidedRisked: number) {
+  return decidedRisked > 0 ? profitLoss / decidedRisked : null;
+}
+
 function emptySportAccumulator() {
   return {
     winCount: 0,
@@ -236,6 +246,7 @@ function emptySportAccumulator() {
     voidCount: 0,
     openCount: 0,
     totalRisked: 0,
+    decidedRisked: 0,
     totalProfitLoss: 0,
   };
 }
@@ -260,7 +271,7 @@ function finalizeSportStats(
     totalRisked: raw.totalRisked,
     totalProfitLoss: raw.totalProfitLoss,
     winPct: winPercentage(raw.winCount, raw.lossCount),
-    roi: raw.totalRisked > 0 ? raw.totalProfitLoss / raw.totalRisked : null,
+    roi: returnOnRisk(raw.totalProfitLoss, raw.decidedRisked),
     hasActivity:
       raw.winCount + raw.lossCount + raw.voidCount + raw.openCount > 0,
   };
@@ -278,8 +289,10 @@ export function computeBetLedgerStats(entries: BetEntryComputed[]): BetLedgerSta
         stats.openRisk += entry.risk;
       } else if (entry.status === "Win") {
         stats.winCount += 1;
+        stats.decidedRisked += entry.risk;
       } else if (entry.status === "Loss") {
         stats.lossCount += 1;
+        stats.decidedRisked += entry.risk;
       } else if (entry.status === "Void") {
         stats.voidCount += 1;
       }
@@ -288,6 +301,7 @@ export function computeBetLedgerStats(entries: BetEntryComputed[]): BetLedgerSta
     },
     {
       totalEntries: 0,
+      decidedRisked: 0,
       totalProfitLoss: 0,
       totalRisked: 0,
       openCount: 0,
@@ -304,7 +318,7 @@ export function computeBetLedgerStats(entries: BetEntryComputed[]): BetLedgerSta
     ...raw,
     gradedCount,
     winPct: winPercentage(raw.winCount, raw.lossCount),
-    roi: raw.totalRisked > 0 ? raw.totalProfitLoss / raw.totalRisked : null,
+    roi: returnOnRisk(raw.totalProfitLoss, raw.decidedRisked),
     avgRiskPerPlay:
       raw.totalEntries > 0 ? raw.totalRisked / raw.totalEntries : null,
   };
@@ -326,8 +340,10 @@ export function computeSportBetStats(
       current.openCount += 1;
     } else if (entry.status === "Win") {
       current.winCount += 1;
+      current.decidedRisked += entry.risk;
     } else if (entry.status === "Loss") {
       current.lossCount += 1;
+      current.decidedRisked += entry.risk;
     } else if (entry.status === "Void") {
       current.voidCount += 1;
     }
@@ -585,7 +601,8 @@ export type DayResultsStats = {
   gradedCount: number;
   totalProfitLoss: number;
   totalRisked: number;
-  gradedRisked: number;
+  /** Stake on wins and losses only: the base for ROI. */
+  decidedRisked: number;
   winPct: number | null;
   roi: number | null;
 };
@@ -601,13 +618,12 @@ export function computeDayResultsStats(entries: BetEntryComputed[]): DayResultsS
         stats.openCount += 1;
       } else if (entry.status === "Win") {
         stats.winCount += 1;
-        stats.gradedRisked += entry.risk;
+        stats.decidedRisked += entry.risk;
       } else if (entry.status === "Loss") {
         stats.lossCount += 1;
-        stats.gradedRisked += entry.risk;
+        stats.decidedRisked += entry.risk;
       } else if (entry.status === "Void") {
         stats.voidCount += 1;
-        stats.gradedRisked += entry.risk;
       }
 
       return stats;
@@ -620,7 +636,7 @@ export function computeDayResultsStats(entries: BetEntryComputed[]): DayResultsS
       openCount: 0,
       totalProfitLoss: 0,
       totalRisked: 0,
-      gradedRisked: 0,
+      decidedRisked: 0,
     },
   );
 
@@ -630,7 +646,7 @@ export function computeDayResultsStats(entries: BetEntryComputed[]): DayResultsS
     ...raw,
     gradedCount,
     winPct: winPercentage(raw.winCount, raw.lossCount),
-    roi: raw.gradedRisked > 0 ? raw.totalProfitLoss / raw.gradedRisked : null,
+    roi: returnOnRisk(raw.totalProfitLoss, raw.decidedRisked),
   };
 }
 
