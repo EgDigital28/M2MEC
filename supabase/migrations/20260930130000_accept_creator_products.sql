@@ -23,7 +23,7 @@ begin
     then raise exception 'Creator receiver predecessor changed';end if;
   definition:=replace(definition,old_kind,'kind not in (''pick'',''package'',''bet'',''product'')');
   definition:=replace(definition,old_visibility,
-    'when kind=''product'' then p_event#>>''{record,visibility}'' is null or p_event#>>''{record,visibility}'' not in (''public'',''unlisted'') '||old_visibility);
+    'when kind=''product'' then not coalesce((p_event#>>''{record,publicationStatus}''=''published'' and p_event#>>''{record,visibility}'' in (''public'',''unlisted'')) or (p_event#>>''{record,publicationStatus}''=''retracted'' and p_event#>>''{record,visibility}''=''private''),false) '||old_visibility);
   execute definition;
 end $product_receiver$;
 

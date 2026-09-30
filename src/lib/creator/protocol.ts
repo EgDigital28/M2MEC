@@ -33,6 +33,7 @@ export function parsePartnerEvent(raw: string): PartnerEvent {
     || !text(record.creator.displayName, 200) || !text(record.creator.profileUrl, 500)
     || !(value.entityType === "bet" ? record.visibility === "private"
       : value.entityType === "product" ? ["public", "unlisted"].includes(String(record.visibility))
+        || (record.visibility === "private" && record.publicationStatus === "retracted")
       : ["public", "premium"].includes(String(record.visibility)))
     || record.id !== value.entityId || !text(record.headline, 200)
     || (record.analysis !== null && record.analysis !== undefined && (typeof record.analysis !== "string" || record.analysis.length > 6000))) {
@@ -142,7 +143,12 @@ export function parsePartnerEvent(raw: string): PartnerEvent {
       "intendedPriceCents", "currency", "intendedBillingPeriod", "monetizationStatus", "createdAt", "updatedAt",
       "purchaseOptions", "playCount", "membershipSha256", "memberRevisionSha256"];
     if (Object.keys(record).some((key) => !keys.includes(key)) || Object.keys(record.creator).some((key) => !["id", "handicapperId", "displayName", "profileUrl"].includes(key))
-      || record.publicationStatus !== "published" || !["free", "premium"].includes(String(record.accessType))
+      || !["published", "retracted"].includes(String(record.publicationStatus))
+      || (record.publicationStatus === "retracted" && record.visibility !== "private")
+      || (record.publicationStatus === "retracted" && (record.headline !== "Withdrawn Product"
+        || record.analysis != null || record.intendedPriceCents != null || record.intendedBillingPeriod != null
+        || !Array.isArray(record.purchaseOptions) || record.purchaseOptions.length !== 0 || record.playCount !== 0))
+      || !["free", "premium"].includes(String(record.accessType))
       || (record.intendedPriceCents != null && (!Number.isSafeInteger(record.intendedPriceCents) || Number(record.intendedPriceCents) < 0))
       || !/^[A-Z]{3}$/.test(String(record.currency))
       || (record.intendedBillingPeriod != null && !["one_time", "weekly", "monthly", "season"].includes(String(record.intendedBillingPeriod)))

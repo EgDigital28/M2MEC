@@ -194,6 +194,18 @@ test("Product receipts accept unlisted publication and preserve versioned member
     assert.equal(stored.entity_type, "product");
     assert.equal(stored.entity_version, 2);
     assert.equal(stored.record.playCount, 2);
+    const withdrawn = { ...next, eventId: "30000000-0000-4000-8000-000000000003", entityVersion: 3,
+      record: { ...next.record, visibility: "private", headline: "Withdrawn Product", analysis: null,
+        publicationStatus: "retracted", intendedPriceCents: null, intendedBillingPeriod: null,
+        monetizationStatus: "disabled", purchaseOptions: [], playCount: 0,
+        membershipSha256: "d".repeat(64), memberRevisionSha256: "d".repeat(64) } };
+    assert.equal((await accept(db, withdrawn)).outcome, "applied");
+    const latest = (await db.query<{ record: { visibility: string; publicationStatus: string; analysis: string | null } }>(
+      "select record from creator_partner_entities where entity_type='product'"
+    )).rows[0]!.record;
+    assert.equal(latest.visibility, "private");
+    assert.equal(latest.publicationStatus, "retracted");
+    assert.equal(latest.analysis, null);
     assert.throws(() => parsePartnerEvent(JSON.stringify({ ...first, record: { ...first.record, visibility: "private" } })), /Invalid partner/);
     assert.throws(() => parsePartnerEvent(JSON.stringify({ ...first, record: { ...first.record, privateNotes: "secret" } })), /Invalid partner/);
   } finally { await db.close(); }
