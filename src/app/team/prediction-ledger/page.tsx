@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { partnerLegLabel } from "@/lib/creator/protocol";
 import { canViewCreatorFeed } from "@/lib/creator/access";
 import { createClient } from "@/lib/supabase/server";
+import { readLedgerApiUsage } from "@/lib/creator/usage";
 
 const text = (value: unknown) => typeof value === "string" ? value : "";
 const object = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -15,8 +16,30 @@ function time(value: unknown) {
 export default async function PredictionLedgerPage({ searchParams }: { searchParams: Promise<{ kind?: string; page?: string; entity?: string }> }) {
   if (!await canViewCreatorFeed()) notFound();
   const params = await searchParams;
-  const kind = params.kind === "package" ? "package" : params.kind === "bet" ? "bet" : "pick";
+  const kind = params.kind === "api" ? "api" : params.kind === "package" ? "package" : params.kind === "bet" ? "bet" : "pick";
   const page = Math.max(1, Math.min(10_000, Number.parseInt(params.page ?? "1", 10) || 1));
+  if (kind === "api") {
+    const usage = await readLedgerApiUsage().catch(() => null);
+    return <div className="space-y-6">
+      <div><p className="text-sm uppercase tracking-widest text-accent">Creator destination</p><h1 className="mt-3 text-3xl font-semibold">Prediction Ledger</h1><p className="mt-3 text-muted">M2MEC company API plan and usage.</p></div>
+      <nav className="flex flex-wrap gap-2" aria-label="Prediction Ledger content">
+        <Link className="rounded-lg border border-border px-4 py-2" href="?kind=pick">Plays</Link>
+        <Link className="rounded-lg border border-border px-4 py-2" href="?kind=package">Packages</Link>
+        <Link className="rounded-lg border border-border px-4 py-2" href="?kind=bet">Bets</Link>
+        <Link className="rounded-lg border border-accent px-4 py-2 text-accent" href="?kind=api">API</Link>
+      </nav>
+      {!usage ? <p role="alert" className="rounded-2xl border border-red-400/30 p-5 text-red-300">Ledger API usage is unavailable. Please try again later.</p> : <>
+        <section className="grid gap-4 sm:grid-cols-3">
+          <div className="rounded-2xl border border-border p-5"><p className="text-sm text-muted">Plan</p><p className="mt-2 text-2xl font-semibold capitalize">{usage.plan}</p><p className="mt-1 text-sm text-muted">{usage.plan==="free"?"$0 / month":"See Ledger company account for price"}</p></div>
+          <div className="rounded-2xl border border-border p-5"><p className="text-sm text-muted">API calls this UTC month</p><p className="mt-2 text-2xl font-semibold">{usage.calls}</p></div>
+          <div className="rounded-2xl border border-border p-5"><p className="text-sm text-muted">Credits used</p><p className="mt-2 text-2xl font-semibold">{usage.usedCredits}{usage.monthlyCreditLimit == null ? " · no cap" : ` / ${usage.monthlyCreditLimit}`}</p></div>
+        </section>
+        <p className="text-sm text-muted">Tracks Ledger API calls from company activation forward. Legacy push deliveries are separate. {usage.failedCalls} failed calls · {usage.retryCalls} retried calls. Keys are managed in the <a className="text-accent underline" href="https://www.thepredictionledger.com/creator/company">Ledger company account</a>.</p>
+        <section className="rounded-2xl border border-border p-5"><h2 className="text-lg font-semibold">Operations and cost</h2><div className="mt-3 divide-y divide-border">{Object.entries(usage.operationCosts).map(([operation, cost]) => { const stats = usage.byOperation?.[operation]; return <div key={operation} className="flex flex-wrap justify-between gap-2 py-3 text-sm"><span>{operation.replaceAll("_", " ")}</span><span>{stats?.calls ?? 0} calls · {cost} credits per call · {stats?.credits ?? 0} credits used</span></div>; })}</div></section>
+        <section className="rounded-2xl border border-border p-5"><h2 className="text-lg font-semibold">Recent API calls</h2><div className="mt-3 divide-y divide-border">{usage.recent?.map((row, index) => <div key={`${row.occurredAt}-${index}`} className="flex flex-wrap justify-between gap-2 py-3 text-sm"><span>{row.operation.replaceAll("_", " ")} · {row.outcome}</span><span className="text-muted">{row.credits} credits · {time(row.occurredAt)}</span></div>)}{!usage.recent?.length ? <p className="py-3 text-sm text-muted">No API calls recorded yet.</p> : null}</div></section>
+      </>}
+    </div>;
+  }
   const db = await createClient();
   let query = db.from("creator_partner_entities")
     .select("entity_id,entity_type,entity_version,record,received_at", { count: "exact" })
@@ -31,6 +54,7 @@ export default async function PredictionLedgerPage({ searchParams }: { searchPar
       <Link className={`rounded-lg border px-4 py-2 ${kind === "pick" ? "border-accent text-accent" : "border-border"}`} href="?kind=pick">Plays</Link>
       <Link className={`rounded-lg border px-4 py-2 ${kind === "package" ? "border-accent text-accent" : "border-border"}`} href="?kind=package">Packages</Link>
       <Link className={`rounded-lg border px-4 py-2 ${kind === "bet" ? "border-accent text-accent" : "border-border"}`} href="?kind=bet">Bets</Link>
+      <Link className="rounded-lg border border-border px-4 py-2" href="?kind=api">API</Link>
       <RefreshCreatorFeed />
     </nav>
     {error ? <p role="alert" className="rounded-xl border border-red-400/30 p-5 text-red-300">The Creator feed could not be loaded. Refresh to try again.</p>
