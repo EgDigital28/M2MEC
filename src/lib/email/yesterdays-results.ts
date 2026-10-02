@@ -1,4 +1,5 @@
 import { CONFIDENTIALITY_NOTICE } from "@/lib/reports/confidentiality";
+import { betCellHtml, betEventLines } from "@/lib/email/bet-cell";
 import {
   computeDayResultsStats,
   formatCurrency,
@@ -62,7 +63,7 @@ function carriedTable(carried: BetEntryComputed[]) {
       cells: [
         renderEmailHtmlCell(formatEventDate(entry.event_date)),
         renderEmailHtmlCell(entry.sport),
-        renderEmailHtmlCell(entry.event_name),
+        betCellHtml(entry, entry.event_date),
         renderEmailHtmlCell(formatOdds(entry.line)),
         renderEmailHtmlCell(formatCurrency(entry.risk)),
         renderEmailHtmlCell(entry.status),
@@ -70,6 +71,7 @@ function carriedTable(carried: BetEntryComputed[]) {
       ],
       cellColors: [undefined, undefined, undefined, undefined, undefined, undefined, emailProfitLossColor(entry.profit_loss)],
     })),
+    { compact: true },
   );
 }
 
@@ -121,10 +123,11 @@ export function yesterdaysResultsHtml({ entries, resultsDate, carriedOver = [] }
     4,
   );
 
+  // No date column: every row is the results date, which the heading gives.
+  // The carried-over table keeps its dates, since those differ.
   const resultsTable = entries.length
     ? renderEmailTable(
         [
-          { key: "date", label: "Date" },
           { key: "sport", label: "Sport" },
           { key: "bet", label: "Bet" },
           { key: "line", label: "Line", align: "right", mono: true },
@@ -134,24 +137,17 @@ export function yesterdaysResultsHtml({ entries, resultsDate, carriedOver = [] }
         ],
         entries.map((entry) => ({
           cells: [
-            renderEmailHtmlCell(formatEventDate(entry.event_date)),
             renderEmailHtmlCell(entry.sport),
-            renderEmailHtmlCell(entry.event_name),
+            betCellHtml(entry, resultsDate),
             renderEmailHtmlCell(formatOdds(entry.line)),
             renderEmailHtmlCell(formatCurrency(entry.risk)),
             renderEmailHtmlCell(entry.status),
             renderEmailHtmlCell(formatCurrency(entry.profit_loss)),
           ],
-          cellColors: [
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            emailProfitLossColor(entry.profit_loss),
-          ],
+          cellColors: [undefined, undefined, undefined, undefined, undefined, emailProfitLossColor(entry.profit_loss)],
         })),
+        // Rows do not wrap, so the columns sit closer together to fit.
+        { compact: true },
       )
     : renderEmailEmptyState("No plays recorded for this date.");
 
@@ -193,18 +189,19 @@ Win %: ${formatPercent(stats.winPct)}
 ROI: ${formatPercent(stats.roi)}
   `.trim();
 
-  const lines = entries.map(
-    (entry) =>
+  // The bet's line, then its game or result lines indented beneath it.
+  const textLine = (entry: BetEntryComputed, day: string) =>
+    [
       `${formatEventDate(entry.event_date)} | ${entry.sport} | ${entry.event_name} | ${formatOdds(entry.line)} | Risk ${formatCurrency(entry.risk)} | ${entry.status} | P/L ${formatCurrency(entry.profit_loss)}`,
-  );
+      ...betEventLines(entry, day).map((line) => `  ${line}`),
+    ].join("\n");
+
+  const lines = entries.map((entry) => textLine(entry, resultsDate));
 
   const pending = pendingNote(stats.openCount);
   const carried = carriedOver.length
     ? `\n\nGRADED SINCE LAST EMAIL\n${carriedOver
-        .map(
-          (entry) =>
-            `${formatEventDate(entry.event_date)} | ${entry.sport} | ${entry.event_name} | ${formatOdds(entry.line)} | Risk ${formatCurrency(entry.risk)} | ${entry.status} | P/L ${formatCurrency(entry.profit_loss)}`,
-        )
+        .map((entry) => textLine(entry, entry.event_date))
         .join("\n")}\n${carriedSummary(carriedOver)}`
     : "";
   const body = `${

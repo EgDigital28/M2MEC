@@ -15,6 +15,7 @@ test('Ledger Bet projection maps before insertion, applies grades once, and reje
  await db.exec(sql('20260919183700_normalize_ledger_ufc_card_mapping.sql'));
  await db.exec(sql('038_ledger_touchdown_headline.sql'));
  await db.exec(sql('039_ledger_bet_events.sql'));
+ await db.exec(sql('042_ledger_bet_event_results.sql'));
  await db.exec('grant select,insert,update,delete on bet_entries to authenticated,service_role');
  const headlines=[
   [{selection:'Ryan Gandra',marketType:'fighter_method',mmaFinishMethod:'ko_tko',mmaRounds:null,period:'full_event'},'Ryan Gandra by KO/TKO'],
@@ -52,7 +53,7 @@ test('Ledger Bet projection maps before insertion, applies grades once, and reje
  record.legs=[{sport:'mma',league:'UFC 331: Van vs. Pantoja 2',eventName:'Ozzy Diaz vs Ryan Gandra',selection:'Ryan Gandra',marketType:'fighter_method',line:null,period:'full_event',mmaFinishMethod:'ko_tko'}];
  await accept(4);
  let mma=(await db.query<{sport_id:string;event_name:string;status:string;ledger_to_win:number;ledger_profit_loss:number}>("select * from bet_entries where ledger_entity_id=$1",[id(5)])).rows[0];
- assert.deepEqual((await db.query<{ledger_events:unknown}>('select ledger_events from bet_entries where ledger_entity_id=$1',[id(5)])).rows[0].ledger_events,[{eventName:'Ozzy Diaz vs Ryan Gandra',startsAt:null}]);
+ assert.deepEqual((await db.query<{ledger_events:unknown}>('select ledger_events from bet_entries where ledger_entity_id=$1',[id(5)])).rows[0].ledger_events,[{eventName:'Ozzy Diaz vs Ryan Gandra',startsAt:null,result:null}]);
  assert.equal(mma.sport_id,id(4));assert.equal(mma.event_name,'Ryan Gandra by KO/TKO');assert.equal(mma.status,'Open');assert.equal(Number(mma.ledger_to_win).toFixed(2),'13157.89');
  await db.query('select project_ledger_bet($1)',[id(5)]);
  assert.equal((await db.query('select * from bet_entries where ledger_entity_id=$1',[id(5)])).rows.length,1);
@@ -76,7 +77,16 @@ test('Ledger Bet projection maps before insertion, applies grades once, and reje
   {sport:'mma',league:'UFC 331: Van vs. Pantoja 2',eventId:id(32),eventName:'Van vs Pantoja',startsAt:'2026-09-20T03:00:00Z',selection:'Pantoja',marketType:'moneyline',line:null,period:'full_event',mmaFinishMethod:null},
   {sport:'mma',league:'UFC 331: Van vs. Pantoja 2',eventId:id(31),eventName:'Ozzy Diaz vs Ryan Gandra',startsAt:'2026-09-19T23:00:00Z',selection:'Ryan Gandra',marketType:'fighter_method',line:null,period:'full_event',mmaFinishMethod:'ko_tko'}] as unknown as typeof record.legs;
  await accept(12);
- assert.deepEqual((await db.query<{ledger_events:unknown}>('select ledger_events from bet_entries where ledger_entity_id=$1',[id(9)])).rows[0].ledger_events,[{eventName:'Ozzy Diaz vs Ryan Gandra',startsAt:'2026-09-19T23:00:00Z'},{eventName:'Van vs Pantoja',startsAt:'2026-09-20T03:00:00Z'}]);
+ assert.deepEqual((await db.query<{ledger_events:unknown}>('select ledger_events from bet_entries where ledger_entity_id=$1',[id(9)])).rows[0].ledger_events,[{eventName:'Ozzy Diaz vs Ryan Gandra',startsAt:'2026-09-19T23:00:00Z',result:null},{eventName:'Van vs Pantoja',startsAt:'2026-09-20T03:00:00Z',result:null}]);
+ record.legs=[record.legs[0]];
+ // A proven result travels with the game; a pending one does not.
+ const graded={sport:'mma',league:'UFC 331: Van vs. Pantoja 2',eventId:id(31),eventName:'North Texas vs Tulsa',startsAt:'2026-10-02T01:00:00Z',selection:'Tulsa',marketType:'spread',line:1.5,period:'full_event',mmaFinishMethod:null,
+  settlement:{status:'original',observed:{event_status:'completed',away_score:45,home_score:44},source:{awayParticipantLabel:'North Texas Mean Green',homeParticipantLabel:'Tulsa Golden Hurricane'}}};
+ record.id=id(13);record.bet.id=id(13);record.legs=[graded] as unknown as typeof record.legs;await accept(13);
+ const result=(await db.query<{ledger_events:{result:{status:string;observed:{away_score:number}}|null}[]}>('select ledger_events from bet_entries where ledger_entity_id=$1',[id(13)])).rows[0].ledger_events[0].result;
+ assert.equal(result?.status,'original');assert.equal(result?.observed.away_score,45);
+ record.id=id(14);record.bet.id=id(14);record.legs=[{...graded,settlement:{status:'pending'}}] as unknown as typeof record.legs;await accept(14);
+ assert.equal((await db.query<{ledger_events:{result:unknown}[]}>('select ledger_events from bet_entries where ledger_entity_id=$1',[id(14)])).rows[0].ledger_events[0].result,null);
  record.legs=[record.legs[0]];
  // Unknown MMA promotions must not silently become UFC.
  record.id=id(6);record.bet.id=id(6);record.legs[0].league='PFL 2026';await accept(6);
