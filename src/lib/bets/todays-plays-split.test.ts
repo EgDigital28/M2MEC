@@ -119,3 +119,23 @@ test("a parlay sorts by its latest game, whatever order its legs are listed in",
 
   assert.deepEqual(splitTodaysPlays(entries, null).newPlays.map((p) => p.id), ["4pm single", "parlay 1pm + 8pm"]);
 });
+
+test("a graded game reads as its result, labelled Result; a pending one keeps Event", async () => {
+  const { describeLedgerEvent, ledgerEventLabel, parseLedgerEvents } = await import("./ledger-events.ts");
+  const [finished, pending] = parseLedgerEvents([
+    {
+      eventName: "North Texas Mean Green vs Tulsa Golden Hurricane",
+      startsAt: "2026-10-02T01:00:00Z",
+      result: {
+        status: "original",
+        observed: { event_status: "completed", away_score: 45, home_score: 44 },
+        source: { awayParticipantLabel: "North Texas Mean Green", homeParticipantLabel: "Tulsa Golden Hurricane" },
+      },
+    },
+    { eventName: "Los Angeles Chargers vs Buffalo Bills", startsAt: "2026-10-02T20:25:00Z", result: null },
+  ]);
+
+  assert.equal(`${ledgerEventLabel(0, 2, finished)}: ${describeLedgerEvent(finished)}`, "Result 1: North Texas Mean Green 45 – Tulsa Golden Hurricane 44 · Final");
+  assert.equal(`${ledgerEventLabel(1, 2, pending)}: ${describeLedgerEvent(pending)}`, "Event 2: Los Angeles Chargers vs Buffalo Bills · Oct 2, 2026, 4:25 PM ET");
+  assert.equal(ledgerEventLabel(0, 1, finished), "Result");
+});

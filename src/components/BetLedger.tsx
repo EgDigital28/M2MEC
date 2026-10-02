@@ -155,7 +155,7 @@ function BetCell({ entry }: { entry: BetEntryComputed }) {
       </span>
       {events.map((event, index) => (
         <span key={index} className="block text-muted">
-          {ledgerEventLabel(index, events.length)}: {describeLedgerEvent(event)}
+          {ledgerEventLabel(index, events.length, event)}: {describeLedgerEvent(event)}
         </span>
       ))}
     </span>

@@ -5,7 +5,7 @@ import {
   formatOdds,
   type BetEntryComputed,
 } from "@/lib/bets/calculations";
-import { describeLedgerEvent, parseLedgerEvents } from "@/lib/bets/ledger-events";
+import { betCellHtml, betEventLines } from "@/lib/email/bet-cell";
 import { todaysPlaysTotals } from "@/lib/bets/todays-plays-split";
 import { escapeHtml } from "@/lib/email/utils";
 import {
@@ -82,29 +82,6 @@ function resultColor(entry: BetEntryComputed) {
     : EMAIL_COLORS.muted;
 }
 
-/**
- * One line per game, unlabelled: sitting under the bet they need no "Event"
- * prefix, and the email keeps them short so rows do not wrap. None for
- * hand-entered plays. The whole email is about one day, so a game on that day
- * shows only its time; a game on another day keeps its date.
- */
-function eventLines(entry: BetEntryComputed, day: string) {
-  return parseLedgerEvents(entry.ledger_events).map((event) => describeLedgerEvent(event, day));
-}
-
-/**
- * The bet, with its game or games beneath it in smaller text. Every line is
- * held to one line: rows do not wrap in this email.
- */
-function betCell(entry: BetEntryComputed, day: string) {
-  const lines = eventLines(entry, day)
-    .map(
-      (line) =>
-        `<br /><span style="font-size:10px;line-height:1.5;color:${EMAIL_COLORS.muted};white-space:nowrap;">${escapeHtml(line)}</span>`,
-    )
-    .join("");
-  return `<span style="white-space:nowrap;">${escapeHtml(entry.event_name)}</span>${lines}`;
-}
 
 function playsTable(entries: BetEntryComputed[], day: string, highlight = false) {
   // No date column: every play in this email is today's, and the heading says
@@ -121,7 +98,7 @@ function playsTable(entries: BetEntryComputed[], day: string, highlight = false)
     entries.map((entry) => ({
       cells: [
         renderEmailHtmlCell(entry.sport),
-        betCell(entry, day),
+        betCellHtml(entry, day),
         renderEmailHtmlCell(formatOdds(entry.line)),
         renderEmailHtmlCell(formatCurrency(entry.risk)),
         renderEmailHtmlCell(formatCurrency(entry.to_win)),
@@ -225,7 +202,7 @@ export function todaysPlaysHtml({ sentOnDate, isFirst, newPlays, earlierPlays }:
 
 function textLine(entry: BetEntryComputed, day: string) {
   const line = `${formatEventDate(entry.event_date)} | ${entry.sport} | ${entry.event_name} | ${formatOdds(entry.line)} | Risk ${formatCurrency(entry.risk)} | To Win ${formatCurrency(entry.to_win)} | ${resultLabel(entry)}`;
-  return [line, ...eventLines(entry, day).map((event) => `  ${event}`)].join("\n");
+  return [line, ...betEventLines(entry, day).map((event) => `  ${event}`)].join("\n");
 }
 
 function textTotals(entries: BetEntryComputed[]) {
