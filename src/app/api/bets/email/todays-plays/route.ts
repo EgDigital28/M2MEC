@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getTodayDateString } from "@/lib/bets/calculations";
-import { loadTodaysPlays } from "@/lib/bets/todays-plays-digest";
+import { loadLookahead, loadTodaysPlays } from "@/lib/bets/todays-plays-digest";
 import { splitTodaysPlays } from "@/lib/bets/todays-plays-split";
 import { requireMinimumTier } from "@/lib/auth/profile";
 import {
@@ -78,7 +78,16 @@ export async function POST(request: Request) {
   // Through the same split as the scheduled email, with no previous send, so
   // the manual one is ordered the same way: open plays by game time first,
   // graded plays at the bottom.
-  const emailParams = { sentOnDate: today, ...splitTodaysPlays(entries, null) };
+  let lookahead;
+
+  try {
+    lookahead = await loadLookahead(supabase, today);
+  } catch (error) {
+    console.error("Tomorrow's plays fetch failed:", error);
+    return NextResponse.json({ error: "Could not load tomorrow's plays." }, { status: 500 });
+  }
+
+  const emailParams = { sentOnDate: today, ...splitTodaysPlays(entries, null), lookahead };
 
   const { error: emailError } = await resend.emails.send({
     from: getResendFromEmail(),

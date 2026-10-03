@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { withComputedFields, type BetEntryRow } from "@/lib/bets/calculations";
+import { withComputedFields, type BetEntryComputed, type BetEntryRow } from "@/lib/bets/calculations";
+import { compareWithinDay } from "@/lib/bets/ledger-events";
 import { splitTodaysPlays, type TodaysPlaysSplit } from "@/lib/bets/todays-plays-split";
 
 /**
@@ -45,7 +46,25 @@ export type TodaysPlaysDigest = TodaysPlaysSplit & {
   lastSentAt: string | null;
   /** The check sends only when this person has something new. */
   shouldSend: boolean;
+  /** Plays already placed on tomorrow's games, shown when there are any. */
+  lookahead: BetEntryComputed[];
 };
+
+/** The day after `date` (both YYYY-MM-DD). */
+export function dayAfter(date: string) {
+  const [year, month, day] = date.split("-").map(Number);
+  const next = new Date(Date.UTC(year, month - 1, day + 1));
+  return next.toISOString().slice(0, 10);
+}
+
+/**
+ * Plays on tomorrow's games, in the same order as today's. They ride along in
+ * a today's plays email; on their own they do not trigger one, since
+ * tomorrow's first email lists them anyway.
+ */
+export async function loadLookahead(db: SupabaseClient, date: string) {
+  return (await loadTodaysPlays(db, dayAfter(date))).sort(compareWithinDay);
+}
 
 /** What the next check would send to each person, right now. */
 export async function buildTodaysPlaysDigests(
@@ -53,14 +72,15 @@ export async function buildTodaysPlaysDigests(
   recipients: string[],
   date: string,
 ) {
-  const [entries, latest] = await Promise.all([
+  const [entries, latest, lookahead] = await Promise.all([
     loadTodaysPlays(db, date),
     lastTodaysPlaysSends(db, date),
+    loadLookahead(db, date),
   ]);
 
   return recipients.map((recipient): TodaysPlaysDigest => {
     const lastSentAt = latest.get(recipient.toLowerCase()) ?? null;
     const split = splitTodaysPlays(entries, lastSentAt);
-    return { ...split, recipient, lastSentAt, shouldSend: split.newPlays.length > 0 };
+    return { ...split, recipient, lastSentAt, shouldSend: split.newPlays.length > 0, lookahead };
   });
 }

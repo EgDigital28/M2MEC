@@ -16,6 +16,7 @@ test('Ledger Bet projection maps before insertion, applies grades once, and reje
  await db.exec(sql('038_ledger_touchdown_headline.sql'));
  await db.exec(sql('039_ledger_bet_events.sql'));
  await db.exec(sql('042_ledger_bet_event_results.sql'));
+ await db.exec(sql('043_ledger_bet_game_date.sql'));
  await db.exec('grant select,insert,update,delete on bet_entries to authenticated,service_role');
  const headlines=[
   [{selection:'Ryan Gandra',marketType:'fighter_method',mmaFinishMethod:'ko_tko',mmaRounds:null,period:'full_event'},'Ryan Gandra by KO/TKO'],
@@ -85,6 +86,8 @@ test('Ledger Bet projection maps before insertion, applies grades once, and reje
  record.id=id(13);record.bet.id=id(13);record.legs=[graded] as unknown as typeof record.legs;await accept(13);
  const result=(await db.query<{ledger_events:{result:{status:string;observed:{away_score:number}}|null}[]}>('select ledger_events from bet_entries where ledger_entity_id=$1',[id(13)])).rows[0].ledger_events[0].result;
  assert.equal(result?.status,'original');assert.equal(result?.observed.away_score,45);
+ // Placed Sep 19, but the game starts Oct 2 01:00 UTC, which is Oct 1 in Eastern time: dated by the game.
+ assert.equal((await db.query<{d:string}>("select event_date::text d from bet_entries where ledger_entity_id=$1",[id(13)])).rows[0].d,'2026-10-01');
  record.id=id(14);record.bet.id=id(14);record.legs=[{...graded,settlement:{status:'pending'}}] as unknown as typeof record.legs;await accept(14);
  assert.equal((await db.query<{ledger_events:{result:unknown}[]}>('select ledger_events from bet_entries where ledger_entity_id=$1',[id(14)])).rows[0].ledger_events[0].result,null);
  record.legs=[record.legs[0]];

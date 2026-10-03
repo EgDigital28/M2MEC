@@ -69,6 +69,7 @@ Note `20260919183700_normalize_ledger_ufc_card_mapping.sql`: it patches `project
 ### Domain areas
 
 - **Bets** — `bet_entries` joined to `sports`; derived P/L in `src/lib/bets/calculations.ts` (never persisted). Ledger-projected rows coexist with manually entered ones and are distinguished by `ledger_entity_id`.
+  - A Ledger play's `event_date` is the **game day** (its latest leg's start, Eastern), not the day it was placed; set by the `fill_ledger_bet_events` trigger (migration 043), which also fills `ledger_events` (each game's name, start and proven result). Every daily view, email and total groups by it. Today's plays adds a "Tomorrow's look ahead" for plays dated tomorrow, shown only when there are any; it rides along and never triggers a send.
 - **Email** — Resend, templates in `src/lib/email/`. Sends (today's plays, yesterday's results, weekly summary) are logged to `bet_email_sends` for history and duplicate warnings.
   - Three sends are scheduled in `vercel.json`: yesterday's results (`/api/cron/yesterdays-results`), today's plays (`/api/cron/todays-plays`) and week in review (`/api/cron/week-in-review`, Mondays 1–3am ET, the Monday–Sunday week just ended, sending regardless on the 3am attempt). Vercel runs in UTC, so each cron fires across a wider UTC window and the route gates on the Eastern hour (and weekday).
   - Each has an on/off switch in `email_automation_settings`, set from `/team/email-automation` (admin menu under the name in the header). Recipients live in `src/lib/email/automation.ts`.

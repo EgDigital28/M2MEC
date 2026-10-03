@@ -16,6 +16,7 @@ import {
   renderEmailSection,
   renderEmailShell,
   renderEmailSubheading,
+  renderEmailSummaryLine,
   renderEmailTable,
 } from "@/lib/email/layout";
 
@@ -34,7 +35,32 @@ type TodaysPlaysEmailParams = {
   newPlays: BetEntryComputed[];
   /** Plays already sent today. Always empty on a first email. */
   earlierPlays: BetEntryComputed[];
+  /** Plays on tomorrow's games. The section is left out when empty. */
+  lookahead?: BetEntryComputed[];
 };
+
+function nextDay(date: string) {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10);
+}
+
+/** "2 plays · Risk $35,000.00 · To win $50,185.71" for tomorrow's plays. */
+function lookaheadSummary(plays: BetEntryComputed[]) {
+  const risk = plays.reduce((sum, entry) => sum + entry.risk, 0);
+  const toWin = plays.reduce((sum, entry) => sum + entry.to_win, 0);
+  return [plural(plays.length, "play"), `Risk ${formatCurrency(risk)}`, `To win ${formatCurrency(toWin)}`];
+}
+
+/** Tomorrow's look ahead: below today's totals, and only when there is any. */
+function lookaheadHtml(sentOnDate: string, plays: BetEntryComputed[]) {
+  if (plays.length === 0) return "";
+  const tomorrow = nextDay(sentOnDate);
+  return `
+    ${renderEmailSubheading(`Tomorrow's look ahead · ${formatSentOnDate(tomorrow)}`)}
+    ${playsTable(plays, tomorrow)}
+    ${renderEmailSummaryLine(lookaheadSummary(plays).map((part) => renderEmailHtmlCell(part)))}
+  `;
+}
 
 function formatSentOnDate(date: string) {
   const [year, month, day] = date.split("-").map(Number);
@@ -171,7 +197,7 @@ function totalsBlock(entries: BetEntryComputed[]) {
   `;
 }
 
-export function todaysPlaysHtml({ sentOnDate, isFirst, newPlays, earlierPlays }: TodaysPlaysEmailParams) {
+export function todaysPlaysHtml({ sentOnDate, isFirst, newPlays, earlierPlays, lookahead = [] }: TodaysPlaysEmailParams) {
   const all = [...newPlays, ...earlierPlays];
   const date = formatSentOnDate(sentOnDate);
 
@@ -184,6 +210,7 @@ export function todaysPlaysHtml({ sentOnDate, isFirst, newPlays, earlierPlays }:
       })}
       ${newPlays.length ? playsTable(newPlays, sentOnDate) : renderEmailEmptyState("No plays scheduled for today.")}
       ${totalsBlock(all)}
+      ${lookaheadHtml(sentOnDate, lookahead)}
     `);
   }
 
@@ -197,6 +224,7 @@ export function todaysPlaysHtml({ sentOnDate, isFirst, newPlays, earlierPlays }:
     ${playsTable(newPlays, sentOnDate, true)}
     ${earlierPlays.length ? `${renderEmailSubheading("Sent earlier today")}${playsTable(earlierPlays, sentOnDate)}` : ""}
     ${totalsBlock(all)}
+    ${lookaheadHtml(sentOnDate, lookahead)}
   `);
 }
 
@@ -224,7 +252,7 @@ function textTotals(entries: BetEntryComputed[]) {
   return lines.join("\n");
 }
 
-export function todaysPlaysText({ sentOnDate, isFirst, newPlays, earlierPlays }: TodaysPlaysEmailParams) {
+export function todaysPlaysText({ sentOnDate, isFirst, newPlays, earlierPlays, lookahead = [] }: TodaysPlaysEmailParams) {
   const all = [...newPlays, ...earlierPlays];
   const date = formatSentOnDate(sentOnDate);
   const totals = textTotals(all);
@@ -242,7 +270,13 @@ export function todaysPlaysText({ sentOnDate, isFirst, newPlays, earlierPlays }:
   return `
 Today's Plays
 
-${body}${totals ? `\n\n${totals}` : ""}
+${body}${totals ? `\n\n${totals}` : ""}${
+    lookahead.length
+      ? `\n\nTOMORROW'S LOOK AHEAD · ${formatSentOnDate(nextDay(sentOnDate))}\n${lookahead
+          .map((entry) => textLine(entry, nextDay(sentOnDate)))
+          .join("\n")}\n${lookaheadSummary(lookahead).join(" · ")}`
+      : ""
+  }
 
 — M2MEC
 
