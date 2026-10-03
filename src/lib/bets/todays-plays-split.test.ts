@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { BetEntryComputed } from "./calculations.ts";
-import { splitTodaysPlays, todaysPlaysTotals } from "./todays-plays-split.ts";
+import { lookaheadPlays, spanningPlays, splitTodaysPlays, todaysPlaysTotals } from "./todays-plays-split.ts";
 
 function play(
   name: string,
@@ -138,4 +138,25 @@ test("a graded game reads as its result, labelled Result; a pending one keeps Ev
   assert.equal(`${ledgerEventLabel(0, 2, finished)}: ${describeLedgerEvent(finished)}`, "Result 1: North Texas Mean Green 45 – Tulsa Golden Hurricane 44 · Final");
   assert.equal(`${ledgerEventLabel(1, 2, pending)}: ${describeLedgerEvent(pending)}`, "Event 2: Los Angeles Chargers vs Buffalo Bills · Oct 2, 2026, 4:25 PM ET");
   assert.equal(ledgerEventLabel(0, 1, finished), "Result");
+});
+
+test("a Saturday + Sunday parlay is in Saturday's plays and Saturday's look ahead while open", () => {
+  const parlay = {
+    id: "sat+sun parlay", event_date: "2026-10-04", status: "Open", created_at: "2026-10-03T11:00:00Z",
+    ledger_events: [{ startsAt: "2026-10-03T19:30:00Z" }, { startsAt: "2026-10-04T17:00:00Z" }],
+  } as BetEntryComputed;
+  const sundayOnly = { ...parlay, id: "sunday single", ledger_events: [{ startsAt: "2026-10-04T17:00:00Z" }] } as BetEntryComputed;
+
+  assert.deepEqual(spanningPlays([parlay, sundayOnly], "2026-10-03").map((p) => p.id), ["sat+sun parlay"]);
+  assert.deepEqual(lookaheadPlays([parlay, sundayOnly]).map((p) => p.id), ["sat+sun parlay", "sunday single"]);
+});
+
+test("once the parlay loses Saturday's leg it stays in Saturday's plays but leaves the look ahead", () => {
+  const lost = {
+    id: "sat+sun parlay", event_date: "2026-10-04", status: "Loss", created_at: "2026-10-03T11:00:00Z",
+    ledger_events: [{ startsAt: "2026-10-03T19:30:00Z" }, { startsAt: "2026-10-04T17:00:00Z" }],
+  } as BetEntryComputed;
+
+  assert.deepEqual(spanningPlays([lost], "2026-10-03").map((p) => p.id), ["sat+sun parlay"]);
+  assert.deepEqual(lookaheadPlays([lost]), []);
 });

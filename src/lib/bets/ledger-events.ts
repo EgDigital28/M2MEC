@@ -141,3 +141,14 @@ export function compareWithinDay(a: DayOrderable, b: DayOrderable) {
 
   return Date.parse(a.created_at) - Date.parse(b.created_at);
 }
+
+/** The Eastern calendar day (YYYY-MM-DD) each of a bet's games starts on. */
+export function eventDays(value: unknown): string[] {
+  return parseLedgerEvents(value).flatMap((event) => {
+    if (!event.startsAt) return [];
+    const date = new Date(event.startsAt);
+    return Number.isFinite(date.getTime())
+      ? [new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(date)]
+      : [];
+  });
+}

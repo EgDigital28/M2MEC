@@ -1,5 +1,5 @@
 import type { BetEntryComputed } from "@/lib/bets/calculations";
-import { compareWithinDay } from "./ledger-events.ts";
+import { compareWithinDay, eventDays } from "./ledger-events.ts";
 
 /**
  * How one person's today's plays email is laid out.
@@ -74,4 +74,22 @@ export function todaysPlaysTotals(entries: BetEntryComputed[]): TodaysPlaysTotal
     settledNet: graded.reduce((sum, entry) => sum + entry.profit_loss, 0),
     settledCount: entries.length - open.length,
   };
+}
+
+/**
+ * Plays dated later (a parlay is dated by its last game) that have a game on
+ * `day`: a Saturday + Sunday parlay is one of Saturday's plays as well as
+ * Sunday's, graded or not, so a parlay that loses on Saturday shows that loss
+ * in Saturday's email.
+ */
+export function spanningPlays(laterPlays: BetEntryComputed[], day: string) {
+  return laterPlays.filter((play) => play.event_date > day && eventDays(play.ledger_events).includes(day));
+}
+
+/**
+ * Tomorrow's look ahead lists only plays still open: a parlay that already
+ * lost on an earlier leg is settled and has nothing left to look ahead to.
+ */
+export function lookaheadPlays(tomorrowsPlays: BetEntryComputed[]) {
+  return tomorrowsPlays.filter((play) => play.status === "Open").sort(compareWithinDay);
 }
