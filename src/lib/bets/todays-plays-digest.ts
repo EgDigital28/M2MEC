@@ -1,21 +1,42 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { withComputedFields, type BetEntryComputed, type BetEntryRow } from "@/lib/bets/calculations";
-import { compareWithinDay } from "@/lib/bets/ledger-events";
-import { splitTodaysPlays, type TodaysPlaysSplit } from "@/lib/bets/todays-plays-split";
+import {
+  lookaheadPlays,
+  spanningPlays,
+  splitTodaysPlays,
+  type TodaysPlaysSplit,
+} from "@/lib/bets/todays-plays-split";
 
-/**
- * Every play dated today, whatever its status. Today's plays covers the whole
- * day, so a play graded this afternoon still belongs in this evening's email.
- */
-export async function loadTodaysPlays(db: SupabaseClient, date: string) {
+async function loadDated(db: SupabaseClient, from: string, to: string) {
   const { data, error } = await db
     .from("bet_entries")
     .select("*, sports(abbreviation, full_name)")
-    .eq("event_date", date)
+    .gte("event_date", from)
+    .lte("event_date", to)
     .order("created_at", { ascending: true });
 
   if (error) throw new Error(error.message);
   return (data as BetEntryRow[]).map((row) => withComputedFields(row));
+}
+
+/** How far ahead a parlay's last game can be and still have a leg today. */
+const SPAN_DAYS = 7;
+
+/**
+ * Every play on today, whatever its status: plays dated today, plus parlays
+ * dated later (by their last game) that have a game today. Today's plays
+ * covers the whole day, so a play graded this afternoon still belongs in this
+ * evening's email.
+ */
+export async function loadTodaysPlays(db: SupabaseClient, date: string) {
+  let last = date;
+  for (let i = 0; i < SPAN_DAYS; i += 1) last = dayAfter(last);
+
+  const plays = await loadDated(db, date, last);
+  return [
+    ...plays.filter((play) => play.event_date === date),
+    ...spanningPlays(plays, date),
+  ];
 }
 
 /**
@@ -63,7 +84,8 @@ export function dayAfter(date: string) {
  * tomorrow's first email lists them anyway.
  */
 export async function loadLookahead(db: SupabaseClient, date: string) {
-  return (await loadTodaysPlays(db, dayAfter(date))).sort(compareWithinDay);
+  const tomorrow = dayAfter(date);
+  return lookaheadPlays(await loadDated(db, tomorrow, tomorrow));
 }
 
 /** What the next check would send to each person, right now. */
