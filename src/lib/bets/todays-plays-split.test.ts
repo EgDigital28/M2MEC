@@ -160,3 +160,33 @@ test("once the parlay loses Saturday's leg it stays in Saturday's plays but leav
   assert.deepEqual(spanningPlays([lost], "2026-10-03").map((p) => p.id), ["sat+sun parlay"]);
   assert.deepEqual(lookaheadPlays([lost]), []);
 });
+
+test("a finished fight reads winner, opponent, method, round and time", async () => {
+  const { describeLedgerEvent, parseLedgerEvents } = await import("./ledger-events.ts");
+  const fight = (one: string, two: string, winner: string, round: number, seconds: number, method = "ko_tko") => ({
+    eventName: `${one} vs ${two}`,
+    startsAt: "2026-10-03T20:00:00Z",
+    result: {
+      status: "original",
+      observed: { event_status: "completed", winner, result_method: method, result_round: round, result_time_seconds: seconds },
+      source: { participantOneLabel: one, participantTwoLabel: two },
+    },
+  });
+  const lines = parseLedgerEvents([
+    // The three real results from Oct 3.
+    fight("Bruce Whitehead", "Jacobe Smith", "Jacobe Smith", 1, 92),
+    fight("Andrey Pulyaev", "Damian Pinas", "Damian Pinas", 1, 75),
+    fight("Anthony Romero", "Marcus McGhee", "Marcus McGhee", 1, 298),
+    // Later rounds: 390s into the fight and 90s into round 2 are the same moment.
+    fight("A", "B", "B", 2, 390, "submission"),
+    fight("A", "B", "B", 2, 90, "submission"),
+  ]).map((event) => describeLedgerEvent(event));
+
+  assert.deepEqual(lines, [
+    "Jacobe Smith def. Bruce Whitehead · KO/TKO, R1 1:32",
+    "Damian Pinas def. Andrey Pulyaev · KO/TKO, R1 1:15",
+    "Marcus McGhee def. Anthony Romero · KO/TKO, R1 4:58",
+    "B def. A · Submission, R2 1:30",
+    "B def. A · Submission, R2 1:30",
+  ]);
+});

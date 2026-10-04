@@ -12,19 +12,64 @@ export type LedgerEvent = {
 const num = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : null);
 const label = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : null);
 
+/** UFC and other MMA rounds are five minutes. */
+const ROUND_SECONDS = 300;
+
+const METHODS: Record<string, string> = { ko_tko: "KO/TKO", dq: "DQ" };
+
+/** "ko_tko" → "KO/TKO"; anything not yet seen is shown in plain words. */
+function fightMethod(method: string) {
+  return METHODS[method] ?? method.replaceAll("_", " ").replace(/^\w/, (c) => c.toUpperCase());
+}
+
+/**
+ * "R1 1:32". The feed gives the finish in seconds; every example so far ended
+ * in round 1, where time into the round and time into the fight agree. They
+ * cannot be confused later either: by round 2 a fight is past 300 seconds, so
+ * a later-round time over 300 is time into the fight and is converted.
+ */
+function fightClock(round: number, seconds: number) {
+  const intoRound = round > 1 && seconds > ROUND_SECONDS ? seconds - (round - 1) * ROUND_SECONDS : seconds;
+  if (intoRound < 0 || intoRound > ROUND_SECONDS) return `R${round}`;
+  return `R${round} ${Math.floor(intoRound / 60)}:${String(intoRound % 60).padStart(2, "0")}`;
+}
+
+/**
+ * "Jacobe Smith def. Bruce Whitehead · KO/TKO, R1 1:32". A fight without a
+ * named winner (a draw, a no contest) has not been seen yet, so it keeps its
+ * fight line rather than show a guess.
+ */
+function fightLine(observed: Record<string, unknown>, source: Record<string, unknown>) {
+  const winner = label(observed.winner);
+  const method = label(observed.result_method);
+  if (!winner || !method) return null;
+
+  const fighters = [label(source.participantOneLabel), label(source.participantTwoLabel)].filter(Boolean) as string[];
+  const loser = fighters.find((name) => name.toLowerCase() !== winner.toLowerCase());
+  const round = num(observed.result_round);
+  const seconds = num(observed.result_time_seconds);
+  const when = round !== null && seconds !== null ? `, ${fightClock(round, seconds)}` : round !== null ? `, R${round}` : "";
+
+  return `${winner}${loser ? ` def. ${loser}` : ""} · ${fightMethod(method)}${when}`;
+}
+
 /**
  * The result line for a finished game, from the Ledger's settlement facts:
- * "North Texas Mean Green 45 – Tulsa Golden Hurricane 44 · Final".
+ * "North Texas Mean Green 45 – Tulsa Golden Hurricane 44 · Final", or for a
+ * fight "Jacobe Smith def. Bruce Whitehead · KO/TKO, R1 1:32".
  *
- * Only team scores are rendered so far, because only they have arrived to
- * check against. UFC and player-prop facts are stored too, but their values
- * (method spelling, what the time counts) have not been seen yet; until they
- * are, those games keep their game line rather than show a guess.
+ * Player props are not rendered yet: none has arrived to check the facts
+ * against. Until one does, a prop keeps its game line rather than show a
+ * guess.
  */
 function resultLine(value: unknown): string | null {
   if (!value || typeof value !== "object") return null;
   const { observed, source } = value as { observed?: Record<string, unknown>; source?: Record<string, unknown> };
   if (!observed || !source || observed.event_status !== "completed") return null;
+
+  if (observed.winner !== undefined || observed.result_method !== undefined) {
+    return fightLine(observed, source);
+  }
 
   const away = label(source.awayParticipantLabel);
   const home = label(source.homeParticipantLabel);
