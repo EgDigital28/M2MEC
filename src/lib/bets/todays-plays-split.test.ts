@@ -190,3 +190,37 @@ test("a finished fight reads winner, opponent, method, round and time", async ()
     "B def. A · Submission, R2 1:30",
   ]);
 });
+
+test("a player prop shows the player's figure, not the game score", async () => {
+  const { describeLedgerEvent, parseLedgerEvents } = await import("./ledger-events.ts");
+  const prop = (selection: string, observed: Record<string, unknown>) => ({
+    eventName: "Atlanta Falcons vs New Orleans Saints",
+    startsAt: "2026-10-06T00:15:00Z",
+    result: {
+      status: "original",
+      selection,
+      observed: { event_status: "completed", ...observed },
+      source: { participantOneLabel: "Atlanta Falcons", participantTwoLabel: "New Orleans Saints" },
+    },
+  });
+  const lines = parseLedgerEvents([
+    // The four real results from Oct 4 and 5.
+    prop("Juwan Johnson", { stat_type: "receiving_yards", stat_value: 59, no_appearance: false }),
+    prop("Josh Downs", { stat_type: "receiving_yards", stat_value: 16, no_appearance: false }),
+    prop("Marcus Mariota", { stat_type: "passing_yards", stat_value: 46, no_appearance: false }),
+    prop("Darren Waller", { scorer_won: false }),
+    prop("Some Player", { scorer_won: true }),
+    prop("Some Player", { stat_type: "receptions", stat_value: 1, no_appearance: false }),
+    prop("Some Player", { stat_type: "receiving_yards", stat_value: 0, no_appearance: true }),
+  ]).map((event) => describeLedgerEvent(event));
+
+  assert.deepEqual(lines, [
+    "Juwan Johnson 59 receiving yards · Final",
+    "Josh Downs 16 receiving yards · Final",
+    "Marcus Mariota 46 passing yards · Final",
+    "Darren Waller did not score · Final",
+    "Some Player scored a touchdown · Final",
+    "Some Player 1 reception · Final",
+    "Some Player did not play · Final",
+  ]);
+});

@@ -54,18 +54,43 @@ function fightLine(observed: Record<string, unknown>, source: Record<string, unk
 }
 
 /**
+ * A player prop's own fact rather than the game score: "Juwan Johnson 59
+ * receiving yards · Final", "Darren Waller did not score · Final". The bet line
+ * above already shows the target, so only the outcome is given here.
+ */
+function propLine(player: string | null, observed: Record<string, unknown>) {
+  if (!player) return null;
+  if (observed.no_appearance === true) return `${player} did not play · Final`;
+  if (typeof observed.scorer_won === "boolean") {
+    return `${player} ${observed.scorer_won ? "scored a touchdown" : "did not score"} · Final`;
+  }
+
+  const value = num(observed.stat_value);
+  const stat = label(observed.stat_type);
+  if (value === null || !stat) return null;
+
+  const words = stat.replaceAll("_", " ");
+  return `${player} ${value} ${value === 1 ? words.replace(/s$/, "") : words} · Final`;
+}
+
+/**
  * The result line for a finished game, from the Ledger's settlement facts:
- * "North Texas Mean Green 45 – Tulsa Golden Hurricane 44 · Final", or for a
- * fight "Jacobe Smith def. Bruce Whitehead · KO/TKO, R1 1:32".
- *
- * Player props are not rendered yet: none has arrived to check the facts
- * against. Until one does, a prop keeps its game line rather than show a
- * guess.
+ * "North Texas Mean Green 45 – Tulsa Golden Hurricane 44 · Final", for a
+ * fight "Jacobe Smith def. Bruce Whitehead · KO/TKO, R1 1:32", and for a
+ * player prop the player's figure, not the score.
  */
 function resultLine(value: unknown): string | null {
   if (!value || typeof value !== "object") return null;
-  const { observed, source } = value as { observed?: Record<string, unknown>; source?: Record<string, unknown> };
+  const { observed, source, selection } = value as {
+    observed?: Record<string, unknown>;
+    source?: Record<string, unknown>;
+    selection?: unknown;
+  };
   if (!observed || !source || observed.event_status !== "completed") return null;
+
+  if (observed.stat_value !== undefined || observed.scorer_won !== undefined || observed.no_appearance === true) {
+    return propLine(label(selection), observed);
+  }
 
   if (observed.winner !== undefined || observed.result_method !== undefined) {
     return fightLine(observed, source);
