@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BET_STATUSES,
   computeBetLedgerStats,
@@ -58,9 +58,6 @@ const emptyForm: EntryForm = {
   risk: "",
   status: "Open",
 };
-
-const fieldClassName =
-  "h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-accent";
 
 const tableFieldClassName =
   "h-8 w-full min-w-0 rounded-lg border border-border bg-background px-2 text-xs outline-none focus:border-accent";
@@ -167,17 +164,10 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
   const [sports, setSports] = useState<Sport[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState(emptyForm);
-  const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EntryForm>(emptyForm);
   const [page, setPage] = useState(1);
   const [showDetailedStats, setShowDetailedStats] = useState(false);
-
-  const activeSports = useMemo(
-    () => sports.filter((sport) => sport.is_active),
-    [sports],
-  );
 
   const sortedEntries = useMemo(() => sortBetEntries(entries), [entries]);
   const stats = useMemo(() => computeBetLedgerStats(sortedEntries), [sortedEntries]);
@@ -255,55 +245,6 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
 
   function updateEntries(nextEntries: BetEntryComputed[]) {
     setEntries(sortBetEntries(nextEntries));
-  }
-
-  async function handleCreate(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSubmitting(true);
-    setError(null);
-    setEditingId(null);
-
-    const risk = parseRiskAmount(form.risk);
-
-    try {
-      const response = await fetch("/api/bets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event_date: form.event_date,
-          sport_id: form.sport_id,
-          event_name: form.event_name,
-          line: Number.parseInt(form.line, 10),
-          risk,
-        }),
-      });
-
-      const data = (await response.json()) as {
-        entry?: BetEntryComputed;
-        error?: string;
-      };
-
-      if (!response.ok) {
-        setError(data.error ?? "Could not create entry.");
-        setSubmitting(false);
-        return;
-      }
-
-      if (data.entry) {
-        updateEntries([...entries, data.entry]);
-        setPage(1);
-      }
-
-      setForm({
-        ...emptyForm,
-        event_date: form.event_date,
-        sport_id: form.sport_id,
-      });
-    } catch {
-      setError("Network error while creating entry.");
-    } finally {
-      setSubmitting(false);
-    }
   }
 
   function startEdit(entry: BetEntryComputed) {
@@ -565,131 +506,6 @@ export function BetLedger({ isAdmin }: BetLedgerProps) {
               </div>
             )}
           </div>
-        </section>
-      )}
-
-      {isAdmin && (
-        <section className="rounded-2xl border border-border bg-surface-elevated p-6">
-          <h2 className="text-lg font-semibold">New entry</h2>
-          <p className="mt-1 text-sm text-muted">
-            Enter the event details. To Win and P/L are calculated automatically.
-          </p>
-
-          <form
-            onSubmit={handleCreate}
-            className="mt-6 grid gap-4 md:grid-cols-6 xl:grid-cols-12"
-          >
-            <div className="md:col-span-2 xl:col-span-2">
-              <label htmlFor="event_date" className="mb-1.5 block text-sm font-medium">
-                Date
-              </label>
-              <input
-                id="event_date"
-                type="date"
-                required
-                value={form.event_date}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, event_date: event.target.value }))
-                }
-                className={fieldClassName}
-              />
-            </div>
-
-            <div className="md:col-span-2 xl:col-span-3">
-              <label htmlFor="sport_id" className="mb-1.5 block text-sm font-medium">
-                Sport
-              </label>
-              <select
-                id="sport_id"
-                required
-                value={form.sport_id}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, sport_id: event.target.value }))
-                }
-                className={fieldClassName}
-              >
-                <option value="" disabled>
-                  Select sport
-                </option>
-                {activeSports.map((sport) => (
-                  <option key={sport.id} value={sport.id}>
-                    {sport.abbreviation} — {sport.full_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="md:col-span-6 xl:col-span-4">
-              <label htmlFor="event_name" className="mb-1.5 block text-sm font-medium">
-                Bet
-              </label>
-              <input
-                id="event_name"
-                required
-                value={form.event_name}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, event_name: event.target.value }))
-                }
-                placeholder="Ben Shelton ML"
-                className={fieldClassName}
-              />
-            </div>
-
-            <div className="md:col-span-1 xl:col-span-1">
-              <label htmlFor="line" className="mb-1.5 block text-sm font-medium">
-                Line
-              </label>
-              <input
-                id="line"
-                inputMode="numeric"
-                required
-                value={form.line}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    line: sanitizeLineInput(event.target.value),
-                  }))
-                }
-                placeholder="-110"
-                className={`${fieldClassName} font-mono`}
-              />
-            </div>
-
-            <div className="md:col-span-1 xl:col-span-2">
-              <label htmlFor="risk" className="mb-1.5 block text-sm font-medium">
-                Risk
-              </label>
-              <div className="relative">
-                <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted">
-                  $
-                </span>
-                <input
-                  id="risk"
-                  inputMode="decimal"
-                  required
-                  value={form.risk}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      risk: formatRiskInput(event.target.value),
-                    }))
-                  }
-                  placeholder="11.00"
-                  className={`${fieldClassName} pl-7 font-mono`}
-                />
-              </div>
-            </div>
-
-            <div className="md:col-span-6 xl:col-span-12">
-              <button
-                type="submit"
-                disabled={submitting}
-                className="rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {submitting ? "Adding..." : "Add entry"}
-              </button>
-            </div>
-          </form>
         </section>
       )}
 
