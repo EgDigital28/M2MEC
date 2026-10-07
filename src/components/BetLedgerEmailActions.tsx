@@ -60,6 +60,7 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
   const [success, setSuccess] = useState<string | null>(null);
   const [history, setHistory] = useState<BetEmailSendBatch[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [migrationRequired, setMigrationRequired] = useState(false);
 
   const openPlays = useMemo(
@@ -269,8 +270,33 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
       </div>
 
       <div className="rounded-2xl border border-border bg-surface-elevated p-5">
-        <h3 className="text-sm font-semibold">Send history</h3>
-        <p className="mt-1 text-xs text-muted">
+        {/* Collapsed by default: it is a record to check now and then, not
+            something to read every visit. The summary says whether it is
+            worth opening. */}
+        <button
+          type="button"
+          onClick={() => setHistoryOpen((open) => !open)}
+          aria-expanded={historyOpen}
+          className="flex w-full items-center justify-between gap-4 text-left"
+        >
+          <span>
+            <span className="block text-sm font-semibold">Send history</span>
+            <span className="mt-1 block text-xs text-muted">
+              {historyLoading
+                ? "Loading…"
+                : history.length === 0
+                  ? "No emails sent today or yesterday."
+                  : `${history.length} ${history.length === 1 ? "email" : "emails"} today and yesterday · last ${formatSentTime(history[0].sent_at)}`}
+            </span>
+          </span>
+          <svg aria-hidden="true" viewBox="0 0 16 16" className={`h-4 w-4 shrink-0 text-muted transition-transform ${historyOpen ? "rotate-180" : ""}`}>
+            <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+
+        {historyOpen ? (
+        <>
+        <p className="mt-3 text-xs text-muted">
           Today’s and yesterday’s ledger emails by type, recipient, and time. Resending the same
           type to a recipient today will prompt a warning.
         </p>
@@ -332,6 +358,8 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
             </table>
           </div>
         </div>
+        </>
+        ) : null}
       </div>
     </section>
   );
