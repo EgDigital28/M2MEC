@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { getTodayDateString } from "@/lib/bets/calculations";
 import { logBetEmailSends } from "@/lib/bets/email-sends";
 import { buildTodaysPlaysDigests } from "@/lib/bets/todays-plays-digest";
-import { easternHour, isAuthorizedCron } from "@/lib/cron";
+import { easternHour, easternWeekday, isAuthorizedCron } from "@/lib/cron";
+import { checkHoursFor } from "@/lib/bets/todays-plays-schedule";
 import { AUTOMATED_RECIPIENTS, isAutomationEnabled } from "@/lib/email/automation";
 import {
   todaysPlaysHtml,
@@ -16,11 +17,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/**
- * Check hours in Eastern time. vercel.json fires this across the UTC hours
- * that cover both EST and EDT; this gate keeps exactly these five.
- */
-const CHECK_HOURS_ET = [11, 14, 16, 19, 21];
+
 
 /**
  * Sends today's plays to each person who has new plays since their last
@@ -33,7 +30,7 @@ export async function GET(request: Request) {
 
   const hour = easternHour();
 
-  if (!CHECK_HOURS_ET.includes(hour)) {
+  if (!checkHoursFor(easternWeekday()).includes(hour)) {
     return NextResponse.json({ skipped: "Outside the check hours", hour });
   }
 

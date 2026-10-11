@@ -21,7 +21,7 @@ export const AUTOMATED_EMAILS = {
   },
   upcoming_plays: {
     label: "Today's plays",
-    schedule: "11am, 2pm, 4pm, 7pm and 9pm Eastern",
+    schedule: "11am, 2pm, 4pm, 7pm and 9pm Eastern; weekends also 7am and 9am",
     rule: "Sends only when new plays have arrived since that person's last email. Updates highlight the new plays above the ones sent earlier.",
     defaultEnabled: false,
   },

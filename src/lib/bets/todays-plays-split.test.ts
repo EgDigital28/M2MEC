@@ -224,3 +224,10 @@ test("a player prop shows the player's figure, not the game score", async () => 
     "Some Player did not play · Final",
   ]);
 });
+
+test("weekends add 7am and 9am checks for early matches; weekdays keep five", async () => {
+  const { checkHoursFor } = await import("./todays-plays-schedule.ts");
+  assert.deepEqual(checkHoursFor(6), [7, 9, 11, 14, 16, 19, 21]); // Saturday
+  assert.deepEqual(checkHoursFor(0), [7, 9, 11, 14, 16, 19, 21]); // Sunday
+  for (const weekday of [1, 2, 3, 4, 5]) assert.deepEqual(checkHoursFor(weekday), [11, 14, 16, 19, 21]);
+});
