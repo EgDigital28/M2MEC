@@ -231,3 +231,31 @@ test("weekends add 7am and 9am checks for early matches; weekdays keep five", as
   assert.deepEqual(checkHoursFor(0), [7, 9, 11, 14, 16, 19, 21]); // Sunday
   for (const weekday of [1, 2, 3, 4, 5]) assert.deepEqual(checkHoursFor(weekday), [11, 14, 16, 19, 21]);
 });
+
+test("v3 grader rows (participant one/two, no away/home labels) still show the score", async () => {
+  const { describeLedgerEvent, parseLedgerEvents } = await import("./ledger-events.ts");
+  const game = (one: string, two: string, away: number, home: number, side: string | null, winnerLabel?: string) => ({
+    eventName: `${one} vs ${two}`,
+    startsAt: "2026-10-11T17:00:00Z",
+    result: {
+      status: "original",
+      observed: { event_status: "completed", away_score: away, home_score: home, winner_side: side },
+      source: { reader: "ledger_static_grading_rows_v3", participantOneLabel: one, participantTwoLabel: two, ...(winnerLabel ? { winnerLabel } : {}) },
+    },
+  });
+  const lines = parseLedgerEvents([
+    // Real Oct 11 results.
+    game("Chicago Bears", "Green Bay Packers", 7, 31, "home", "Green Bay Packers"),
+    game("Houston Texans", "Tennessee Titans", 26, 3, "away", "Houston Texans"),
+    game("New York Giants", "Washington Commanders", 27, 27, null),
+    // A winner that contradicts the order is not shown backwards.
+    game("A Team", "B Team", 10, 20, "home", "A Team"),
+  ]).map((event) => describeLedgerEvent(event));
+
+  assert.deepEqual(lines, [
+    "Chicago Bears 7 – Green Bay Packers 31 · Final",
+    "Houston Texans 26 – Tennessee Titans 3 · Final",
+    "New York Giants 27 – Washington Commanders 27 · Final",
+    "A Team vs B Team · Oct 11, 2026, 1:00 PM ET",
+  ]);
+});

@@ -96,8 +96,19 @@ function resultLine(value: unknown): string | null {
     return fightLine(observed, source);
   }
 
-  const away = label(source.awayParticipantLabel);
-  const home = label(source.homeParticipantLabel);
+  // The grader's v2 rows name the away and home sides; v3 rows only number
+  // the participants. Participant one is away and two is home: it held on all
+  // 32 graded games with a named winner, and v2's own labels never disagreed.
+  // A game whose winner contradicts that order shows no score rather than a
+  // backwards one.
+  const one = label(source.participantOneLabel);
+  const two = label(source.participantTwoLabel);
+  const away = label(source.awayParticipantLabel) ?? one;
+  const home = label(source.homeParticipantLabel) ?? two;
+  const winner = label(source.winnerLabel);
+  const side = observed.winner_side;
+  if (winner && (side === "away" || side === "home") && winner !== (side === "away" ? away : home)) return null;
+
   const awayScore = num(observed.away_score);
   const homeScore = num(observed.home_score);
 
