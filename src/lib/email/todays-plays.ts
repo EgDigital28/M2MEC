@@ -16,7 +16,6 @@ import {
   renderEmailSection,
   renderEmailShell,
   renderEmailSubheading,
-  renderEmailSummaryLine,
   renderEmailTable,
 } from "@/lib/email/layout";
 
@@ -44,21 +43,18 @@ function nextDay(date: string) {
   return new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10);
 }
 
-/** "2 plays · Risk $35,000.00 · To win $50,185.71" for tomorrow's plays. */
-function lookaheadSummary(plays: BetEntryComputed[]) {
-  const risk = plays.reduce((sum, entry) => sum + entry.risk, 0);
-  const toWin = plays.reduce((sum, entry) => sum + entry.to_win, 0);
-  return [plural(plays.length, "play"), `Risk ${formatCurrency(risk)}`, `To win ${formatCurrency(toWin)}`];
-}
-
-/** Tomorrow's look ahead: below today's totals, and only when there is any. */
+/**
+ * Tomorrow's look ahead: below today's totals, and only when there is any.
+ * Its total uses the same block as today's, so it reads "Still riding" with
+ * the same bold figures: every look-ahead play is still open.
+ */
 function lookaheadHtml(sentOnDate: string, plays: BetEntryComputed[]) {
   if (plays.length === 0) return "";
   const tomorrow = nextDay(sentOnDate);
   return `
     ${renderEmailSubheading(`Tomorrow's look ahead · ${formatSentOnDate(tomorrow)}`)}
     ${playsTable(plays, tomorrow)}
-    ${renderEmailSummaryLine(lookaheadSummary(plays).map((part) => renderEmailHtmlCell(part)))}
+    ${totalsBlock(plays)}
   `;
 }
 
@@ -274,7 +270,7 @@ ${body}${totals ? `\n\n${totals}` : ""}${
     lookahead.length
       ? `\n\nTOMORROW'S LOOK AHEAD · ${formatSentOnDate(nextDay(sentOnDate))}\n${lookahead
           .map((entry) => textLine(entry, nextDay(sentOnDate)))
-          .join("\n")}\n${lookaheadSummary(lookahead).join(" · ")}`
+          .join("\n")}\n${textTotals(lookahead)}`
       : ""
   }
 
