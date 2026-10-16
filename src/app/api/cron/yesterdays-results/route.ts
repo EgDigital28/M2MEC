@@ -6,6 +6,7 @@ import {
   type BetEntryRow,
 } from "@/lib/bets/calculations";
 import { logBetEmailSends } from "@/lib/bets/email-sends";
+import { compareWithinDay } from "@/lib/bets/ledger-events";
 import { loadCarryOvers, recordResultReports } from "@/lib/bets/result-reports";
 import { easternHour, isAuthorizedCron } from "@/lib/cron";
 import { AUTOMATED_RECIPIENTS, isAutomationEnabled } from "@/lib/email/automation";
@@ -102,7 +103,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Could not load yesterday's results." }, { status: 503 });
   }
 
-  const entries = (data as BetEntryRow[]).map((row) => withComputedFields(row));
+  // Same order as everywhere else: still-open plays first, then finished ones,
+  // each by game time.
+  const entries = (data as BetEntryRow[]).map((row) => withComputedFields(row)).sort(compareWithinDay);
   const openCount = entries.filter((entry) => entry.status === "Open").length;
 
   // Hold for grading until the final attempt; then send what there is.

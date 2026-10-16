@@ -16,6 +16,7 @@ import {
   parseEmailRecipients,
 } from "@/lib/email/utils";
 import { logBetEmailSends } from "@/lib/bets/email-sends";
+import { compareWithinDay } from "@/lib/bets/ledger-events";
 import { recordResultReports } from "@/lib/bets/result-reports";
 import { createClient } from "@/lib/supabase/server";
 
@@ -77,7 +78,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Could not load yesterday's results." }, { status: 500 });
   }
 
-  const entries = (data as BetEntryRow[]).map((row) => withComputedFields(row));
+  // Same order as the scheduled results email.
+  const entries = (data as BetEntryRow[]).map((row) => withComputedFields(row)).sort(compareWithinDay);
   const emailParams = { entries, resultsDate };
 
   const { error: emailError } = await resend.emails.send({
