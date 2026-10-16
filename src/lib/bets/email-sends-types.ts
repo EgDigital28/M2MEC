@@ -3,6 +3,7 @@ export const BET_EMAIL_TYPES = [
   "yesterdays_results",
   "weekly_summary",
   "week_in_review",
+  "payment_reminder",
 ] as const;
 
 export type BetEmailType = (typeof BET_EMAIL_TYPES)[number];
@@ -39,6 +40,7 @@ export const BET_EMAIL_TYPE_LABELS: Record<BetEmailType, string> = {
   yesterdays_results: "Yesterday's results",
   weekly_summary: "Weekly summary",
   week_in_review: "Week in review",
+  payment_reminder: "Payment reminder",
 };
 
 export function isBetEmailType(value: string): value is BetEmailType {
@@ -46,7 +48,7 @@ export function isBetEmailType(value: string): value is BetEmailType {
 }
 
 export function mapLedgerEmailAction(
-  action: "upcoming" | "yesterday" | "weekly",
+  action: "upcoming" | "yesterday" | "weekly" | "reminder",
 ): BetEmailType {
   switch (action) {
     case "upcoming":
@@ -55,6 +57,8 @@ export function mapLedgerEmailAction(
       return "yesterdays_results";
     case "weekly":
       return "weekly_summary";
+    case "reminder":
+      return "payment_reminder";
   }
 }
 

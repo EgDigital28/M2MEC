@@ -22,16 +22,16 @@ type BetLedgerEmailActionsProps = {
   entries: BetEntryComputed[];
 };
 
-type LedgerEmailAction = "upcoming" | "yesterday" | "weekly";
+type LedgerEmailAction = "upcoming" | "yesterday" | "weekly" | "reminder";
 
 const fieldClassName =
   "h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-accent";
 
 const primaryButtonClassName =
-  "rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60";
+  "rounded-full bg-foreground px-3.5 py-1.5 text-xs font-semibold text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60";
 
 const secondaryButtonClassName =
-  "rounded-full border border-border bg-surface-elevated px-5 py-2.5 text-sm font-semibold text-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60";
+  "rounded-full border border-border bg-surface-elevated px-3.5 py-1.5 text-xs font-semibold text-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60";
 
 function formatSentTime(value: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -61,6 +61,9 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
   const [history, setHistory] = useState<BetEmailSendBatch[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [reminderAmount, setReminderAmount] = useState("");
+  const [reminderError, setReminderError] = useState<string | null>(null);
   const [migrationRequired, setMigrationRequired] = useState(false);
 
   const openPlays = useMemo(
@@ -202,6 +205,55 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
 
   const sending = sendingAction !== null;
 
+  /**
+   * Payment reminder: the amount is entered at send time, then the email goes
+   * out with I4-SB's summary built fresh and attached.
+   */
+  async function sendPaymentReminder() {
+    const amount = Number.parseFloat(reminderAmount.replace(/[$,\s]/g, ""));
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setReminderError("Enter the amount due.");
+      return;
+    }
+
+    setReminderError(null);
+    setSendingAction("reminder");
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const duplicates = await checkDuplicates("reminder");
+
+      if (duplicates.length > 0 && !window.confirm(duplicateConfirmMessage(mapLedgerEmailAction("reminder"), duplicates))) {
+        return;
+      }
+
+      const response = await fetch("/api/bets/email/payment-reminder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to, amount }),
+      });
+      const data = (await response.json()) as { error?: string; recipientCount?: number; attachment?: string };
+
+      if (!response.ok) {
+        setReminderError(data.error ?? "Could not send the payment reminder.");
+        return;
+      }
+
+      setReminderOpen(false);
+      setReminderAmount("");
+      setSuccess(
+        `Sent the payment reminder (${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount)} due today, ${data.attachment ?? "summary"} attached) to ${data.recipientCount ?? 0} recipient(s).`,
+      );
+      void loadHistory();
+    } catch {
+      setReminderError("Network error while sending the payment reminder.");
+    } finally {
+      setSendingAction(null);
+    }
+  }
+
   return (
     <section className="space-y-4">
       <div className="rounded-2xl border border-border bg-surface-elevated p-5">
@@ -253,8 +305,80 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
             >
               {sendingAction === "weekly" ? "Sending..." : "Weekly summary"}
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                setReminderError(null);
+                setReminderOpen(true);
+              }}
+              disabled={sending || !to.trim()}
+              className={secondaryButtonClassName}
+            >
+              Payment reminder
+            </button>
           </div>
         </div>
+
+        {reminderOpen ? (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="payment-reminder-title"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+            onClick={(event) => {
+              if (event.target === event.currentTarget && !sending) setReminderOpen(false);
+            }}
+          >
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void sendPaymentReminder();
+              }}
+              className="w-full max-w-sm rounded-2xl border border-border bg-surface-elevated p-5 shadow-xl"
+            >
+              <h3 id="payment-reminder-title" className="text-sm font-semibold">
+                Payment reminder
+              </h3>
+              <p className="mt-1 text-xs text-muted">
+                To {to.trim()}. I4-SB&apos;s summary is built and attached as a PDF. Due today by 5:00 PM ET.
+              </p>
+
+              <label htmlFor="payment-reminder-amount" className="mt-4 block text-xs font-medium text-muted">
+                Amount due
+              </label>
+              <div className="relative mt-1.5">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted">$</span>
+                <input
+                  id="payment-reminder-amount"
+                  inputMode="decimal"
+                  autoFocus
+                  value={reminderAmount}
+                  onChange={(event) => {
+                    setReminderAmount(event.target.value);
+                    setReminderError(null);
+                  }}
+                  placeholder="1,539.00"
+                  className={`${fieldClassName} pl-7 font-mono`}
+                />
+              </div>
+              {reminderError ? <p className="mt-2 text-xs text-red-300">{reminderError}</p> : null}
+
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReminderOpen(false)}
+                  disabled={sending}
+                  className={secondaryButtonClassName}
+                >
+                  Cancel
+                </button>
+                <button type="submit" disabled={sending} className={primaryButtonClassName}>
+                  {sendingAction === "reminder" ? "Sending..." : "Send reminder"}
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : null}
 
         {error && (
           <p className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
