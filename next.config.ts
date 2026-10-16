@@ -6,7 +6,11 @@ const nextConfig: NextConfig = {
   // are left out of the deployed function and rendering fails at runtime.
   serverExternalPackages: ["@react-pdf/renderer"],
   outputFileTracingIncludes: {
+    // Every route that builds the individual PDF needs pdfkit's fonts.
     "/api/reports/individual/[id]": [
+      "./node_modules/pdfkit/js/standard-fonts/**",
+    ],
+    "/api/bets/email/payment-reminder": [
       "./node_modules/pdfkit/js/standard-fonts/**",
     ],
     // Read from disk at runtime, so the tracer cannot see them in the bundle.
