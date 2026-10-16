@@ -225,11 +225,9 @@ test("a player prop shows the player's figure, not the game score", async () => 
   ]);
 });
 
-test("weekends add 7am and 9am checks for early matches; weekdays keep five", async () => {
-  const { checkHoursFor } = await import("./todays-plays-schedule.ts");
-  assert.deepEqual(checkHoursFor(6), [7, 9, 11, 14, 16, 19, 21]); // Saturday
-  assert.deepEqual(checkHoursFor(0), [7, 9, 11, 14, 16, 19, 21]); // Sunday
-  for (const weekday of [1, 2, 3, 4, 5]) assert.deepEqual(checkHoursFor(weekday), [11, 14, 16, 19, 21]);
+test("today's plays is checked at the same eight Eastern hours every day", async () => {
+  const { CHECK_HOURS_ET } = await import("./todays-plays-schedule.ts");
+  assert.deepEqual(CHECK_HOURS_ET, [5, 7, 9, 11, 14, 16, 19, 21]);
 });
 
 test("v3 grader rows (participant one/two, no away/home labels) still show the score", async () => {
