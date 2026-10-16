@@ -85,7 +85,9 @@ export function dayAfter(date: string) {
  */
 export async function loadLookahead(db: SupabaseClient, date: string) {
   const tomorrow = dayAfter(date);
-  return lookaheadPlays(await loadDated(db, tomorrow, tomorrow));
+  // A parlay is dated by its last game, so one with a leg tomorrow and its
+  // last game later is found among the later-dated plays, as for today.
+  return lookaheadPlays(await loadTodaysPlays(db, tomorrow));
 }
 
 /** What the next check would send to each person, right now. */

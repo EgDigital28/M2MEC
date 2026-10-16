@@ -257,3 +257,21 @@ test("v3 grader rows (participant one/two, no away/home labels) still show the s
     "A Team vs B Team · Oct 11, 2026, 1:00 PM ET",
   ]);
 });
+
+test("the look ahead includes a later-dated parlay that has a game tomorrow", () => {
+  // On Oct 16: the Mixed Sport parlay is dated Oct 18 (its last game) but its
+  // UFC leg is Oct 17, so it belongs in Oct 17's look ahead with the fights.
+  const fight = {
+    id: "ufc single", event_date: "2026-10-17", status: "Open", created_at: "2026-10-16T08:00:00Z",
+    ledger_events: [{ startsAt: "2026-10-18T00:00:00Z" }],
+  } as BetEntryComputed;
+  const parlay = {
+    id: "mixed parlay", event_date: "2026-10-18", status: "Open", created_at: "2026-10-16T08:47:00Z",
+    ledger_events: [{ startsAt: "2026-10-18T00:00:00Z" }, { startsAt: "2026-10-18T17:00:00Z" }],
+  } as BetEntryComputed;
+  const tomorrow = "2026-10-17";
+  const plays = [fight, parlay];
+  const gathered = [...plays.filter((p) => p.event_date === tomorrow), ...spanningPlays(plays, tomorrow)];
+
+  assert.deepEqual(lookaheadPlays(gathered).map((p) => p.id), ["ufc single", "mixed parlay"]);
+});
