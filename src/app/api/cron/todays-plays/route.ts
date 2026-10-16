@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { getTodayDateString } from "@/lib/bets/calculations";
 import { logBetEmailSends } from "@/lib/bets/email-sends";
 import { buildTodaysPlaysDigests } from "@/lib/bets/todays-plays-digest";
-import { easternHour, easternWeekday, isAuthorizedCron } from "@/lib/cron";
-import { checkHoursFor } from "@/lib/bets/todays-plays-schedule";
+import { easternHour, isAuthorizedCron } from "@/lib/cron";
+import { CHECK_HOURS_ET } from "@/lib/bets/todays-plays-schedule";
 import { AUTOMATED_RECIPIENTS, isAutomationEnabled } from "@/lib/email/automation";
 import {
   todaysPlaysHtml,
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 
   const hour = easternHour();
 
-  if (!checkHoursFor(easternWeekday()).includes(hour)) {
+  if (!CHECK_HOURS_ET.includes(hour)) {
     return NextResponse.json({ skipped: "Outside the check hours", hour });
   }
 
