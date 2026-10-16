@@ -1,4 +1,4 @@
-import { compareWithinDay } from "./ledger-events.ts";
+import { compareWithinDay, lastEventStart } from "./ledger-events.ts";
 export const BET_STATUSES = ["Open", "Win", "Loss", "Void"] as const;
 
 export const LEDGER_STARTING_BALANCE = 2_845_000;
@@ -172,20 +172,23 @@ export function isBetStatus(value: string): value is BetStatus {
 }
 
 /**
- * Newest day first. Within a day, open plays come first and graded plays sink
- * to the bottom, each group by game time (see compareWithinDay).
+ * Open plays first, soonest game first across every day — a work queue of
+ * what is still to happen. Graded plays follow, newest day first and by game
+ * time within a day. A play leaves the top block the moment it is graded.
+ * A parlay is timed by its last game; a hand-entered play, which has no game
+ * time, by the start of its day.
  */
 export function sortBetEntries<
   T extends { event_date: string; created_at: string; status: string; ledger_events?: unknown },
 >(entries: T[]): T[] {
-  return [...entries].sort((a, b) => {
-    const dateCompare = b.event_date.localeCompare(a.event_date);
-    if (dateCompare !== 0) {
-      return dateCompare;
-    }
+  const open = entries.filter((entry) => entry.status === "Open");
+  const done = entries.filter((entry) => entry.status !== "Open");
+  const when = (entry: T) => lastEventStart(entry.ledger_events) ?? Date.parse(`${entry.event_date}T00:00:00`);
 
-    return compareWithinDay(a, b);
-  });
+  return [
+    ...open.sort((a, b) => when(a) - when(b) || a.created_at.localeCompare(b.created_at)),
+    ...done.sort((a, b) => b.event_date.localeCompare(a.event_date) || compareWithinDay(a, b)),
+  ];
 }
 
 export type BetLedgerStats = {
