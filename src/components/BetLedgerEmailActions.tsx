@@ -8,6 +8,7 @@ import {
   formatEventDate,
   formatWeekRangeShort,
   getCurrentWeekRange,
+  getTodayDateString,
   getYesterdayDateString,
   type BetEntryComputed,
 } from "@/lib/bets/calculations";
@@ -44,6 +45,14 @@ function formatSentTime(value: string) {
   }).format(new Date(value));
 }
 
+/** "Thursday, November 12" for the reminder's success message. */
+function formatReminderDate(date: string) {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric" }).format(
+    new Date(year, month - 1, day),
+  );
+}
+
 function duplicateConfirmMessage(emailType: BetEmailType, duplicates: { email: string; sentAt: string }[]) {
   const label = BET_EMAIL_TYPE_LABELS[emailType];
   const lines = duplicates.map(
@@ -63,6 +72,7 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
   const [reminderAmount, setReminderAmount] = useState("");
+  const [reminderDate, setReminderDate] = useState("");
   const [reminderError, setReminderError] = useState<string | null>(null);
   const [migrationRequired, setMigrationRequired] = useState(false);
 
@@ -206,14 +216,26 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
   const sending = sendingAction !== null;
 
   /**
-   * Payment reminder: the amount is entered at send time, then the email goes
-   * out with I4-SB's summary built fresh and attached.
+   * Payment reminder: the amount and due date are entered at send time, then
+   * the email goes out with I4-SB's summary built fresh and attached.
    */
   async function sendPaymentReminder() {
     const amount = Number.parseFloat(reminderAmount.replace(/[$,\s]/g, ""));
 
     if (!Number.isFinite(amount) || amount <= 0) {
       setReminderError("Enter the amount due.");
+      return;
+    }
+
+    const today = getTodayDateString();
+
+    if (!reminderDate) {
+      setReminderError("Enter the due date.");
+      return;
+    }
+
+    if (reminderDate < today) {
+      setReminderError("The due date can't be in the past.");
       return;
     }
 
@@ -232,7 +254,7 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
       const response = await fetch("/api/bets/email/payment-reminder", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to, amount }),
+        body: JSON.stringify({ to, amount, dueDate: reminderDate }),
       });
       const data = (await response.json()) as { error?: string; recipientCount?: number; attachment?: string };
 
@@ -244,7 +266,7 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
       setReminderOpen(false);
       setReminderAmount("");
       setSuccess(
-        `Sent the payment reminder (${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount)} due today, ${data.attachment ?? "summary"} attached) to ${data.recipientCount ?? 0} recipient(s).`,
+        `Sent the payment reminder (${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount)} due ${reminderDate === today ? "today" : formatReminderDate(reminderDate)}, ${data.attachment ?? "summary"} attached) to ${data.recipientCount ?? 0} recipient(s).`,
       );
       void loadHistory();
     } catch {
@@ -309,6 +331,7 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
               type="button"
               onClick={() => {
                 setReminderError(null);
+                setReminderDate(getTodayDateString());
                 setReminderOpen(true);
               }}
               disabled={sending || !to.trim()}
@@ -340,7 +363,7 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
                 Payment reminder
               </h3>
               <p className="mt-1 text-xs text-muted">
-                To {to.trim()}. I4-SB&apos;s summary is built and attached as a PDF. Due today by 5:00 PM ET.
+                To {to.trim()}. I4-SB&apos;s summary is built and attached as a PDF. Due by 5:00 PM ET on the date below.
               </p>
 
               <label htmlFor="payment-reminder-amount" className="mt-4 block text-xs font-medium text-muted">
@@ -361,6 +384,21 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
                   className={`${fieldClassName} pl-7 font-mono`}
                 />
               </div>
+
+              <label htmlFor="payment-reminder-date" className="mt-4 block text-xs font-medium text-muted">
+                Due date
+              </label>
+              <input
+                id="payment-reminder-date"
+                type="date"
+                min={getTodayDateString()}
+                value={reminderDate}
+                onChange={(event) => {
+                  setReminderDate(event.target.value);
+                  setReminderError(null);
+                }}
+                className={`${fieldClassName} mt-1.5 [color-scheme:dark]`}
+              />
               {reminderError ? <p className="mt-2 text-xs text-red-300">{reminderError}</p> : null}
 
               <div className="mt-5 flex justify-end gap-2">

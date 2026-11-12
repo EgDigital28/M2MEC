@@ -22,7 +22,8 @@ export const maxDuration = 60;
 const REMINDER_REPORT_ALIAS = "I4-SB";
 
 /**
- * Sends a payment reminder: the amount due today by 5pm ET, with the person's
+ * Sends a payment reminder: the amount due by 5pm ET on the chosen date (today
+ * or later), with the person's
  * current summary built fresh and attached as a PDF.
  */
 export async function POST(request: Request) {
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { to?: string; amount?: unknown };
+  let body: { to?: string; amount?: unknown; dueDate?: unknown };
 
   try {
     body = await request.json();
@@ -59,6 +60,17 @@ export async function POST(request: Request) {
 
   if (!Number.isFinite(amount) || amount <= 0 || amount > 10_000_000) {
     return NextResponse.json({ error: "Enter the amount due." }, { status: 400 });
+  }
+
+  const today = getTodayDateString();
+  const dueDate = typeof body.dueDate === "string" && body.dueDate ? body.dueDate : today;
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate) || Number.isNaN(Date.parse(`${dueDate}T00:00:00Z`))) {
+    return NextResponse.json({ error: "Enter the due date." }, { status: 400 });
+  }
+
+  if (dueDate < today) {
+    return NextResponse.json({ error: "The due date can't be in the past." }, { status: 400 });
   }
 
   const resend = getResendClient();
@@ -94,18 +106,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Could not find ${REMINDER_REPORT_ALIAS}.` }, { status: 404 });
   }
 
-  const dueDate = getTodayDateString();
   const params = {
     person: pdf.alias ? `${pdf.name} (${pdf.alias})` : pdf.name,
     amount,
     dueDate,
+    today,
     attachmentName: pdf.fileName,
   };
 
   const { error: emailError } = await resend.emails.send({
     from: getResendFromEmail(),
     to: recipients,
-    subject: paymentReminderSubject(),
+    subject: paymentReminderSubject(params),
     html: paymentReminderHtml(params),
     text: paymentReminderText(params),
     attachments: [{ filename: pdf.fileName, content: pdf.buffer }],
@@ -128,5 +140,5 @@ export async function POST(request: Request) {
     console.error("payment-reminder.log_failed", logError);
   }
 
-  return NextResponse.json({ ok: true, recipientCount: recipients.length, amount, attachment: pdf.fileName });
+  return NextResponse.json({ ok: true, recipientCount: recipients.length, amount, dueDate, attachment: pdf.fileName });
 }
