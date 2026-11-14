@@ -3,6 +3,9 @@ import { requireMinimumTier } from "@/lib/auth/profile";
 import { getTodayDateString } from "@/lib/bets/calculations";
 import { logBetEmailSends } from "@/lib/bets/email-sends";
 import {
+  paymentPastDueHtml,
+  paymentPastDueSubject,
+  paymentPastDueText,
   paymentReminderHtml,
   paymentReminderSubject,
   paymentReminderText,
@@ -23,7 +26,8 @@ const REMINDER_REPORT_ALIAS = "I4-SB";
 
 /**
  * Sends a payment reminder: the amount due by 5pm ET on the chosen date (today
- * or later), with the person's
+ * or later), or a past due notice for a date already passed (today or earlier,
+ * with pastDue set), with the person's
  * current summary built fresh and attached as a PDF.
  */
 export async function POST(request: Request) {
@@ -36,7 +40,7 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { to?: string; amount?: unknown; dueDate?: unknown };
+  let body: { to?: string; amount?: unknown; dueDate?: unknown; pastDue?: unknown };
 
   try {
     body = await request.json();
@@ -69,8 +73,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Enter the due date." }, { status: 400 });
   }
 
-  if (dueDate < today) {
-    return NextResponse.json({ error: "The due date can't be in the past." }, { status: 400 });
+  const pastDue = body.pastDue === true;
+
+  if (pastDue ? dueDate > today : dueDate < today) {
+    return NextResponse.json(
+      { error: pastDue ? "A past due date can't be in the future." : "The due date can't be in the past." },
+      { status: 400 },
+    );
   }
 
   const resend = getResendClient();
@@ -117,9 +126,9 @@ export async function POST(request: Request) {
   const { error: emailError } = await resend.emails.send({
     from: getResendFromEmail(),
     to: recipients,
-    subject: paymentReminderSubject(params),
-    html: paymentReminderHtml(params),
-    text: paymentReminderText(params),
+    subject: pastDue ? paymentPastDueSubject() : paymentReminderSubject(params),
+    html: pastDue ? paymentPastDueHtml(params) : paymentReminderHtml(params),
+    text: pastDue ? paymentPastDueText(params) : paymentReminderText(params),
     attachments: [{ filename: pdf.fileName, content: pdf.buffer }],
   });
 
@@ -130,7 +139,7 @@ export async function POST(request: Request) {
 
   try {
     await logBetEmailSends({
-      emailType: "payment_reminder",
+      emailType: pastDue ? "payment_past_due" : "payment_reminder",
       recipients,
       sentById: auth.profile.id,
       playCount: 0,
@@ -140,5 +149,5 @@ export async function POST(request: Request) {
     console.error("payment-reminder.log_failed", logError);
   }
 
-  return NextResponse.json({ ok: true, recipientCount: recipients.length, amount, dueDate, attachment: pdf.fileName });
+  return NextResponse.json({ ok: true, recipientCount: recipients.length, amount, dueDate, pastDue, attachment: pdf.fileName });
 }
