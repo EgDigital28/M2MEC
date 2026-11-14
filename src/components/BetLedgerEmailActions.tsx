@@ -23,7 +23,7 @@ type BetLedgerEmailActionsProps = {
   entries: BetEntryComputed[];
 };
 
-type LedgerEmailAction = "upcoming" | "yesterday" | "weekly" | "reminder";
+type LedgerEmailAction = "upcoming" | "yesterday" | "weekly" | "reminder" | "pastDue";
 
 const fieldClassName =
   "h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-accent";
@@ -73,6 +73,7 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
   const [reminderOpen, setReminderOpen] = useState(false);
   const [reminderAmount, setReminderAmount] = useState("");
   const [reminderDate, setReminderDate] = useState("");
+  const [reminderPastDue, setReminderPastDue] = useState(false);
   const [reminderError, setReminderError] = useState<string | null>(null);
   const [migrationRequired, setMigrationRequired] = useState(false);
 
@@ -217,7 +218,8 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
 
   /**
    * Payment reminder: the amount and due date are entered at send time, then
-   * the email goes out with I4-SB's summary built fresh and attached.
+   * the email goes out with I4-SB's summary built fresh and attached. With
+   * "Past due" ticked it is a past due notice for a date already passed.
    */
   async function sendPaymentReminder() {
     const amount = Number.parseFloat(reminderAmount.replace(/[$,\s]/g, ""));
@@ -234,43 +236,47 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
       return;
     }
 
-    if (reminderDate < today) {
-      setReminderError("The due date can't be in the past.");
+    if (reminderPastDue ? reminderDate > today : reminderDate < today) {
+      setReminderError(reminderPastDue ? "A past due date can't be in the future." : "The due date can't be in the past.");
       return;
     }
 
+    const action: LedgerEmailAction = reminderPastDue ? "pastDue" : "reminder";
+    const label = reminderPastDue ? "past due notice" : "payment reminder";
+
     setReminderError(null);
-    setSendingAction("reminder");
+    setSendingAction(action);
     setError(null);
     setSuccess(null);
 
     try {
-      const duplicates = await checkDuplicates("reminder");
+      const duplicates = await checkDuplicates(action);
 
-      if (duplicates.length > 0 && !window.confirm(duplicateConfirmMessage(mapLedgerEmailAction("reminder"), duplicates))) {
+      if (duplicates.length > 0 && !window.confirm(duplicateConfirmMessage(mapLedgerEmailAction(action), duplicates))) {
         return;
       }
 
       const response = await fetch("/api/bets/email/payment-reminder", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to, amount, dueDate: reminderDate }),
+        body: JSON.stringify({ to, amount, dueDate: reminderDate, pastDue: reminderPastDue }),
       });
       const data = (await response.json()) as { error?: string; recipientCount?: number; attachment?: string };
 
       if (!response.ok) {
-        setReminderError(data.error ?? "Could not send the payment reminder.");
+        setReminderError(data.error ?? `Could not send the ${label}.`);
         return;
       }
 
       setReminderOpen(false);
       setReminderAmount("");
+      setReminderPastDue(false);
       setSuccess(
-        `Sent the payment reminder (${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount)} due ${reminderDate === today ? "today" : formatReminderDate(reminderDate)}, ${data.attachment ?? "summary"} attached) to ${data.recipientCount ?? 0} recipient(s).`,
+        `Sent the ${label} (${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount)} ${reminderPastDue ? "was " : ""}due ${reminderDate === today ? "today" : formatReminderDate(reminderDate)}, ${data.attachment ?? "summary"} attached) to ${data.recipientCount ?? 0} recipient(s).`,
       );
       void loadHistory();
     } catch {
-      setReminderError("Network error while sending the payment reminder.");
+      setReminderError(`Network error while sending the ${label}.`);
     } finally {
       setSendingAction(null);
     }
@@ -360,14 +366,15 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
               className="w-full max-w-sm rounded-2xl border border-border bg-surface-elevated p-5 shadow-xl"
             >
               <h3 id="payment-reminder-title" className="text-sm font-semibold">
-                Payment reminder
+                {reminderPastDue ? "Past due notice" : "Payment reminder"}
               </h3>
               <p className="mt-1 text-xs text-muted">
-                To {to.trim()}. I4-SB&apos;s summary is built and attached as a PDF. Due by 5:00 PM ET on the date below.
+                To {to.trim()}. I4-SB&apos;s summary is built and attached as a PDF.{" "}
+                {reminderPastDue ? "Was due by 5:00 PM ET on the date below." : "Due by 5:00 PM ET on the date below."}
               </p>
 
               <label htmlFor="payment-reminder-amount" className="mt-4 block text-xs font-medium text-muted">
-                Amount due
+                {reminderPastDue ? "Amount past due" : "Amount due"}
               </label>
               <div className="relative mt-1.5">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted">$</span>
@@ -386,12 +393,13 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
               </div>
 
               <label htmlFor="payment-reminder-date" className="mt-4 block text-xs font-medium text-muted">
-                Due date
+                {reminderPastDue ? "Originally due" : "Due date"}
               </label>
               <input
                 id="payment-reminder-date"
                 type="date"
-                min={getTodayDateString()}
+                min={reminderPastDue ? undefined : getTodayDateString()}
+                max={reminderPastDue ? getTodayDateString() : undefined}
                 value={reminderDate}
                 onChange={(event) => {
                   setReminderDate(event.target.value);
@@ -399,6 +407,18 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
                 }}
                 className={`${fieldClassName} mt-1.5 [color-scheme:dark]`}
               />
+              <label className="mt-3 flex items-center gap-2 text-xs text-foreground">
+                <input
+                  type="checkbox"
+                  checked={reminderPastDue}
+                  onChange={(event) => {
+                    setReminderPastDue(event.target.checked);
+                    setReminderError(null);
+                  }}
+                  className="h-4 w-4 accent-accent"
+                />
+                Past due
+              </label>
               {reminderError ? <p className="mt-2 text-xs text-red-300">{reminderError}</p> : null}
 
               <div className="mt-5 flex justify-end gap-2">
@@ -411,7 +431,11 @@ export function BetLedgerEmailActions({ entries }: BetLedgerEmailActionsProps) {
                   Cancel
                 </button>
                 <button type="submit" disabled={sending} className={primaryButtonClassName}>
-                  {sendingAction === "reminder" ? "Sending..." : "Send reminder"}
+                  {sendingAction === "reminder" || sendingAction === "pastDue"
+                    ? "Sending..."
+                    : reminderPastDue
+                      ? "Send past due notice"
+                      : "Send reminder"}
                 </button>
               </div>
             </form>
